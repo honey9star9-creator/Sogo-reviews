@@ -14,11 +14,11 @@
    SDK requires ES module imports.)
 */
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import {
-  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  signOut, onAuthStateChanged, updatePassword as fbUpdatePassword,
-  deleteApp, EmailAuthProvider, reauthenticateWithCredential
+import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { 
+  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, 
+  signOut, onAuthStateChanged, updatePassword as fbUpdatePassword, 
+  EmailAuthProvider, reauthenticateWithCredential 
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc,
