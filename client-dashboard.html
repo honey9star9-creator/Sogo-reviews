@@ -1,0 +1,1640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SOGO REVIEWS - Complete 7-in-1 Dashboard</title>
+  <!-- Font Awesome Icons & Google Fonts -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="auth.js"></script>
+  
+  <style>
+    /* 3D Duo-Tone Theme Variables */
+    :root {
+      --bg-dark: #08070c;
+      --card-gradient: linear-gradient(135deg, rgba(22, 20, 31, 0.85) 0%, rgba(14, 13, 20, 0.95) 100%);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-gold: #d9a05b;
+      --accent-gold-glow: rgba(217, 160, 91, 0.35);
+      --text-main: #ffffff;
+      --text-muted: #8b8a97;
+      --3d-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(255, 255, 255, 0.05);
+      --3d-hover-shadow: 0 18px 35px -10px rgba(217, 160, 91, 0.25), 0 0 12px rgba(217, 160, 91, 0.15);
+      --bottom-nav-height: 65px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 10% 10%, rgba(217, 160, 91, 0.06) 0%, transparent 40%),
+        radial-gradient(circle at 90% 90%, rgba(32, 26, 52, 0.3) 0%, transparent 50%);
+      color: var(--text-main);
+      display: flex;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 260px;
+      background: rgba(12, 11, 17, 0.92);
+      backdrop-filter: blur(20px);
+      border-right: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 25px 20px;
+      position: fixed;
+      height: 100vh;
+      z-index: 100;
+    }
+
+    .brand {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      margin-bottom: 35px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .brand .sogo-text {
+      color: var(--accent-gold);
+      text-shadow: 0 0 12px var(--accent-gold-glow);
+    }
+
+    .brand .reviews-text {
+      color: #ffffff;
+      letter-spacing: 2px;
+    }
+
+    .nav-links { list-style: none; }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 13px 18px;
+      margin-bottom: 8px;
+      border-radius: 12px;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .nav-item:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.04);
+      transform: translateX(4px);
+    }
+
+    .nav-item.active {
+      background: linear-gradient(90deg, rgba(217, 160, 91, 0.2) 0%, rgba(217, 160, 91, 0.03) 100%);
+      color: var(--accent-gold);
+      border-left: 3px solid var(--accent-gold);
+    }
+
+    .sidebar-footer {
+      border-top: 1px solid var(--card-border);
+      padding-top: 18px;
+    }
+
+    .user-profile-sm {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #d9a05b, #99682c);
+      color: #0c0b10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 16px;
+      box-shadow: 0 0 15px var(--accent-gold-glow);
+    }
+
+    .user-info h4 { font-size: 14px; color: #fff; font-weight: 700; }
+    .user-info p { font-size: 11px; color: var(--text-muted); }
+
+    .btn-logout {
+      width: 100%;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      color: #fff;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .btn-logout:hover {
+      background: rgba(231, 76, 60, 0.15);
+      border-color: rgba(231, 76, 60, 0.4);
+      color: #e74c3c;
+    }
+
+    /* Main Container */
+    .main-content {
+      margin-left: 260px;
+      flex: 1;
+      padding: 28px 40px;
+      max-width: 1440px;
+      padding-bottom: 40px;
+    }
+
+    .header-title {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      margin-bottom: 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-icons {
+      display: flex;
+      gap: 18px;
+      color: var(--accent-gold);
+      font-size: 18px;
+    }
+
+    .header-icons i { cursor: pointer; transition: transform 0.2s ease; }
+    .header-icons i:hover { transform: scale(1.15); }
+
+    /* View Switcher Animation */
+    .view-section { display: none; }
+    .view-section.active { display: block; animation: fadeIn 0.35s ease forwards; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 2.8fr 1.2fr;
+      gap: 25px;
+    }
+
+    /* 3D Modern Cards */
+    .card {
+      background: var(--card-gradient);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 22px;
+      margin-bottom: 22px;
+      box-shadow: var(--3d-shadow);
+      backdrop-filter: blur(12px);
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--3d-hover-shadow);
+      border-color: rgba(217, 160, 91, 0.3);
+    }
+
+    .welcome-card {
+      background: linear-gradient(135deg, rgba(28, 25, 42, 0.95) 0%, rgba(16, 15, 23, 0.98) 100%);
+    }
+
+    .balance-title {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-top: 18px;
+    }
+
+    .balance-amount {
+      font-size: 32px;
+      font-weight: 800;
+      color: #ffffff;
+      margin: 6px 0 18px 0;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+
+    .invite-box {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: var(--text-muted);
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    .btn-copy {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--card-border);
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .btn-copy:hover {
+      background: var(--accent-gold);
+      color: #000;
+      box-shadow: 0 0 12px var(--accent-gold-glow);
+    }
+
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .action-btn {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .action-btn i { font-size: 18px; color: var(--accent-gold); }
+
+    .action-btn:hover {
+      background: rgba(217, 160, 91, 0.12);
+      color: #fff;
+      border-color: rgba(217, 160, 91, 0.3);
+      transform: translateY(-2px);
+    }
+
+    /* Stats Row Grid (1 Row x 4 Columns) */
+    .stats-row-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .stat-card {
+      background: var(--card-gradient);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: var(--3d-shadow);
+      transition: all 0.3s ease;
+    }
+
+    .stat-card:hover { transform: translateY(-3px); border-color: rgba(217, 160, 91, 0.25); }
+    .stat-label { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; font-weight: 600; }
+    .stat-value { font-size: 20px; font-weight: 800; color: #fff; }
+
+    /* Your Reviews Grid */
+    .reviews-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .review-box {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 12px 8px;
+      text-align: center;
+    }
+
+    .review-status { font-size: 11px; margin-bottom: 6px; font-weight: 700; }
+    .status-submitted { color: var(--text-muted); }
+    .status-approved { color: #2ecc71; }
+    .status-pending { color: #e67e22; }
+    .status-rejected { color: #e74c3c; }
+    .status-rewrite { color: #f39c12; }
+
+    /* Membership Packages Card Inner */
+    .membership-card-inner {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 14px;
+    }
+
+    .membership-title { font-size: 15px; font-weight: 700; color: #ffffff; margin-bottom: 8px; }
+    .membership-price { font-size: 24px; font-weight: 800; color: var(--accent-gold); margin-bottom: 10px; }
+    .membership-details { font-size: 12px; color: var(--text-muted); line-height: 1.6; margin-bottom: 16px; }
+
+    /* Gold Buttons */
+    .btn-gold {
+      background: linear-gradient(135deg, #e5b373, #bd813b);
+      color: #0c0b10;
+      border: none;
+      font-weight: 800;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      box-shadow: 0 4px 15px var(--accent-gold-glow);
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 8px 25px var(--accent-gold-glow); }
+
+    .btn-outline-gold {
+      background: transparent;
+      border: 1px solid var(--accent-gold);
+      color: var(--accent-gold);
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-outline-gold:hover {
+      background: rgba(217, 160, 91, 0.1);
+      box-shadow: 0 0 12px var(--accent-gold-glow);
+    }
+
+    .btn-dark {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-dark:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Dropzone Upload */
+    .upload-box {
+      border: 2px dashed rgba(217, 160, 91, 0.3);
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 12px;
+      padding: 30px;
+      text-align: center;
+      color: var(--text-muted);
+      cursor: pointer;
+      margin: 15px 0;
+      transition: all 0.3s ease;
+    }
+
+    .upload-box:hover {
+      border-color: var(--accent-gold);
+      background: rgba(217, 160, 91, 0.05);
+    }
+
+    /* Live Earnings Auto Scroll */
+    .live-card {
+      height: 100%;
+      max-height: 680px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .live-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .live-badge {
+      font-size: 10px;
+      color: #2ecc71;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(46, 204, 113, 0.1);
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(46, 204, 113, 0.2);
+    }
+
+    .live-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: #2ecc71;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #2ecc71;
+    }
+
+    .live-scroll-container {
+      overflow: hidden;
+      flex: 1;
+      position: relative;
+    }
+
+    .live-scroll-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      animation: autoScroll 18s linear infinite;
+    }
+
+    .live-scroll-list:hover { animation-play-state: paused; }
+
+    .live-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .live-user { font-size: 13px; font-weight: 700; color: #fff; }
+    .live-date { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+    .live-amount { color: var(--accent-gold); font-weight: 800; font-size: 14px; text-shadow: 0 0 10px var(--accent-gold-glow); }
+
+    @keyframes autoScroll {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-50%); }
+    }
+
+    /* Form Fields */
+    .input-group { display: flex; gap: 12px; margin-top: 12px; }
+
+    .input-field {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: #fff;
+      font-size: 13px;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .input-field:focus { border-color: var(--accent-gold); box-shadow: 0 0 10px rgba(217, 160, 91, 0.15); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .form-group { display: flex; flex-direction: column; gap: 8px; position: relative; }
+    .form-group label { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+
+    .input-icon-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-icon-wrapper .input-field { padding-right: 40px; }
+    .input-icon-wrapper i {
+      position: absolute;
+      right: 14px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    /* Filter Tabs for Reviews */
+    .filter-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .filter-btn:hover, .filter-btn.active {
+      background: rgba(217, 160, 91, 0.15);
+      border-color: var(--accent-gold);
+      color: #fff;
+    }
+
+    /* Warning Notice Box */
+    .warning-box {
+      background: rgba(217, 160, 91, 0.08);
+      border: 1px solid rgba(217, 160, 91, 0.25);
+      border-radius: 10px;
+      padding: 14px 18px;
+      color: #e5b373;
+      font-size: 12px;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    /* Tables */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 12px;
+    }
+
+    .data-table th {
+      padding: 14px;
+      color: var(--text-muted);
+      font-weight: 700;
+      border-bottom: 1px solid var(--card-border);
+      letter-spacing: 0.5px;
+    }
+
+    .data-table td {
+      padding: 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .floating-chat {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 55px;
+      height: 55px;
+      background: linear-gradient(135deg, #d9a05b, #b57a35);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #0c0b10;
+      font-size: 22px;
+      box-shadow: 0 10px 25px var(--accent-gold-glow);
+      cursor: pointer;
+      z-index: 99;
+    }
+
+    /* Mobile Bottom Navigation Bar */
+    .mobile-bottom-nav {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: var(--bottom-nav-height);
+      background: rgba(10, 9, 14, 0.96);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid var(--card-border);
+      z-index: 1000;
+      justify-content: space-around;
+      align-items: center;
+      padding: 0 5px;
+      box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.8);
+    }
+
+    .bottom-nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      text-decoration: none;
+      flex: 1;
+      height: 100%;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .bottom-nav-item i { font-size: 18px; transition: transform 0.2s ease, color 0.2s ease; }
+    .bottom-nav-item.active { color: var(--accent-gold); }
+    .bottom-nav-item.active i { transform: translateY(-2px); text-shadow: 0 0 10px var(--accent-gold-glow); }
+
+    /* Responsive Adjustments */
+    @media (max-width: 992px) {
+      .sidebar { display: none; }
+      
+      .main-content {
+        margin-left: 0;
+        padding: 16px;
+        padding-bottom: calc(var(--bottom-nav-height) + 30px);
+      }
+
+      .dashboard-grid { grid-template-columns: 1fr; gap: 15px; }
+      .stats-row-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+      .form-row { grid-template-columns: 1fr; }
+      .reviews-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+      .card { padding: 16px; margin-bottom: 16px; border-radius: 14px; }
+
+      .floating-chat {
+        bottom: calc(var(--bottom-nav-height) + 15px);
+        right: 15px;
+        width: 48px;
+        height: 48px;
+        font-size: 18px;
+      }
+
+      .mobile-bottom-nav { display: flex; }
+    }
+
+    @media (max-width: 480px) {
+      .reviews-grid { grid-template-columns: repeat(2, 1fr); }
+      .quick-actions { gap: 8px; }
+      .action-btn { padding: 12px 6px; font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+  <script>
+    // Auth guard: only logged-in clients may view this page.
+    var currentSession = SogoAuth.requireRole('client');
+  </script>
+
+  <!-- Desktop Sidebar Navigation -->
+  <aside class="sidebar">
+    <div>
+      <div class="brand">
+        <span class="sogo-text">SOGO</span>
+        <span class="reviews-text">REVIEWS</span>
+      </div>
+      <ul class="nav-links">
+        <li class="nav-item active" onclick="switchTab('dashboard', this)"><i class="fa-solid fa-table-cells-large"></i> Dashboard</li>
+        <li class="nav-item" onclick="switchTab('packages', this)"><i class="fa-solid fa-box"></i> Packages</li>
+        <li class="nav-item" onclick="switchTab('mypackages', this)"><i class="fa-solid fa-cubes"></i> My Packages</li>
+        <li class="nav-item" onclick="switchTab('reviews', this)"><i class="fa-solid fa-star"></i> Reviews</li>
+        <li class="nav-item" onclick="switchTab('withdraw', this)"><i class="fa-solid fa-wallet"></i> Withdraw</li>
+        <li class="nav-item" onclick="switchTab('chat', this)"><i class="fa-solid fa-message"></i> Chat</li>
+        <li class="nav-item" onclick="switchTab('profile', this)"><i class="fa-solid fa-gear"></i> Profile Settings</li>
+      </ul>
+    </div>
+    <div class="sidebar-footer">
+      <div class="user-profile-sm">
+        <div class="avatar" id="sidebarAvatar">U</div>
+        <div class="user-info">
+          <h4 id="sidebarUserName">User</h4>
+          <p>User</p>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="SogoAuth.logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+    </div>
+  </aside>
+
+  <!-- Main View Container -->
+  <main class="main-content">
+    <div class="header-title">
+      <span id="pageTitle">HOME</span>
+      <div class="header-icons">
+        <i class="fa-regular fa-bell"></i>
+        <i class="fa-solid fa-right-from-bracket" onclick="SogoAuth.logout()"></i>
+      </div>
+    </div>
+
+    <!-- 1. DASHBOARD VIEW (FIT OLD CODE) -->
+    <div id="tab-dashboard" class="view-section active">
+      <div class="dashboard-grid">
+        <div class="left-col">
+          <!-- Top Balance Card -->
+          <div class="card welcome-card">
+            <div class="user-profile-sm">
+              <div class="avatar" id="dashAvatar">U</div>
+              <div>
+                <h3 id="dashUserName">USER</h3>
+                <p style="font-size: 11px; color: var(--text-muted);" id="dashUserEmail">-</p>
+              </div>
+            </div>
+            <div class="balance-title">AVAILABLE BALANCE</div>
+            <div class="balance-amount" id="dashBalance">USD 0.00</div>
+            <div class="invite-box">
+              <span id="dashInviteCode">Invitation -</span>
+              <button class="btn-copy" id="dashCopyBtn">Copy</button>
+            </div>
+            <div class="quick-actions">
+              <div class="action-btn" onclick="openView('chat')"><i class="fa-solid fa-message"></i> Chat</div>
+              <div class="action-btn" onclick="openView('packages')"><i class="fa-solid fa-box"></i> Packages</div>
+              <div class="action-btn" onclick="openView('dashboard')"><i class="fa-solid fa-gift"></i> Invite</div>
+              <div class="action-btn" onclick="openView('withdraw')"><i class="fa-solid fa-wallet"></i> Withdraw</div>
+            </div>
+          </div>
+
+          <!-- Stats Row Grid (1 Row x 4 Columns) -->
+          <div class="stats-row-grid">
+            <div class="stat-card"><div class="stat-label">Today's earnings</div><div class="stat-value">$0.00</div></div>
+            <div class="stat-card"><div class="stat-label">Today's commission</div><div class="stat-value">$0.00</div></div>
+            <div class="stat-card"><div class="stat-label">Total earnings</div><div class="stat-value">$0.00</div></div>
+            <div class="stat-card"><div class="stat-label">Referrals</div><div class="stat-value">0</div></div>
+          </div>
+
+          <!-- Your Reviews Card -->
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+              <span style="font-weight: 700; font-size: 14px;">Your Reviews</span>
+              <span style="color: var(--text-muted); font-size: 12px; cursor: pointer;" onclick="openView('reviews')">View all</span>
+            </div>
+            <div class="reviews-grid">
+              <div class="review-box"><div class="review-status status-submitted">Submitted</div><div class="stat-value">0</div></div>
+              <div class="review-box"><div class="review-status status-approved">Approved</div><div class="stat-value" style="color: #2ecc71;">0</div></div>
+              <div class="review-box"><div class="review-status status-pending">Pending</div><div class="stat-value" style="color: #e67e22;">0</div></div>
+              <div class="review-box"><div class="review-status status-rejected">Rejected</div><div class="stat-value" style="color: #e74c3c;">0</div></div>
+              <div class="review-box"><div class="review-status status-rewrite">Rewrite</div><div class="stat-value" style="color: #f39c12;">0</div></div>
+            </div>
+          </div>
+
+          <!-- Invite & Earn Card -->
+          <div class="card">
+            <div style="font-weight: 700; font-size: 14px;">Invite & earn</div>
+            <p style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Share your code or link — anyone who signs up through it is tracked to you.</p>
+            <div class="input-group"><input type="text" class="input-field" id="inviteCodeField" value="" readonly><button class="btn-copy" id="inviteCodeCopyBtn">Copy</button></div>
+            <div class="input-group"><input type="text" class="input-field" id="inviteLinkField" value="" readonly><button class="btn-copy" id="inviteLinkCopyBtn">Copy</button></div>
+          </div>
+
+          <!-- Membership Packages Card -->
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 700; font-size: 14px;">Membership Packages</span>
+              <span style="color: var(--text-muted); font-size: 12px; cursor: pointer;" onclick="openView('packages')">View all</span>
+            </div>
+            <div class="membership-card-inner">
+              <div class="membership-title">Jo Malone London Timeless British Fragrance</div>
+              <div class="membership-price">$100</div>
+              <div class="membership-details">
+                20 products to review<br>
+                Earn $2000.00 in commission
+              </div>
+              <button class="btn-gold" onclick="openView('packages')">JOIN NOW</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side Live Earnings Widget -->
+        <div class="right-col">
+          <div class="card live-card">
+            <div class="live-header">
+              <span style="font-weight: 700; font-size: 14px;">Live Earnings</span>
+              <span class="live-badge">LIVE</span>
+            </div>
+            <div class="live-scroll-container">
+              <div class="live-scroll-list" id="liveEarningsList"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. PACKAGES VIEW (FIT OLD CODE - IMAGE 1) -->
+    <div id="tab-packages" class="view-section">
+      <div class="card" style="max-width: 600px;">
+        <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 12px;">Jo Malone London Timeless British Fragrance</h3>
+        <p style="font-size: 12px; color: var(--text-muted); line-height: 1.6; margin-bottom: 20px;">
+          Jo Malone London is a renowned British fragrance brand celebrated for its elegant, sophisticated, and distinctive scents, offering a beautiful collection of perfumes featuring fresh citrus, delicate florals, warm woods, and rich aromatic notes. With its signature minimalist luxury and carefully crafted fragrance compositions, Jo Malone London has become a favorite among fragrance lovers seeking timeless elegance and exceptional quality. Explore the brand's collection, discover your favorite fragrance, and share your honest experience to help others find a scent they'll love.
+        </p>
+        <div style="font-size: 28px; font-weight: 800; color: #ffffff; margin-bottom: 15px;">$100</div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 22px; line-height: 1.8;">
+          <i class="fa-solid fa-box" style="color: var(--accent-gold);"></i> 20 products to review<br>
+          <i class="fa-solid fa-wallet" style="color: var(--accent-gold);"></i> Earn $2000.00 in commission
+        </p>
+        <button class="btn-gold" style="width: 100%; border-radius: 8px; padding: 12px;" onclick="openView('packagereviews')">Select package</button>
+      </div>
+    </div>
+
+    <!-- 2-ALT. PACKAGE REVIEWS VIEW (FIT OLD CODE - IMAGE 2) -->
+    <div id="tab-packagereviews" class="view-section">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h3 style="font-size: 16px; font-weight: 700;">Jo Malone London Timeless British Fragrance</h3>
+          <span style="font-size: 10px; background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 4px; color: var(--text-muted);">Pending Payment</span>
+        </div>
+        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 15px;">0 of 20 products reviewed (0%)</p>
+        
+        <div class="stats-row-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 20px;">
+          <div class="stat-card">
+            <div class="stat-label">Commission</div>
+            <div class="stat-value" style="font-size: 16px;">$0.00</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Price</div>
+            <div class="stat-value" style="font-size: 16px; color: var(--accent-gold);">$100</div>
+          </div>
+        </div>
+
+        <h4 style="font-size: 13px; font-weight: 700;">Activate this package</h4>
+        <p style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Pay $100 and upload a screenshot. Support will verify and activate your package.</p>
+        
+        <div class="upload-box">
+          <i class="fa-solid fa-cloud-arrow-up" style="font-size: 24px; color: var(--accent-gold); margin-bottom: 8px;"></i>
+          <div style="font-size: 12px; font-weight: 700; color: #fff;">CHOOSE PAYMENT SCREENSHOT</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">PNG, JPG or WEBP</div>
+        </div>
+        <button class="btn-gold" style="border-radius: 6px; padding: 10px 20px;">Upload payment screenshot</button>
+      </div>
+
+      <h4 style="font-size: 14px; margin-bottom: 15px;">Products in this package</h4>
+      <div id="packageProductsList"></div>
+    </div>
+
+    <!-- 3. MY PACKAGES VIEW (FIT OLD CODE - IMAGE 3) -->
+    <div id="tab-mypackages" class="view-section">
+      <div class="dashboard-grid" style="grid-template-columns: 2fr 1fr 1fr; margin-bottom: 22px;">
+        <div class="card" style="margin-bottom: 0;">
+          <span style="font-size: 11px; color: var(--text-muted); font-weight: 700;">CURRENT BALANCE</span>
+          <h2 style="font-size: 32px; font-weight: 800; color: #fff; margin: 6px 0;" id="myPkgBalance">$0.00</h2>
+          <span style="font-size: 11px; color: var(--text-muted);">Total earned: $0.00</span>
+        </div>
+        <div class="card" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: center;">
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">Ready to cash out? Withdraw your earnings anytime.</p>
+          <button class="btn-gold" style="width: 100%; border-radius: 8px; text-align: center;" onclick="openView('withdraw')">WITHDRAW</button>
+        </div>
+        <div class="card" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: center;">
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">Need funds added to your balance? Request a top-up.</p>
+          <button class="btn-dark" style="width: 100%; border-radius: 8px; text-align: center;" onclick="openTopupPrompt()">REQUEST TOP-UP</button>
+        </div>
+      </div>
+
+      <div class="card" id="myTopupsCard" style="display:none;">
+        <h4 style="font-size: 14px; margin-bottom: 10px;">My Top-up Requests</h4>
+        <div id="myTopupsList"></div>
+      </div>
+
+      <div class="card">
+        <h4 style="font-size: 14px; margin-bottom: 10px;">My Packages</h4>
+        <p style="font-size: 12px; color: var(--text-muted);">You have not selected a package yet. Browse packages to get started.</p>
+      </div>
+
+      <div class="card">
+        <h4 style="font-size: 14px; margin-bottom: 15px;">Transaction History</h4>
+        <div style="overflow-x: auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>TYPE</th>
+                <th>DETAILS</th>
+                <th>AMOUNT</th>
+                <th>DATE</th>
+              </tr>
+            </thead>
+            <tbody id="transactionHistoryBody">
+              <tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:20px;">Loading...</td></tr>
+            </tbody>
+          </table>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 12px;" id="transactionHistoryCount"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. REVIEWS VIEW (EXACT IMAGE A) -->
+    <div id="tab-reviews" class="view-section">
+      <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 15px;">Packages to review</h4>
+      
+      <div class="card" style="margin-bottom: 25px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+          <div>
+            <h3 style="font-size: 15px; font-weight: 700;">Jo Malone London Timeless British Fragrance</h3>
+            <div style="font-size: 13px; font-weight: 700; color: #fff; margin-top: 4px;">$100</div>
+          </div>
+          <span style="font-size: 11px; background: rgba(217, 160, 91, 0.12); color: var(--accent-gold); padding: 5px 12px; border-radius: 6px; font-weight: 700; border: 1px solid rgba(217, 160, 91, 0.2);">Pending Payment</span>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 18px;">0/20 reviewed · 0%</div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <button class="btn-gold" onclick="openView('packagereviews')">Open package <i class="fa-solid fa-arrow-right"></i></button>
+          <button class="btn-outline-gold" onclick="openView('packagereviews')">View its reviews</button>
+        </div>
+      </div>
+
+      <div class="filter-tabs">
+        <button class="filter-btn active">All (0)</button>
+        <button class="filter-btn">Approved (0)</button>
+        <button class="filter-btn">Pending (0)</button>
+        <button class="filter-btn">Rejected (0)</button>
+        <button class="filter-btn">Rewrite (0)</button>
+      </div>
+
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <div style="overflow-x: auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>PRODUCT</th>
+                <th>PACKAGE</th>
+                <th>RATING</th>
+                <th>STATUS</th>
+                <th>COMMISSION</th>
+                <th>SUBMITTED</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 45px;">No reviews found.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. WITHDRAW VIEW (EXACT IMAGE B) -->
+    <div id="tab-withdraw" class="view-section">
+      <div class="card">
+        <div style="font-size: 11px; color: var(--text-muted); font-weight: 700; letter-spacing: 0.5px;">AVAILABLE TO WITHDRAW</div>
+        <h2 style="font-size: 32px; font-weight: 800; color: #fff; margin: 6px 0;" id="withdrawBalance">USD 0.00</h2>
+        <div style="font-size: 11px; color: var(--text-muted);" id="withdrawBalanceSub">Total balance: $0.00 · Locked: $0.00</div>
+      </div>
+
+      <div class="warning-box">
+        <div style="font-weight: 700; margin-bottom: 4px;">Withdrawal eligibility</div>
+        <p style="margin-bottom: 6px;">Package deposits stay locked until your reviews are completed and support releases them. You can only withdraw approved commission that is not locked.</p>
+        <p style="font-weight: 700; color: var(--accent-gold);">You still have an active or pending package. Finish remaining reviews — locked deposits cannot be withdrawn yet.</p>
+      </div>
+
+      <div class="dashboard-grid">
+        <div class="card">
+          <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 4px;">Bank Details</h4>
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 18px;">Where you'd like to receive your withdrawals.</p>
+          
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label>Bank name</label>
+            <input type="text" class="input-field" id="bankName" placeholder="e.g. HBL">
+          </div>
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label>Account holder name</label>
+            <input type="text" class="input-field" id="bankAccountHolder" placeholder="Full name on account">
+          </div>
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label>Account number / IBAN</label>
+            <input type="text" class="input-field" id="bankAccountNumber" placeholder="Account number">
+          </div>
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label>Bank address</label>
+            <input type="text" class="input-field" id="bankAddress" placeholder="Branch / bank address">
+          </div>
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label>Other information</label>
+            <input type="text" class="input-field" id="bankOtherInfo" placeholder="Swift code, notes...">
+          </div>
+          <button class="btn-gold" onclick="saveBankDetails()">Save bank details</button>
+          <p id="bankSavedMsg" style="font-size: 11px; color: #2ecc71; margin-top: 8px; display:none;">Bank details saved.</p>
+        </div>
+
+        <div class="card">
+          <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 4px;">Request a Withdrawal</h4>
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 18px;">Funds are sent after support approval.</p>
+
+          <div class="warning-box" id="withdrawLockedNotice" style="margin-bottom: 20px; font-size: 11px; padding: 12px;">
+            Please save your payment account details first (left). The amount field will unlock once they're saved.
+          </div>
+          <div id="withdrawFormFields" style="display:none;">
+            <div class="form-group" style="margin-bottom: 14px;">
+              <label>Amount (USD)</label>
+              <input type="number" class="input-field" id="withdrawAmount" placeholder="e.g. 50">
+            </div>
+            <p id="withdrawMsg" style="font-size: 11px; margin-bottom: 10px; display:none;"></p>
+            <button class="btn-gold" style="width: 100%;" onclick="submitWithdrawal()">Request Withdrawal</button>
+          </div>
+          <button class="btn-dark" id="withdrawLockedBtn" style="width: 100%; opacity: 0.6; cursor: not-allowed;" disabled>Save payment details first</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 18px;">Withdrawal History</h4>
+        <div id="myWithdrawalsList" style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 30px 0;">
+          No withdrawals yet.
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. CHAT VIEW (EXACT IMAGE C) -->
+    <div id="tab-chat" class="view-section">
+      <div class="card" style="min-height: 520px; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid var(--card-border);">
+            <div class="avatar" style="width: 36px; height: 36px; font-size: 14px;">O</div>
+            <div>
+              <div style="font-size: 13px; font-weight: 800; color: #fff;">LIVE SUPPORT</div>
+              <div style="font-size: 10px; color: #2ecc71; font-weight: 700;">● ONLINE · 24/7</div>
+            </div>
+          </div>
+
+          <div id="chatMessages" style="display:flex; flex-direction:column; gap:12px; max-height: 320px; overflow-y:auto; margin-bottom: 15px;">
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; align-items: center; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--card-border); padding: 8px 12px; border-radius: 30px;">
+          <button style="background: transparent; border: none; color: var(--text-muted); font-size: 18px; padding: 0 10px; cursor: pointer;">
+            <i class="fa-solid fa-paperclip"></i>
+          </button>
+          <input type="text" class="input-field" id="chatInput" placeholder="Type a message..." style="border: none; background: transparent; padding: 8px 0;" onkeydown="if(event.key==='Enter'){sendClientChat();}">
+          <button class="btn-gold" style="border-radius: 20px; padding: 8px 22px;" onclick="sendClientChat()">SEND</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. PROFILE SETTINGS VIEW (EXACT IMAGE D) -->
+    <div id="tab-profile" class="view-section">
+      <div class="card">
+        <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 15px;">Profile picture</h4>
+        <div style="display: flex; align-items: center; gap: 18px;">
+          <div class="avatar" style="width: 50px; height: 50px; font-size: 20px;" id="profileAvatar">U</div>
+          <button class="btn-dark" style="display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-image" style="color: var(--accent-gold);"></i> CHOOSE PHOTO
+            <span style="font-size: 10px; color: var(--text-muted); font-weight: 400; margin-left: 6px;">JPG, PNG, WEBP or GIF - max 5 MB</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 18px;">Profile details</h4>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Full name</label>
+            <input type="text" class="input-field" id="profileNameInput">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="text" class="input-field" id="profileEmailInput" readonly>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="text" class="input-field" id="profilePhoneInput" placeholder="e.g. +91 300 1234567">
+          </div>
+          <div class="form-group">
+            <label>Address</label>
+            <input type="text" class="input-field" id="profileAddressInput" placeholder="Your address">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label>Bio</label>
+          <textarea class="input-field" rows="3" id="profileBioInput" placeholder="A few words about you" style="resize: none;"></textarea>
+        </div>
+        <button class="btn-gold" onclick="saveProfileDetails()">Save changes</button>
+        <p id="profileSavedMsg" style="font-size: 11px; color: #2ecc71; margin-top: 8px; display:none;">Saved.</p>
+      </div>
+
+      <div class="card">
+        <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 4px;">Change password</h4>
+        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 18px;">Enter your current password, then choose a new one.</p>
+        
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label>Current password</label>
+          <div class="input-icon-wrapper">
+            <input type="password" class="input-field" id="currPass">
+            <i class="fa-regular fa-eye" onclick="togglePassword('currPass', this)"></i>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label>New password</label>
+          <div class="input-icon-wrapper">
+            <input type="password" class="input-field" placeholder="At least 6 characters" id="newPass">
+            <i class="fa-regular fa-eye" onclick="togglePassword('newPass', this)"></i>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label>Confirm new password</label>
+          <div class="input-icon-wrapper">
+            <input type="password" class="input-field" id="confPass">
+            <i class="fa-regular fa-eye" onclick="togglePassword('confPass', this)"></i>
+          </div>
+        </div>
+        <p id="passChangeMsg" style="font-size: 11px; margin-bottom: 10px; display:none;"></p>
+        <button class="btn-gold" onclick="changeClientPassword()">Change password</button>
+      </div>
+
+      <div class="card">
+        <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 4px;">Log out everywhere</h4>
+        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 18px;">Sign out of this account on every device.</p>
+        <button class="btn-dark" onclick="SogoAuth.logout()">Log out all devices</button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Floating Live Chat Button -->
+  <div class="floating-chat" onclick="openView('chat')">
+    <i class="fa-solid fa-message"></i>
+  </div>
+
+  <!-- Mobile Bottom Navigation Bar -->
+  <nav class="mobile-bottom-nav">
+    <div class="bottom-nav-item active" onclick="switchTab('dashboard', this)">
+      <i class="fa-solid fa-border-all"></i>
+      <span>HOME</span>
+    </div>
+    <div class="bottom-nav-item" onclick="switchTab('packages', this)">
+      <i class="fa-solid fa-box"></i>
+      <span>PACKAGES</span>
+    </div>
+    <div class="bottom-nav-item" onclick="switchTab('reviews', this)">
+      <i class="fa-solid fa-star"></i>
+      <span>REVIEWS</span>
+    </div>
+    <div class="bottom-nav-item" onclick="switchTab('chat', this)">
+      <i class="fa-solid fa-message"></i>
+      <span>CHAT</span>
+    </div>
+    <div class="bottom-nav-item" onclick="switchTab('profile', this)">
+      <i class="fa-solid fa-gear"></i>
+      <span>PROFILE</span>
+    </div>
+  </nav>
+  <!-- Operational JavaScript -->
+  <script>
+    function switchTab(tabId, element) {
+      // Hide all sections
+      document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+      
+      // Remove active class from all sidebar and mobile nav items
+      document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+      document.querySelectorAll('.bottom-nav-item').forEach(item => item.classList.remove('active'));
+      
+      // Activate selected tab section
+      const targetTab = document.getElementById('tab-' + tabId);
+      if (targetTab) targetTab.classList.add('active');
+
+      // Strict mapping to avoid double-highlighting "packages" vs "mypackages"
+      const sidebarItems = document.querySelectorAll('.sidebar .nav-item');
+      const tabMap = {
+        'dashboard': 0,
+        'packages': 1,
+        'packagereviews': 1, // Opens under Packages tab
+        'mypackages': 2,
+        'reviews': 3,
+        'withdraw': 4,
+        'chat': 5,
+        'profile': 6
+      };
+
+      if (tabMap[tabId] !== undefined && sidebarItems[tabMap[tabId]]) {
+        sidebarItems[tabMap[tabId]].classList.add('active');
+      }
+
+      // Mobile Bottom Nav Highlight mapping
+      const mobileNavItems = document.querySelectorAll('.bottom-nav-item');
+      const mobileMap = {
+        'dashboard': 0,
+        'packages': 1,
+        'packagereviews': 1,
+        'reviews': 2,
+        'chat': 3,
+        'profile': 4
+      };
+
+      if (mobileMap[tabId] !== undefined && mobileNavItems[mobileMap[tabId]]) {
+        mobileNavItems[mobileMap[tabId]].classList.add('active');
+      }
+
+      // Update Page Header Title
+      let titleText = tabId.toUpperCase().replace('MYPACKAGES', 'MY PACKAGES').replace('PACKAGEREVIEWS', 'PACKAGE REVIEWS');
+      document.getElementById('pageTitle').innerText = tabId === 'dashboard' ? 'HOME' : titleText;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function openView(tabId) {
+      switchTab(tabId);
+    }
+
+    function togglePassword(inputId, icon) {
+      const input = document.getElementById(inputId);
+      if (input.type === "password") {
+        input.type = "text";
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+      } else {
+        input.type = "password";
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+      }
+    }
+
+    // Dynamic Recent Date Generator
+    function getRecentDate(daysAgo = 0) {
+      const date = new Date();
+      date.setDate(date.getDate() - daysAgo);
+      const dd = String(date.getDate()).padStart(2, '0');
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    }
+
+    // Live Earnings Auto-scroll Renderer
+    const users = ['Mat***', 'Adi***', 'Har***', 'Rya***', 'Mad***', 'Emm***', 'Fel***', 'Div***', 'Ish***', 'Rah***', 'Chi***'];
+    const amounts = ['+$7000', '+$18000', '+$30000', '+$12000', '+$25000', '+$18000', '+$1200', '+$12000', '+$35000', '+$15000'];
+    const liveList = document.getElementById('liveEarningsList');
+
+    if(liveList) {
+      let itemsHTML = '';
+      for (let i = 0; i < 20; i++) {
+        const user = users[i % users.length];
+        const amount = amounts[i % amounts.length];
+        const date = getRecentDate(i % 3);
+
+        itemsHTML += `
+          <div class="live-item">
+            <div>
+              <div class="live-user">${user}</div>
+              <div class="live-date">${date}</div>
+            </div>
+            <div class="live-amount">${amount}</div>
+          </div>
+        `;
+      }
+      liveList.innerHTML = itemsHTML + itemsHTML;
+    }
+
+// Package Reviews Products Renderer with Real Images & Original UI
+    const packageProductsList = document.getElementById('packageProductsList');
+
+    // Folder where your images are stored
+    const imageFolderPath = 'assets/client/';
+
+    // Original Site Data Structure
+    const productsData = [
+      { name: 'Wood Sage & Sea Salt', commission: '$100.00', img: 'cmtiz26mq0001l8043yxii0gx' },
+      { name: 'Sea Salt & Bergamot', commission: '$100.00', img: 'cmtiz26mr0002l8040sfksrky' },
+      { name: 'Sea Salt Fresh Scent', commission: '$100.00', img: 'cmtiz26mr0003l804jgdlyygb' },
+      { name: 'Sea Salt & Bergamot II', commission: '$100.00', img: 'cmtiz26mr0004l804sto1lydf' },
+      { name: 'Cypress & Grapevine Cologne', commission: '$120.00', img: 'cmtiz26mr0005l804xpvu2132' },
+      { name: 'Cypress & Grapevine Cologne Intense', commission: '$120.00', img: 'cmtiz26mr0006l804h3844omc' },
+      { name: 'Car Diffuser and Scented refill', commission: '$120.00', img: 'cmtiz26mr0007l804c099hjnj' },
+      { name: 'Cypress & Grapevine II', commission: '$120.00', img: 'cmtiz26mr0008l804rebqpc6u' },
+      { name: 'Lavender & White Cedar Linen Spray', commission: '$140.00', img: 'cmtiz26mr0009l80495phl9lp' },
+      { name: 'English Orchard with English Pear', commission: '$140.00', img: 'cmtiz26mr000al804ps9pdw7w' },
+      { name: 'Amber Labdanum Cologne Intense', commission: '$140.00', img: 'cmtiz26mr000bl804mrqyy3uk' },
+      { name: 'English Pear & Sweet Pea and English Oak & Hazelnut', commission: '$140.00', img: 'cmtiz26mr000cl804ii3dt49m' },
+      { name: 'English Pear & Freesia or Garden Fresh English Pear & Sweet Pea', commission: '$160.00', img: 'cmtiz26ms000dl804vu1ntb7m' },
+      { name: 'Cypress & Grapevine', commission: '$160.00', img: 'cmtiz26ms000el804bxrg4uxg' },
+      { name: 'Amber Labdanum Cologne Intense', commission: '$120.00', img: 'cmtiz26ms000fl8040t5ja65z' },
+      { name: 'English orchard', commission: '$160.00', img: 'cmtiz26ms000gl804m54fe2ry' },
+      { name: 'New Recyclable tubes', commission: '$160.00', img: 'cmtiz26ms000hl804dniao3pb' },
+      { name: 'English lavender and cedarwood', commission: '$160.00', img: 'cmtiz26ms000il804eoc156re' },
+      { name: 'Orange Bitters', commission: '$160.00', img: 'cmtiz26ms000jl8048bs5tjwo' },
+      { name: 'Nutmeg & Ginger', commission: '$160.00', img: 'cmtiz26ms000kl804dzxq6p33' }
+    ];
+
+    if (packageProductsList) {
+      let prodHTML = '';
+      productsData.forEach((prod, index) => {
+        // Checking if extension needed (.jpg / .png or no extension)
+        const imgSrc = `${imageFolderPath}${prod.img}`;
+
+        prodHTML += `
+          <div class="card" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; background: var(--card-gradient); border-radius: 14px;">
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <img src="${imgSrc}" alt="${prod.name}" 
+                   onerror="this.onerror=null; this.src='${imgSrc}.jpg';" 
+                   style="width: 52px; height: 52px; border-radius: 10px; object-fit: cover; border: 1px solid var(--card-border); background: #16141f;" />
+              <div>
+                <div style="font-size: 14px; font-weight: 700; color: #ffffff;">${index + 1}. ${prod.name}</div>
+                <div style="font-size: 12px; color: var(--accent-gold); font-weight: 600; margin-top: 4px;">Commission ${prod.commission}</div>
+              </div>
+            </div>
+            <span style="font-size: 11px; color: var(--accent-gold); font-weight: 600; opacity: 0.85;">Locked</span>
+          </div>
+        `;
+      });
+      packageProductsList.innerHTML = prodHTML;
+    }
+
+    /* ================= REAL DATA INTEGRATION ================= */
+
+    function escapeHtmlC(str) {
+      const div = document.createElement('div');
+      div.textContent = str || '';
+      return div.innerHTML;
+    }
+
+    function getCurrentUser() {
+      if (!currentSession) return null;
+      return SogoAuth.getUsers().find(u => u.email.toLowerCase() === currentSession.email.toLowerCase());
+    }
+
+    function loadUserData() {
+      const user = getCurrentUser();
+      if (!user) return;
+
+      const displayName = user.name || 'User';
+      const initial = displayName.charAt(0).toUpperCase();
+      const balance = (user.balance || 0).toFixed(2);
+      const inviteCode = user.myInviteCode || '—';
+
+      document.getElementById('sidebarUserName').textContent = displayName;
+      document.getElementById('sidebarAvatar').textContent = initial;
+      document.getElementById('dashUserName').textContent = displayName.toUpperCase();
+      document.getElementById('dashUserEmail').textContent = user.email || '';
+      document.getElementById('dashAvatar').textContent = initial;
+      document.getElementById('dashBalance').textContent = 'USD ' + balance;
+      document.getElementById('dashInviteCode').textContent = 'Invitation ' + inviteCode;
+
+      const inviteCodeField = document.getElementById('inviteCodeField');
+      const inviteLinkField = document.getElementById('inviteLinkField');
+      if (inviteCodeField) inviteCodeField.value = inviteCode;
+      if (inviteLinkField) inviteLinkField.value = 'https://sogoreview.online/register?ref=' + inviteCode;
+
+      const dashCopyBtn = document.getElementById('dashCopyBtn');
+      if (dashCopyBtn) dashCopyBtn.onclick = () => navigator.clipboard.writeText(inviteCode);
+      const inviteCodeCopyBtn = document.getElementById('inviteCodeCopyBtn');
+      if (inviteCodeCopyBtn) inviteCodeCopyBtn.onclick = () => navigator.clipboard.writeText(inviteCode);
+      const inviteLinkCopyBtn = document.getElementById('inviteLinkCopyBtn');
+      if (inviteLinkCopyBtn) inviteLinkCopyBtn.onclick = () => navigator.clipboard.writeText(inviteLinkField.value);
+
+      const myPkgBalance = document.getElementById('myPkgBalance');
+      if (myPkgBalance) myPkgBalance.textContent = '$' + balance;
+
+      const withdrawBalance = document.getElementById('withdrawBalance');
+      const withdrawBalanceSub = document.getElementById('withdrawBalanceSub');
+      if (withdrawBalance) withdrawBalance.textContent = 'USD ' + balance;
+      if (withdrawBalanceSub) withdrawBalanceSub.textContent = 'Total balance: $' + balance + ' · Locked: $0.00';
+
+      // Profile
+      const nameInput = document.getElementById('profileNameInput');
+      const emailInput = document.getElementById('profileEmailInput');
+      const phoneInput = document.getElementById('profilePhoneInput');
+      const addressInput = document.getElementById('profileAddressInput');
+      const bioInput = document.getElementById('profileBioInput');
+      const profileAvatar = document.getElementById('profileAvatar');
+      if (nameInput) nameInput.value = displayName;
+      if (emailInput) emailInput.value = user.email || '';
+      if (phoneInput) phoneInput.value = user.phone || '';
+      if (addressInput) addressInput.value = user.address || '';
+      if (bioInput) bioInput.value = user.bio || '';
+      if (profileAvatar) profileAvatar.textContent = initial;
+
+      // Bank details
+      const bank = user.bankDetails || {};
+      const bankName = document.getElementById('bankName');
+      const bankAccountHolder = document.getElementById('bankAccountHolder');
+      const bankAccountNumber = document.getElementById('bankAccountNumber');
+      const bankAddress = document.getElementById('bankAddress');
+      const bankOtherInfo = document.getElementById('bankOtherInfo');
+      if (bankName) bankName.value = bank.name || '';
+      if (bankAccountHolder) bankAccountHolder.value = bank.holder || '';
+      if (bankAccountNumber) bankAccountNumber.value = bank.number || '';
+      if (bankAddress) bankAddress.value = bank.address || '';
+      if (bankOtherInfo) bankOtherInfo.value = bank.other || '';
+
+      const withdrawLockedNotice = document.getElementById('withdrawLockedNotice');
+      const withdrawLockedBtn = document.getElementById('withdrawLockedBtn');
+      const withdrawFormFields = document.getElementById('withdrawFormFields');
+      const bankSaved = !!(bank.name && bank.holder && bank.number);
+      if (withdrawLockedNotice) withdrawLockedNotice.style.display = bankSaved ? 'none' : 'block';
+      if (withdrawLockedBtn) withdrawLockedBtn.style.display = bankSaved ? 'none' : 'block';
+      if (withdrawFormFields) withdrawFormFields.style.display = bankSaved ? 'block' : 'none';
+    }
+
+    function saveBankDetails() {
+      const user = getCurrentUser();
+      if (!user) return;
+      const bankDetails = {
+        name: document.getElementById('bankName').value.trim(),
+        holder: document.getElementById('bankAccountHolder').value.trim(),
+        number: document.getElementById('bankAccountNumber').value.trim(),
+        address: document.getElementById('bankAddress').value.trim(),
+        other: document.getElementById('bankOtherInfo').value.trim()
+      };
+      SogoAuth.updateUser(user.email, { bankDetails });
+      document.getElementById('bankSavedMsg').style.display = 'block';
+      loadUserData();
+    }
+
+    function saveProfileDetails() {
+      const user = getCurrentUser();
+      if (!user) return;
+      SogoAuth.updateUser(user.email, {
+        name: document.getElementById('profileNameInput').value.trim() || user.name,
+        phone: document.getElementById('profilePhoneInput').value.trim(),
+        address: document.getElementById('profileAddressInput').value.trim(),
+        bio: document.getElementById('profileBioInput').value.trim()
+      });
+      document.getElementById('profileSavedMsg').style.display = 'block';
+      loadUserData();
+    }
+
+    function changeClientPassword() {
+      const user = getCurrentUser();
+      const msgEl = document.getElementById('passChangeMsg');
+      const curr = document.getElementById('currPass').value;
+      const next = document.getElementById('newPass').value;
+      const conf = document.getElementById('confPass').value;
+
+      if (curr !== user.password) {
+        msgEl.textContent = 'Current password is incorrect.';
+        msgEl.style.color = '#e74c3c';
+        msgEl.style.display = 'block';
+        return;
+      }
+      if (next.length < 6) {
+        msgEl.textContent = 'New password must be at least 6 characters.';
+        msgEl.style.color = '#e74c3c';
+        msgEl.style.display = 'block';
+        return;
+      }
+      if (next !== conf) {
+        msgEl.textContent = 'New password and confirm password do not match.';
+        msgEl.style.color = '#e74c3c';
+        msgEl.style.display = 'block';
+        return;
+      }
+      SogoAuth.updateUser(user.email, { password: next });
+      msgEl.textContent = 'Password changed successfully.';
+      msgEl.style.color = '#2ecc71';
+      msgEl.style.display = 'block';
+      document.getElementById('currPass').value = '';
+      document.getElementById('newPass').value = '';
+      document.getElementById('confPass').value = '';
+    }
+
+    /* ---------------- Withdrawals ---------------- */
+    function submitWithdrawal() {
+      const user = getCurrentUser();
+      const amountInput = document.getElementById('withdrawAmount');
+      const msgEl = document.getElementById('withdrawMsg');
+      const amount = parseFloat(amountInput.value);
+      const balance = user.balance || 0;
+
+      if (!amount || amount <= 0) {
+        msgEl.textContent = 'Please enter a valid amount.';
+        msgEl.style.color = '#e74c3c';
+        msgEl.style.display = 'block';
+        return;
+      }
+      if (amount > balance) {
+        msgEl.textContent = 'Amount exceeds your available balance.';
+        msgEl.style.color = '#e74c3c';
+        msgEl.style.display = 'block';
+        return;
+      }
+
+      const bank = user.bankDetails || {};
+      const accountDetails = `${bank.name || ''} - ${bank.holder || ''}${bank.number ? ' - ' + bank.number : ''}`;
+      SogoAuth.requestWithdrawal(user.email, user.name, amount, accountDetails);
+      msgEl.textContent = 'Withdrawal request submitted. Admin will approve it shortly.';
+      msgEl.style.color = '#2ecc71';
+      msgEl.style.display = 'block';
+      amountInput.value = '';
+      renderMyWithdrawals();
+    }
+
+    function renderMyWithdrawals() {
+      if (!currentSession) return;
+      const list = SogoAuth.getWithdrawals().filter(w => w.email.toLowerCase() === currentSession.email.toLowerCase()).reverse();
+      const container = document.getElementById('myWithdrawalsList');
+      const txBody = document.getElementById('transactionHistoryBody');
+      const txCount = document.getElementById('transactionHistoryCount');
+      if (!container) return;
+
+      if (list.length === 0) {
+        container.innerHTML = 'No withdrawals yet.';
+      } else {
+        const statusColor = { pending: '#e67e22', approved: '#2ecc71', rejected: '#e74c3c' };
+        container.innerHTML = `
+          <table class="data-table">
+            <thead><tr><th>AMOUNT</th><th>ACCOUNT</th><th>DATE</th><th>STATUS</th></tr></thead>
+            <tbody>
+              ${list.map(w => `
+                <tr>
+                  <td style="color:#fff; font-weight:700;">$${w.amount.toFixed(2)}</td>
+                  <td style="color:var(--text-muted); font-size:11px;">${escapeHtmlC(w.accountDetails)}</td>
+                  <td style="color:var(--text-muted); font-size:11px;">${new Date(w.requestedAt).toLocaleString()}</td>
+                  <td style="color:${statusColor[w.status]}; font-weight:700; text-transform:uppercase; font-size:11px;">${w.status}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      }
+
+      if (txBody) {
+        if (list.length === 0) {
+          txBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:20px;">No transactions yet.</td></tr>';
+          if (txCount) txCount.textContent = '';
+        } else {
+          txBody.innerHTML = list.map(w => `
+            <tr>
+              <td style="color: #fff;">Withdrawal</td>
+              <td style="color: var(--text-muted);">${w.status === 'approved' ? 'Withdrawal approved' : w.status === 'rejected' ? 'Withdrawal rejected' : 'Withdrawal pending'}</td>
+              <td style="color: #e74c3c; font-weight: 700;">-$${w.amount.toFixed(2)}</td>
+              <td style="color: var(--text-muted);">${new Date(w.requestedAt).toLocaleString()}</td>
+            </tr>
+          `).join('');
+          if (txCount) txCount.textContent = 'Showing 1-' + list.length + ' of ' + list.length;
+        }
+      }
+    }
+
+    /* ---------------- Chat ---------------- */
+    function renderChat() {
+      if (!currentSession) return;
+      const thread = SogoAuth.getChatThread(currentSession.email);
+      const box = document.getElementById('chatMessages');
+      if (!box) return;
+      const welcome = `<div style="margin-bottom: 15px;"><span style="font-size: 10px; color: var(--text-muted); font-weight: 700; letter-spacing: 0.5px; display: block; margin-bottom: 6px;">CUSTOMER SUPPORT</span><div style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--card-border); padding: 14px 20px; border-radius: 20px; display: inline-block; max-width: 80%; font-size: 13px; color: #fff;">Welcome to SOGO Reviews. How can we help?</div></div>`;
+      const msgsHtml = thread.map(m => {
+        const mine = m.from === 'client';
+        return `<div style="align-self:${mine ? 'flex-end' : 'flex-start'};"><span style="font-size: 10px; color: var(--text-muted); font-weight: 700; letter-spacing: 0.5px; display: block; margin-bottom: 6px;">${mine ? 'YOU' : 'CUSTOMER SUPPORT'}</span><div style="background:${mine ? 'var(--accent-gold)' : 'rgba(255,255,255,0.04)'}; color:${mine ? '#1a1400' : '#fff'}; border:1px solid var(--card-border); padding: 14px 20px; border-radius: 20px; display: inline-block; max-width: 80%; font-size: 13px;">${escapeHtmlC(m.text)}</div></div>`;
+      }).join('');
+      box.innerHTML = welcome + msgsHtml;
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function sendClientChat() {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text || !currentSession) return;
+      SogoAuth.sendChatMessage(currentSession.email, 'client', text);
+      input.value = '';
+      renderChat();
+    }
+
+    /* ---------------- Top-up requests ---------------- */
+    function openTopupPrompt() {
+      const amountStr = prompt('How much would you like to top up (USD)?');
+      if (amountStr === null) return;
+      const amount = parseFloat(amountStr);
+      if (!amount || amount <= 0) { alert('Please enter a valid amount.'); return; }
+      const note = prompt('Any note for the admin (optional)?') || '';
+      SogoAuth.requestTopup(currentSession.email, currentSession.name, amount, note);
+      alert('Top-up request submitted. Admin will review it shortly.');
+      renderMyTopups();
+    }
+
+    function renderMyTopups() {
+      if (!currentSession) return;
+      const list = SogoAuth.getTopups().filter(t => t.email.toLowerCase() === currentSession.email.toLowerCase()).reverse();
+      const card = document.getElementById('myTopupsCard');
+      const container = document.getElementById('myTopupsList');
+      if (!card || !container) return;
+
+      if (list.length === 0) {
+        card.style.display = 'none';
+        return;
+      }
+      card.style.display = 'block';
+      const statusColor = { pending: '#e67e22', approved: '#2ecc71', rejected: '#e74c3c' };
+      container.innerHTML = `
+        <table class="data-table">
+          <thead><tr><th>AMOUNT</th><th>NOTE</th><th>DATE</th><th>STATUS</th></tr></thead>
+          <tbody>
+            ${list.map(t => `
+              <tr>
+                <td style="color:#fff; font-weight:700;">$${t.amount.toFixed(2)}</td>
+                <td style="color:var(--text-muted); font-size:11px;">${escapeHtmlC(t.note || '—')}</td>
+                <td style="color:var(--text-muted); font-size:11px;">${new Date(t.requestedAt).toLocaleString()}</td>
+                <td style="color:${statusColor[t.status]}; font-weight:700; text-transform:uppercase; font-size:11px;">${t.status}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    loadUserData();
+    renderMyWithdrawals();
+    renderMyTopups();
+    renderChat();
+    setInterval(() => { renderChat(); renderMyWithdrawals(); renderMyTopups(); }, 3000);
+  </script>
+</body>
+</html>

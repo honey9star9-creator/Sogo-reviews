@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SOGO REVIEWS - Luxury Storefront</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Fullscreen Hero Slider Section -->
+  <div class="hero-slider-wrapper">
+    
+    <!-- Top Bar -->
+    <div class="top-bar">
+      <div class="top-bar-left"></div>
+      <div class="top-bar-right">
+        <span class="status-dot"></span> LIVE CHAT SUPPORT • 24/7
+      </div>
+    </div>
+
+    <!-- Header Navigation Overlay -->
+    <header>
+      <div class="logo">SOGO REVIEWS</div>
+      <nav>
+        <a href="#" class="active">New Arrivals</a>
+        <a href="#">Collections</a>
+        <a href="#">Women</a>
+        <a href="#">Men</a>
+        <a href="#">Accessories</a>
+        <a href="#">Sale</a>
+        <a href="#">Contact Us</a>
+      </nav>
+      <div class="nav-actions">
+<a href="auth.html" class="btn-login">Login</a>
+      </div>
+    </header>
+
+    <!-- Navigation Arrows -->
+    <button class="slider-arrow prev" onclick="moveSlide(-1)">&lt;</button>
+    <button class="slider-arrow next" onclick="moveSlide(1)">&gt;</button>
+
+    <!-- Slide 1 -->
+    <div class="hero-slide hero-slide-1 active">
+      <div class="hero-content-container">
+        <div class="hero-subtitle">Curated by SOGO Reviews</div>
+        <h1 class="hero-title">Elevated Womenswear</h1>
+        <p class="hero-desc">Upgrade your wardrobe with our latest arrivals and exclusive collections for a superior fashion presentation.</p>
+        <a href="auth.html" class="btn-gold-box">Shop Collection &rarr;</a>
+      </div>
+    </div>
+
+    <!-- Slide 2 -->
+    <div class="hero-slide hero-slide-2">
+      <div class="hero-content-container">
+        <div class="hero-subtitle">Curated by SOGO Reviews</div>
+        <h1 class="hero-title">Private Seasonal Edit</h1>
+        <p class="hero-desc">Upgrade your wardrobe with our latest arrivals and exclusive collections for a superior fashion presentation.</p>
+        <a href="auth.html" class="btn-gold-box">Shop Collection &rarr;</a>
+      </div>
+    </div>
+
+    <!-- Slide 3 -->
+    <div class="hero-slide hero-slide-3">
+      <div class="hero-content-container">
+        <div class="hero-subtitle">Curated by SOGO Reviews</div>
+        <h1 class="hero-title">Statement Silhouettes</h1>
+        <p class="hero-desc">Upgrade your wardrobe with our latest arrivals and exclusive collections for a superior fashion presentation.</p>
+        <a href="auth.html" class="btn-gold-box">Shop Collection &rarr;</a>
+      </div>
+    </div>
+
+    <!-- Slider Indicator Bars -->
+    <div class="hero-slider-bars">
+      <div class="slider-bar active" onclick="goToSlide(0)"></div>
+      <div class="slider-bar" onclick="goToSlide(1)"></div>
+      <div class="slider-bar" onclick="goToSlide(2)"></div>
+    </div>
+  </div>
+
+  <!-- Highlights Ribbon Cards Section -->
+  <div class="ribbon-wrapper">
+    <div class="ribbon">
+      <div class="ribbon-item">
+        <div class="ribbon-accent-line"></div>
+        <h4>Quality Apparel</h4>
+        <p>High-quality fabrics and construction for every piece.</p>
+      </div>
+      <div class="ribbon-item">
+        <div class="ribbon-accent-line"></div>
+        <h4>Trending Styles</h4>
+        <p>Stay ahead of the curve with our curated collections.</p>
+      </div>
+      <div class="ribbon-item">
+        <div class="ribbon-accent-line"></div>
+        <h4>Fast Delivery</h4>
+        <p>Get your orders quickly with our streamlined shipping.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Signature Departments -->
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-tag">Explore Best</div>
+        <h2 class="section-title">Signature Departments</h2>
+      </div>
+      <a href="#" class="section-link">Explore Dept &rarr;</a>
+    </div>
+
+    <div class="departments-grid">
+      <div class="dept-card">
+        <img src="assets/landing/dept-women.jpg" alt="Womenswear">
+        <div class="dept-overlay">
+          <div class="dept-title">Womenswear</div>
+        </div>
+      </div>
+      <div class="dept-card">
+        <img src="assets/landing/dept-men.jpg" alt="Menswear">
+        <div class="dept-overlay">
+          <div class="dept-title">Menswear</div>
+        </div>
+      </div>
+      <div class="dept-card">
+        <img src="assets/landing/dept-active.jpg" alt="Activewear">
+        <div class="dept-overlay">
+          <div class="dept-title">Activewear</div>
+        </div>
+      </div>
+      <div class="dept-card">
+        <img src="assets/landing/dept-tops.jpg" alt="Tops">
+        <div class="dept-overlay">
+          <div class="dept-title">Tops</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Best of Current Drop -->
+  <section class="section" style="padding-top: 0;">
+    <div class="section-header">
+      <div>
+        <div class="section-tag">On Trend / Exclusive Drop</div>
+        <h2 class="section-title">Best of the Current Drop</h2>
+      </div>
+      <a href="#" class="section-link">Shop Collection &rarr;</a>
+    </div>
+
+    <div class="products-grid">
+      <!-- Item 1 -->
+      <div class="product-item-wrapper">
+        <div class="product-card">
+          <div class="product-img">
+            <img src="assets/landing/1.jpg" alt="Product">
+            <div class="product-action-icon">
+              <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="product-title-bar">SILK EVENING SET</div>
+        <div class="product-info-pill">
+          <div class="product-price-box">
+            <span class="product-price-label">PRICE</span>
+            <span class="product-price">$19.45</span>
+          </div>
+          <div class="color-swatches">
+            <div class="swatch swatch-white"></div>
+            <div class="swatch swatch-grey"></div>
+            <div class="swatch swatch-black"></div>
+            <div class="swatch swatch-gold"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Item 2 -->
+      <div class="product-item-wrapper">
+        <div class="product-card">
+          <div class="product-img">
+            <img src="assets/landing/2.jpg" alt="Product">
+            <div class="product-action-icon">
+              <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="product-title-bar">STUDIO KNIT DRESS</div>
+        <div class="product-info-pill">
+          <div class="product-price-box">
+            <span class="product-price-label">PRICE</span>
+            <span class="product-price">$34.68</span>
+          </div>
+          <div class="color-swatches">
+            <div class="swatch swatch-white"></div>
+            <div class="swatch swatch-grey"></div>
+            <div class="swatch swatch-black"></div>
+            <div class="swatch swatch-gold"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Item 3 -->
+      <div class="product-item-wrapper">
+        <div class="product-card">
+          <div class="product-img">
+            <img src="assets/landing/3.jpg" alt="Product">
+            <div class="product-action-icon">
+              <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="product-title-bar">CITY TAILORED COAT</div>
+        <div class="product-info-pill">
+          <div class="product-price-box">
+            <span class="product-price-label">PRICE</span>
+            <span class="product-price">$47.12</span>
+          </div>
+          <div class="color-swatches">
+            <div class="swatch swatch-white"></div>
+            <div class="swatch swatch-grey"></div>
+            <div class="swatch swatch-black"></div>
+            <div class="swatch swatch-gold"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Item 4 -->
+      <div class="product-item-wrapper">
+        <div class="product-card">
+          <div class="product-img">
+            <img src="assets/landing/4.jpg" alt="Product">
+            <div class="product-action-icon">
+              <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="product-title-bar">GOLD HOUR GOWN</div>
+        <div class="product-info-pill">
+          <div class="product-price-box">
+            <span class="product-price-label">PRICE</span>
+            <span class="product-price">$41.90</span>
+          </div>
+          <div class="color-swatches">
+            <div class="swatch swatch-white"></div>
+            <div class="swatch swatch-grey"></div>
+            <div class="swatch swatch-black"></div>
+            <div class="swatch swatch-gold"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Item 5 -->
+      <div class="product-item-wrapper">
+        <div class="product-card">
+          <div class="product-img">
+            <img src="assets/landing/5.jpg" alt="Product">
+            <div class="product-action-icon">
+              <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="product-title-bar">MIDNIGHT SUIT EDIT</div>
+        <div class="product-info-pill">
+          <div class="product-price-box">
+            <span class="product-price-label">PRICE</span>
+            <span class="product-price">$28.40</span>
+          </div>
+          <div class="color-swatches">
+            <div class="swatch swatch-white"></div>
+            <div class="swatch swatch-grey"></div>
+            <div class="swatch swatch-black"></div>
+            <div class="swatch swatch-gold"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Item 6 -->
+      <div class="product-item-wrapper">
+        <div class="product-card">
+          <div class="product-img">
+            <img src="assets/landing/6.jpg" alt="Product">
+            <div class="product-action-icon">
+              <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="product-title-bar">STREET LUXE JACKET</div>
+        <div class="product-info-pill">
+          <div class="product-price-box">
+            <span class="product-price-label">PRICE</span>
+            <span class="product-price">$36.75</span>
+          </div>
+          <div class="color-swatches">
+            <div class="swatch swatch-white"></div>
+            <div class="swatch swatch-grey"></div>
+            <div class="swatch swatch-black"></div>
+            <div class="swatch swatch-gold"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Item 7 -->
+      <div class="product-item-wrapper">
+        <div class="product-card">
+          <div class="product-img">
+            <img src="assets/landing/7.jpg" alt="Product">
+            <div class="product-action-icon">
+              <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="product-title-bar">SOFT DAYWEAR TOP</div>
+        <div class="product-info-pill">
+          <div class="product-price-box">
+            <span class="product-price-label">PRICE</span>
+            <span class="product-price">$22.10</span>
+          </div>
+          <div class="color-swatches">
+            <div class="swatch swatch-white"></div>
+            <div class="swatch swatch-grey"></div>
+            <div class="swatch swatch-black"></div>
+            <div class="swatch swatch-gold"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Item 8 -->
+      <div class="product-item-wrapper">
+        <div class="product-card">
+          <div class="product-img">
+            <img src="assets/landing/8.jpg" alt="Product">
+            <div class="product-action-icon">
+              <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="product-title-bar">RUNWAY KNIT LAYER</div>
+        <div class="product-info-pill">
+          <div class="product-price-box">
+            <span class="product-price-label">PRICE</span>
+            <span class="product-price">$39.25</span>
+          </div>
+          <div class="color-swatches">
+            <div class="swatch swatch-white"></div>
+            <div class="swatch swatch-grey"></div>
+            <div class="swatch swatch-black"></div>
+            <div class="swatch swatch-gold"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <h3>BUILT FOR A SHARPER LUXURY STOREFRONT EXPERIENCE.</h3>
+        <p>Providing high-end modern fashion solutions and seamless shopping interfaces.</p>
+      </div>
+
+      <div class="footer-col">
+        <h4>Website</h4>
+        <ul>
+          <li><a href="#">Support</a></li>
+          <li><a href="#">Collections</a></li>
+          <li><a href="#">Live Arrivals</a></li>
+          <li><a href="#">Contact</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4>Information</h4>
+        <ul><li><a href="auth.html">Login</a></li>
+<li><a href="auth.html">Sign Up</a></li>
+          <li><a href="#">Dashboard</a></li>
+          <li><a href="#">Profile</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4>Customer Support</h4>
+        <p style="font-size: 0.65rem; color: var(--text-muted); margin-bottom: 6px;">Need immediate assistance? Our support team is online 24/7.</p>
+        <button class="btn-chat" onclick="window.location.href='auth.html'">Live Chat Support</button>
+      </div>
+    </div>
+
+    <div class="bottom-bar">
+      <div>&copy; SOGO REVIEWS. All Rights Reserved.</div>
+      <div>Designed for modern web standards</div>
+    </div>
+  </footer>
+
+  <!-- Floating Live Chat Button -->
+  <button class="floating-chat-btn" onclick="window.location.href='auth.html'">
+    <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+    <span class="chat-text">LIVE CHAT</span>
+  </button>
+
+  <!-- Hero Slider Script -->
+  <script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.hero-slide');
+    const bars = document.querySelectorAll('.slider-bar');
+    let autoSlideInterval;
+
+    function showSlide(index) {
+      if (index >= slides.length) currentSlide = 0;
+      else if (index < 0) currentSlide = slides.length - 1;
+      else currentSlide = index;
+
+      slides.forEach((slide, i) => {
+        slide.classList.toggle('active', i === currentSlide);
+      });
+
+      bars.forEach((bar, i) => {
+        bar.classList.toggle('active', i === currentSlide);
+      });
+    }
+
+    function moveSlide(step) {
+      showSlide(currentSlide + step);
+      resetAutoSlide();
+    }
+
+    function goToSlide(index) {
+      showSlide(index);
+      resetAutoSlide();
+    }
+
+    startAutoSlide();
+
+    function startAutoSlide() {
+      autoSlideInterval = setInterval(() => {
+        showSlide(currentSlide + 1);
+      }, 5000);
+    }
+
+    function resetAutoSlide() {
+      clearInterval(autoSlideInterval);
+      startAutoSlide();
+    }
+  </script>
+
+</body>
+</html>

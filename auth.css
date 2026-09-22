@@ -1,0 +1,356 @@
+/* SOGO REVIEWS - Ultra-Transparent Glassmorphic Auth Styles */
+:root {
+  --bg-dark: #070709;
+  --text-light: #ffffff;
+  --text-muted: #9ca3af;
+  --accent-gold: #dca855;
+  --accent-gold-hover: #c89544;
+  --border-glass: rgba(255, 255, 255, 0.12);
+  --bg-glass: rgba(10, 10, 15, 0.35); /* Maximum transparent glass */
+  --radius-sm: 8px;
+  --transition: all 0.25s ease;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body.auth-body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-light);
+  min-height: 100vh;
+  display: flex;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.auth-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Left Image Banner with Luxury Dark Gradient Overlay */
+.auth-banner {
+  background-image: linear-gradient(to bottom, rgba(7,7,9,0.2) 0%, rgba(7,7,9,0.5) 70%, rgba(7,7,9,0.8) 100%), url('assets/landing/hero-1.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 60px;
+  color: var(--text-light);
+}
+
+.auth-banner-content {
+  max-width: 450px;
+}
+
+.auth-brand {
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+  color: #ffffff;
+}
+
+.auth-tagline {
+  font-size: 0.72rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent-gold);
+  font-weight: 700;
+}
+
+/* Right Form Wrapper - Ultra Transparent Glassmorphism */
+.auth-form-wrapper {
+  background-color: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-left: 1px solid var(--border-glass);
+  padding: 40px 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  overflow-y: auto;
+  max-height: 100vh;
+}
+
+.form-inner-container {
+  width: 100%;
+  max-width: 390px;
+  display: flex;
+  flex-direction: column;
+}
+
+.back-home-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 6px 14px;
+  border-radius: 50px;
+  width: fit-content;
+  margin-bottom: 24px;
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.back-home-btn:hover {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+.mobile-brand-title {
+  display: none;
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-align: center;
+  margin-bottom: 20px;
+  color: #ffffff;
+}
+
+.form-card {
+  display: none;
+  animation: fadeIn 0.25s ease-in-out forwards;
+  width: 100%;
+}
+
+.form-card.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.form-header {
+  margin-bottom: 20px;
+}
+
+.form-header h2 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+  color: #ffffff;
+}
+
+.form-header p {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.input-group {
+  margin-bottom: 14px;
+}
+
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.input-group label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #e5e7eb;
+  margin-bottom: 5px;
+}
+
+.forgot-link {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #93c5fd;
+  text-decoration: none;
+}
+
+.forgot-link:hover {
+  text-decoration: underline;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  background-color: rgba(255, 255, 255, 0.04); /* More transparent inputs */
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
+  color: #ffffff;
+  outline: none;
+  transition: var(--transition);
+  font-family: inherit;
+}
+
+.input-group input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.input-group input:focus {
+  border-color: var(--accent-gold);
+  background-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 2px rgba(220, 168, 85, 0.2);
+}
+
+.form-error {
+  color: #f87171;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+}
+
+.password-wrap {
+  position: relative;
+}
+
+.password-wrap input {
+  padding-right: 36px;
+}
+
+.eye-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+
+.eye-btn:hover {
+  color: #ffffff;
+}
+
+/* Submit & Google Buttons */
+.btn-submit {
+  width: 100%;
+  background-color: var(--accent-gold);
+  color: #070709;
+  border: none;
+  padding: 11px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: var(--transition);
+  margin-top: 6px;
+  box-shadow: 0 4px 15px rgba(220, 168, 85, 0.3);
+}
+
+.btn-submit:hover {
+  background-color: var(--accent-gold-hover);
+  transform: translateY(-1px);
+}
+
+.btn-google {
+  width: 100%;
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 10.5px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+  transition: var(--transition);
+}
+
+.btn-google:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.form-switch-text {
+  text-align: center;
+  font-size: 0.73rem;
+  color: var(--text-muted);
+  margin-top: 16px;
+}
+
+.form-switch-text a {
+  color: #93c5fd;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.form-switch-text a:hover {
+  text-decoration: underline;
+}
+
+/* Responsive Mobile Ultra-Transparent Glassmorphism View */
+@media (max-width: 900px) {
+  .auth-container {
+    grid-template-columns: 1fr;
+    position: relative;
+    min-height: 100vh;
+  }
+  
+  /* Background image covers full screen with immersive luxury dark shade */
+  .auth-banner {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    padding: 20px;
+    justify-content: flex-start;
+    align-items: center;
+    background-image: linear-gradient(to bottom, rgba(7,7,9,0.55) 0%, rgba(7,7,9,0.78) 100%), url('assets/landing/hero-1.jpg');
+    background-size: cover;
+    background-position: center;
+  }
+  
+  .auth-banner-content {
+    display: none;
+  }
+
+  /* Floating ultra-transparent glassy card on mobile */
+  .auth-form-wrapper {
+    position: relative;
+    z-index: 2;
+    background-color: rgba(10, 10, 15, 0.35); /* Highly transparent */
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    margin: 30px 16px;
+    padding: 30px 22px;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+    max-height: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .form-inner-container {
+    max-width: 100%;
+  }
+
+  .mobile-brand-title {
+    display: block;
+    color: var(--accent-gold);
+  }
+}
