@@ -8,7 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="auth.css">
-  <script src="auth.js"></script>
+  <!-- CHANGED: type="module" is required for the Firebase SDK -->
+  <script type="module" src="auth.js"></script>
 </head>
 <body class="auth-body">
 
@@ -50,7 +51,7 @@
               </div>
             </div>
             <p id="loginError" class="form-error" style="display:none;"></p>
-            <button type="submit" class="btn-submit">SIGN IN</button>
+            <button type="submit" class="btn-submit" id="loginSubmitBtn">SIGN IN</button>
 
             <div class="form-switch-text">Don't have an account? <a href="#" onclick="switchTab('signup')">Sign up</a></div>
           </form>
@@ -90,7 +91,7 @@
             </div>
             <div class="input-group"><label>Invitation code</label><input type="text" id="signupInvite" placeholder="Enter invitation code"></div>
             <p id="signupError" class="form-error" style="display:none;"></p>
-            <button type="submit" class="btn-submit">SIGN UP</button>
+            <button type="submit" class="btn-submit" id="signupSubmitBtn">SIGN UP</button>
 
             <div class="form-switch-text">Already have an account? <a href="#" onclick="switchTab('login')">Sign in</a></div>
           </form>
@@ -124,19 +125,29 @@
       input.type = input.type === "password" ? "text" : "password";
     }
 
-    // Already logged in? Skip straight to the right dashboard.
-    (function () {
-      const session = SogoAuth.getSession();
+    // CHANGED: getSession()/redirectForRole() are now async — wait for
+    // the module script (and Firebase) to be ready before calling them.
+    window.addEventListener('DOMContentLoaded', async () => {
+      // Small wait so the type="module" auth.js has attached window.SogoAuth.
+      let tries = 0;
+      while (!window.SogoAuth && tries < 50) { await new Promise(r => setTimeout(r, 50)); tries++; }
+      if (!window.SogoAuth) return;
+      const session = await SogoAuth.getSession();
       if (session) SogoAuth.redirectForRole(session.role);
-    })();
+    });
 
-    function handleLogin(event) {
+    // CHANGED: async + await SogoAuth.login(...) instead of a sync call.
+    async function handleLogin(event) {
       event.preventDefault();
       const email = document.getElementById('loginEmail').value;
       const password = document.getElementById('loginPass').value;
       const errorEl = document.getElementById('loginError');
+      const btn = document.getElementById('loginSubmitBtn');
 
-      const result = SogoAuth.login(email, password);
+      btn.disabled = true; btn.textContent = 'SIGNING IN...';
+      const result = await SogoAuth.login(email, password);
+      btn.disabled = false; btn.textContent = 'SIGN IN';
+
       if (!result.ok) {
         errorEl.textContent = result.message;
         errorEl.style.display = 'block';
@@ -146,12 +157,12 @@
       SogoAuth.redirectForRole(result.user.role);
     }
 
-    function handleResetRequest(event) {
+    async function handleResetRequest(event) {
       event.preventDefault();
       const email = document.getElementById('resetEmail').value;
       const msgEl = document.getElementById('resetMessage');
 
-      const result = SogoAuth.requestPasswordReset(email);
+      const result = await SogoAuth.requestPasswordReset(email);
       if (!result.ok) {
         msgEl.style.color = '#f87171';
         msgEl.style.backgroundColor = 'rgba(248, 113, 113, 0.1)';
@@ -169,15 +180,19 @@
       document.getElementById('resetForm').reset();
     }
 
-    function handleSignup(event) {
+    async function handleSignup(event) {
       event.preventDefault();
       const name = document.getElementById('signupName').value;
       const email = document.getElementById('signupEmail').value;
       const password = document.getElementById('signupPass').value;
       const invitationCode = document.getElementById('signupInvite').value;
       const errorEl = document.getElementById('signupError');
+      const btn = document.getElementById('signupSubmitBtn');
 
-      const result = SogoAuth.signup({ name, email, password, invitationCode });
+      btn.disabled = true; btn.textContent = 'SIGNING UP...';
+      const result = await SogoAuth.signup({ name, email, password, invitationCode });
+      btn.disabled = false; btn.textContent = 'SIGN UP';
+
       if (!result.ok) {
         errorEl.textContent = result.message;
         errorEl.style.display = 'block';

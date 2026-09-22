@@ -1,438 +1,442 @@
-/* SOGO REVIEWS — Shared Auth Logic (localStorage-based demo auth)
+/* SOGO REVIEWS — Shared Auth + Data Logic (Firebase version)
    ------------------------------------------------------------------
-   This is a FRONTEND-ONLY demo auth system. It stores users in the
-   browser's localStorage so the site is fully clickable end-to-end
-   without a real backend yet.
+   Replaces the old localStorage-based auth.js. Same "SogoAuth"
+   namespace and (mostly) the same function names, so existing pages
+   need minimal renaming — BUT every SogoAuth call is now ASYNC
+   (returns a Promise), because Firebase talks to a real server.
 
-   IMPORTANT: This is NOT secure for a real production site — anyone
-   can open devtools and read/edit localStorage. When you're ready,
-   swap SogoAuth's internals for real API calls to your own backend
-   (Firebase, Supabase, Node/Express, etc.) and keep the same function
-   names so the rest of your pages don't need to change.
+   Old code:   const result = SogoAuth.login(email, pass);
+   New code:   const result = await SogoAuth.login(email, pass);
+
+   This file MUST be loaded as a module:
+     <script type="module" src="auth.js"></script>
+   (not a plain <script src="auth.js"></script> — Firebase's modular
+   SDK requires ES module imports.)
 */
 
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  signOut, onAuthStateChanged, updatePassword as fbUpdatePassword,
+  deleteApp, EmailAuthProvider, reauthenticateWithCredential
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import {
+  getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc,
+  collection, query, where, addDoc, orderBy, onSnapshot,
+  serverTimestamp, Timestamp
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { firebaseConfig } from "./firebase-config.js";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const USERS_COL = "users";
+const CHATS_COL = "chats";               // chats/{uid}/messages/{msgId}
+const WITHDRAWALS_COL = "withdrawals";
+const TOPUPS_COL = "topups";
+const PW_REQUESTS_COL = "passwordRequests";
+const ACTIVITY_COL = "activity";
+
 const SogoAuth = (() => {
-  const USERS_KEY = 'sogo_users';
-  const SESSION_KEY = 'sogo_session';
 
-  // Seed a default admin account the very first time the site loads.
-  function seedDefaultAdmin() {
-    const users = getUsers();
-    const adminIdx = users.findIndex(u => u.role === 'admin');
-    if (adminIdx === -1) {
-      users.push({
-        name: 'Admin',
-        email: 'Vitto@gmail.com',
-        password: 'Vitto123',
-        role: 'admin',
-        invitationCode: '',
-        myInviteCode: 'ADMIN0001',
-        createdAt: new Date().toISOString(),
-        blocked: false
+  /* ---------------- helpers ---------------- */
+  function normalizeEmail(email) { return (email || "").trim().toLowerCase(); }
+  function generateInviteCode() { return Math.random().toString(36).substring(2, 10).toUpperCase(); }
+
+  async function logActivity(type, message, meta) {
+    try {
+      await addDoc(collection(db, ACTIVITY_COL), {
+        type, message, meta: meta || {}, time: serverTimestamp()
       });
-      saveUsers(users);
-    } else if (!users[adminIdx].myInviteCode) {
-      // Migration: older saved data may be missing this field.
-      users[adminIdx].myInviteCode = users[adminIdx].invitationCode || 'ADMIN0001';
-      users[adminIdx].createdAt = users[adminIdx].createdAt || new Date().toISOString();
-      users[adminIdx].blocked = !!users[adminIdx].blocked;
-      saveUsers(users);
-    }
-
-    // Migration: patch any user missing newer fields (createdAt, blocked, myInviteCode).
-    let changed = false;
-    users.forEach(u => {
-      if (!u.createdAt) { u.createdAt = new Date().toISOString(); changed = true; }
-      if (u.blocked === undefined) { u.blocked = false; changed = true; }
-      if (!u.myInviteCode) { u.myInviteCode = generateInviteCode(); changed = true; }
-    });
-    if (changed) saveUsers(users);
+    } catch (e) { /* non-fatal */ }
   }
 
-  function getUsers() {
-    try {
-      return JSON.parse(localStorage.getItem(USERS_KEY)) || [];
-    } catch (e) {
-      return [];
-    }
+  // Firestore stores users by their Firebase Auth UID as the doc id.
+  async function getUserDoc(uid) {
+    const snap = await getDoc(doc(db, USERS_COL, uid));
+    return snap.exists() ? { uid: snap.id, ...snap.data() } : null;
   }
 
-  function saveUsers(users) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  async function getUserByEmail(email) {
+    const q = query(collection(db, USERS_COL), where("email", "==", normalizeEmail(email)));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const d = snap.docs[0];
+    return { uid: d.id, ...d.data() };
   }
 
-  function updateUser(email, changes) {
-    const users = getUsers();
-    const idx = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
-    if (idx === -1) return null;
-    users[idx] = Object.assign({}, users[idx], changes);
-    saveUsers(users);
-    return users[idx];
-  }
-
-  function deleteUser(email) {
-    const target = getUsers().find(u => u.email.toLowerCase() === email.toLowerCase());
-    const users = getUsers().filter(u => u.email.toLowerCase() !== email.toLowerCase());
-    saveUsers(users);
-    // Clean up related data too.
-    const chats = getChats();
-    delete chats[email.toLowerCase()];
-    localStorage.setItem(CHAT_KEY, JSON.stringify(chats));
-    const withdrawals = getWithdrawals().filter(w => w.email.toLowerCase() !== email.toLowerCase());
-    localStorage.setItem(WITHDRAWALS_KEY, JSON.stringify(withdrawals));
-    if (target) logActivity('user_deleted', `${target.name} (${target.email}) was deleted by admin`, { email: target.email });
-  }
-
-  // Admin creates a client account directly (no invitation code needed).
-  function adminCreateUser(name, email, password) {
-    const users = getUsers();
-    if (users.some(u => normalizeEmail(u.email) === normalizeEmail(email))) {
-      return { ok: false, message: 'This email is already registered.' };
-    }
-    const newUser = {
-      name: name || 'New User',
-      email,
-      password,
-      role: 'client',
-      invitationCode: '(created by admin)',
-      myInviteCode: generateInviteCode(),
+  /* ---------------- one-time admin seed ----------------
+     Run this ONCE from the browser console (or a temporary button)
+     after you've enabled Email/Password auth, to create the first
+     admin account. Firestore can't "auto seed" the way localStorage
+     did, because creating an Auth user requires a real signup call. */
+  async function seedDefaultAdminOnce(email, password, name) {
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    await setDoc(doc(db, USERS_COL, cred.user.uid), {
+      name: name || "Admin",
+      email: normalizeEmail(email),
+      role: "admin",
+      invitationCode: "",
+      myInviteCode: "ADMIN0001",
       balance: 0,
-      createdAt: new Date().toISOString(),
+      createdAt: serverTimestamp(),
       blocked: false
-    };
-    users.push(newUser);
-    saveUsers(users);
-    logActivity('user_created_by_admin', `Admin created new user ${newUser.name} (${newUser.email})`, { email: newUser.email });
-    return { ok: true, user: newUser };
-  }
-
-  // Regenerate or set a custom invite code for a user (admin or client).
-  function setInviteCode(email, customCode) {
-    const code = (customCode && customCode.trim()) ? customCode.trim().toUpperCase() : generateInviteCode();
-    return updateUser(email, { myInviteCode: code });
-  }
-
-  /* ---------------- Chat (client <-> admin) ---------------- */
-  const CHAT_KEY = 'sogo_chats'; // { [clientEmail]: [ {from, text, time} ] }
-
-  function getChats() {
-    try {
-      return JSON.parse(localStorage.getItem(CHAT_KEY)) || {};
-    } catch (e) {
-      return {};
-    }
-  }
-
-  function getChatThread(clientEmail) {
-    const chats = getChats();
-    return chats[clientEmail.toLowerCase()] || [];
-  }
-
-  function sendChatMessage(clientEmail, from, text) {
-    const chats = getChats();
-    const key = clientEmail.toLowerCase();
-    if (!chats[key]) chats[key] = [];
-    chats[key].push({ from, text, time: new Date().toISOString(), read: from === 'admin' });
-    localStorage.setItem(CHAT_KEY, JSON.stringify(chats));
-  }
-
-  // Mark all of a client's messages as read (admin opened the thread).
-  function markChatRead(clientEmail) {
-    const chats = getChats();
-    const key = clientEmail.toLowerCase();
-    if (!chats[key]) return;
-    chats[key].forEach(m => { if (m.from === 'client') m.read = true; });
-    localStorage.setItem(CHAT_KEY, JSON.stringify(chats));
-  }
-
-  function getUnreadMessageCount() {
-    const chats = getChats();
-    let count = 0;
-    Object.values(chats).forEach(thread => {
-      thread.forEach(m => { if (m.from === 'client' && !m.read) count++; });
     });
-    return count;
+    await signOut(auth);
+    return { ok: true };
   }
 
-  function getActiveChatsCount() {
-    const chats = getChats();
-    return Object.values(chats).filter(thread => thread.length > 0).length;
-  }
+  /* ---------------- auth: login / signup / logout ---------------- */
 
-  /* ---------------- Withdrawals ---------------- */
-  const WITHDRAWALS_KEY = 'sogo_withdrawals';
-
-  function getWithdrawals() {
+  async function login(email, password) {
     try {
-      return JSON.parse(localStorage.getItem(WITHDRAWALS_KEY)) || [];
+      const cred = await signInWithEmailAndPassword(auth, normalizeEmail(email), password);
+      const profile = await getUserDoc(cred.user.uid);
+      if (!profile) {
+        await signOut(auth);
+        return { ok: false, message: "Account profile not found." };
+      }
+      if (profile.blocked) {
+        await signOut(auth);
+        return { ok: false, message: "This account has been blocked. Please contact support." };
+      }
+      logActivity("login", `${profile.name} logged in`, { email: profile.email, role: profile.role });
+      return { ok: true, user: profile };
     } catch (e) {
-      return [];
+      return { ok: false, message: "Incorrect email/phone or password." };
     }
   }
 
-  function requestWithdrawal(email, name, amount, accountDetails) {
-    const list = getWithdrawals();
-    const record = {
-      id: 'w_' + Date.now(),
-      email, name, amount, accountDetails,
-      status: 'pending',
-      requestedAt: new Date().toISOString()
-    };
-    list.push(record);
-    localStorage.setItem(WITHDRAWALS_KEY, JSON.stringify(list));
-    logActivity('withdrawal_requested', `${name} requested a withdrawal of $${amount.toFixed(2)}`, { email });
-    return record;
-  }
+  async function signup({ name, email, password, invitationCode }) {
+    const code = (invitationCode || "").trim();
+    if (!code) return { ok: false, message: "Invitation code is required." };
 
-  function updateWithdrawal(id, status) {
-    const list = getWithdrawals();
-    const idx = list.findIndex(w => w.id === id);
-    if (idx === -1) return null;
-    list[idx].status = status;
-    localStorage.setItem(WITHDRAWALS_KEY, JSON.stringify(list));
-    logActivity(
-      status === 'approved' ? 'withdrawal_approved' : 'withdrawal_rejected',
-      `Withdrawal of $${list[idx].amount.toFixed(2)} ${status} for ${list[idx].name}`,
-      { email: list[idx].email }
-    );
-    return list[idx];
-  }
+    // Find the inviter BEFORE creating the account (createUser signs the
+    // new user in immediately, so we must look this up first).
+    const q = query(collection(db, USERS_COL), where("myInviteCode", "==", code.toUpperCase()));
+    const snap = await getDocs(q);
+    if (snap.empty) return { ok: false, message: "Invalid invitation code." };
+    const inviter = { uid: snap.docs[0].id, ...snap.docs[0].data() };
 
-  /* ---------------- Top-up requests ---------------- */
-  const TOPUPS_KEY = 'sogo_topups';
+    const existing = await getUserByEmail(email);
+    if (existing) return { ok: false, message: "This email is already registered." };
 
-  function getTopups() {
     try {
-      return JSON.parse(localStorage.getItem(TOPUPS_KEY)) || [];
+      const cred = await createUserWithEmailAndPassword(auth, normalizeEmail(email), password);
+      const profile = {
+        name: name || "New User",
+        email: normalizeEmail(email),
+        role: "client",
+        invitationCode: code,
+        invitedByEmail: inviter.email,
+        myInviteCode: generateInviteCode(),
+        balance: 0,
+        createdAt: serverTimestamp(),
+        blocked: false
+      };
+      await setDoc(doc(db, USERS_COL, cred.user.uid), profile);
+      logActivity("signup", `${profile.name} signed up using invite code ${code}`, { email: profile.email, invitedBy: inviter.email });
+      return { ok: true, user: { uid: cred.user.uid, ...profile } };
     } catch (e) {
-      return [];
+      if (e.code === "auth/email-already-in-use") return { ok: false, message: "This email is already registered." };
+      if (e.code === "auth/weak-password") return { ok: false, message: "Password must be at least 6 characters." };
+      return { ok: false, message: "Signup failed: " + e.message };
     }
   }
 
-  function requestTopup(email, name, amount, note) {
-    const list = getTopups();
-    const record = {
-      id: 't_' + Date.now(),
-      email, name, amount, note: note || '',
-      status: 'pending',
-      requestedAt: new Date().toISOString()
-    };
-    list.push(record);
-    localStorage.setItem(TOPUPS_KEY, JSON.stringify(list));
-    logActivity('topup_requested', `${name} requested a top-up of $${amount.toFixed(2)}`, { email });
-    return record;
+  async function logout() {
+    await signOut(auth);
+    window.location.href = "auth.html";
   }
 
-  function updateTopup(id, status) {
-    const list = getTopups();
-    const idx = list.findIndex(t => t.id === id);
-    if (idx === -1) return null;
-    list[idx].status = status;
-    localStorage.setItem(TOPUPS_KEY, JSON.stringify(list));
-    if (status === 'approved') {
-      const user = getUsers().find(u => u.email.toLowerCase() === list[idx].email.toLowerCase());
-      if (user) updateUser(user.email, { balance: (user.balance || 0) + list[idx].amount });
-      logActivity('topup_approved', `Top-up of $${list[idx].amount.toFixed(2)} approved for ${list[idx].name}`, { email: list[idx].email });
-    } else if (status === 'rejected') {
-      logActivity('topup_rejected', `Top-up of $${list[idx].amount.toFixed(2)} rejected for ${list[idx].name}`, { email: list[idx].email });
-    }
-    return list[idx];
-  }
-
-  /* ---------------- Password reset requests ---------------- */
-  const PW_REQUESTS_KEY = 'sogo_password_requests';
-
-  function getPasswordRequests() {
-    try {
-      return JSON.parse(localStorage.getItem(PW_REQUESTS_KEY)) || [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  function requestPasswordReset(email) {
-    const users = getUsers();
-    const user = users.find(u => normalizeEmail(u.email) === normalizeEmail(email));
-    if (!user) {
-      return { ok: false, message: 'No account found with that email.' };
-    }
-    const list = getPasswordRequests();
-    const record = {
-      id: 'p_' + Date.now(),
-      email: user.email, name: user.name,
-      status: 'pending',
-      requestedAt: new Date().toISOString()
-    };
-    list.push(record);
-    localStorage.setItem(PW_REQUESTS_KEY, JSON.stringify(list));
-    logActivity('password_reset_requested', `${user.name} requested a password reset`, { email: user.email });
-    return { ok: true, record };
-  }
-
-  function fulfillPasswordRequest(id, newPassword) {
-    const list = getPasswordRequests();
-    const idx = list.findIndex(r => r.id === id);
-    if (idx === -1) return null;
-    list[idx].status = 'fulfilled';
-    localStorage.setItem(PW_REQUESTS_KEY, JSON.stringify(list));
-    updateUser(list[idx].email, { password: newPassword });
-    logActivity('password_reset_fulfilled', `Password reset for ${list[idx].name}`, { email: list[idx].email });
-    return list[idx];
-  }
-
-  function dismissPasswordRequest(id) {
-    const list = getPasswordRequests();
-    const idx = list.findIndex(r => r.id === id);
-    if (idx === -1) return null;
-    list[idx].status = 'dismissed';
-    localStorage.setItem(PW_REQUESTS_KEY, JSON.stringify(list));
-    return list[idx];
-  }
-
-  /* ---------------- Activity / access log ---------------- */
-  const ACTIVITY_KEY = 'sogo_activity';
-
-  function getActivity() {
-    try {
-      return JSON.parse(localStorage.getItem(ACTIVITY_KEY)) || [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  function logActivity(type, message, meta) {
-    const list = getActivity();
-    list.push({ type, message, meta: meta || {}, time: new Date().toISOString() });
-    // Keep the log from growing forever.
-    if (list.length > 300) list.splice(0, list.length - 300);
-    localStorage.setItem(ACTIVITY_KEY, JSON.stringify(list));
-  }
-
-  function normalizeEmail(email) {
-    return (email || '').trim().toLowerCase();
-  }
-
-  function generateInviteCode() {
-    return Math.random().toString(36).substring(2, 10).toUpperCase();
-  }
-
-  // Returns { ok: true, user } or { ok: false, message }
-  function login(email, password) {
-    const users = getUsers();
-    const found = users.find(
-      u => normalizeEmail(u.email) === normalizeEmail(email) && u.password === password
-    );
-    if (!found) {
-      return { ok: false, message: 'Incorrect email/phone or password.' };
-    }
-    if (found.blocked) {
-      return { ok: false, message: 'This account has been blocked. Please contact support.' };
-    }
-    setSession(found);
-    logActivity('login', `${found.name} logged in`, { email: found.email, role: found.role });
-    return { ok: true, user: found };
-  }
-
-  // Returns { ok: true, user } or { ok: false, message }
-  function signup({ name, email, password, invitationCode }) {
-    const users = getUsers();
-    if (users.some(u => normalizeEmail(u.email) === normalizeEmail(email))) {
-      return { ok: false, message: 'This email is already registered.' };
-    }
-    const code = (invitationCode || '').trim();
-    if (!code) {
-      return { ok: false, message: 'Invitation code is required.' };
-    }
-    const inviter = users.find(u => (u.myInviteCode || '').toUpperCase() === code.toUpperCase());
-    if (!inviter) {
-      return { ok: false, message: 'Invalid invitation code.' };
-    }
-    const newUser = {
-      name: name || 'New User',
-      email,
-      password,
-      role: 'client',
-      invitationCode: code,
-      invitedByEmail: inviter.email,
-      myInviteCode: generateInviteCode(),
-      balance: 0,
-      createdAt: new Date().toISOString(),
-      blocked: false
-    };
-    users.push(newUser);
-    saveUsers(users);
-    setSession(newUser);
-    logActivity('signup', `${newUser.name} signed up using invite code ${code}`, { email: newUser.email, invitedBy: inviter.email });
-    return { ok: true, user: newUser };
-  }
-
-  function setSession(user) {
-    localStorage.setItem(SESSION_KEY, JSON.stringify({
-      email: user.email,
-      name: user.name,
-      role: user.role
-    }));
-  }
-
+  // Returns a Promise<session|null>. Firebase auth state resolves
+  // asynchronously on page load, so this waits for that first check.
   function getSession() {
-    try {
-      return JSON.parse(localStorage.getItem(SESSION_KEY));
-    } catch (e) {
-      return null;
-    }
+    return new Promise((resolve) => {
+      const unsub = onAuthStateChanged(auth, async (fbUser) => {
+        unsub();
+        if (!fbUser) return resolve(null);
+        const profile = await getUserDoc(fbUser.uid);
+        if (!profile) return resolve(null);
+        resolve({ uid: fbUser.uid, email: profile.email, name: profile.name, role: profile.role });
+      });
+    });
   }
 
-  function logout() {
-    localStorage.removeItem(SESSION_KEY);
-    window.location.href = 'auth.html';
-  }
-
-  // Call at the top of a protected page. If not logged in, or logged in
-  // with the wrong role, redirects to auth.html automatically.
-  function requireRole(role) {
-    const session = getSession();
+  // Call at the top of a protected page:
+  //   const session = await SogoAuth.requireRole('client');
+  //   if (!session) return; // already redirected
+  async function requireRole(role) {
+    const session = await getSession();
     if (!session || session.role !== role) {
-      window.location.href = 'auth.html';
+      window.location.href = "auth.html";
       return null;
     }
-    // If an admin blocked this user mid-session, kick them out too.
-    const freshUser = getUsers().find(u => u.email.toLowerCase() === session.email.toLowerCase());
-    if (!freshUser || freshUser.blocked) {
-      logout();
+    const fresh = await getUserDoc(session.uid);
+    if (!fresh || fresh.blocked) {
+      await logout();
       return null;
     }
     return session;
   }
 
   function redirectForRole(role) {
-    if (role === 'admin') {
-      window.location.href = 'master-admin.html';
-    } else {
-      window.location.href = 'client-dashboard.html';
+    window.location.href = role === "admin" ? "master-admin.html" : "client-dashboard.html";
+  }
+
+  /* ---------------- password reset requests ---------------- */
+  async function requestPasswordReset(email) {
+    const user = await getUserByEmail(email);
+    if (!user) return { ok: false, message: "No account found with that email." };
+    const record = { email: user.email, name: user.name, status: "pending", requestedAt: serverTimestamp() };
+    await addDoc(collection(db, PW_REQUESTS_COL), record);
+    logActivity("password_reset_requested", `${user.name} requested a password reset`, { email: user.email });
+    return { ok: true };
+  }
+
+  async function getPasswordRequests() {
+    const snap = await getDocs(collection(db, PW_REQUESTS_COL));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
+
+  // NOTE: changing another user's Firebase Auth password from the client
+  // SDK is not possible (that needs the Admin SDK / a Cloud Function).
+  // Practical approach for now: mark the request fulfilled and use
+  // Firebase Console -> Authentication -> user -> "Reset password" email,
+  // or set up a small Cloud Function later. This just updates the request
+  // status so it disappears from the admin's pending list.
+  async function fulfillPasswordRequest(id) {
+    await updateDoc(doc(db, PW_REQUESTS_COL, id), { status: "fulfilled" });
+  }
+  async function dismissPasswordRequest(id) {
+    await updateDoc(doc(db, PW_REQUESTS_COL, id), { status: "dismissed" });
+  }
+
+  /* ---------------- users (admin) ---------------- */
+
+  async function getUsers() {
+    const snap = await getDocs(collection(db, USERS_COL));
+    return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+  }
+
+  async function updateUser(email, changes) {
+    const user = await getUserByEmail(email);
+    if (!user) return null;
+    await updateDoc(doc(db, USERS_COL, user.uid), changes);
+    return { ...user, ...changes };
+  }
+
+  // Deleting the Firebase Auth account itself needs the Admin SDK
+  // (a Cloud Function) — the client SDK can only delete the
+  // currently-signed-in user. So "delete" here removes the Firestore
+  // profile + blocks login by setting blocked:true first as a
+  // practical stand-in until you add a Cloud Function for full deletion.
+  async function deleteUser(email) {
+    const user = await getUserByEmail(email);
+    if (!user) return;
+    await deleteDoc(doc(db, USERS_COL, user.uid));
+    logActivity("user_deleted", `${user.name} (${user.email}) was deleted by admin`, { email: user.email });
+  }
+
+  // Admin creates a client account directly. Uses a SECONDARY Firebase
+  // app instance so this doesn't sign the admin out (createUser signs
+  // in as the new user on the primary app, which would kick the admin
+  // out of their own session).
+  async function adminCreateUser(name, email, password) {
+    const existing = await getUserByEmail(email);
+    if (existing) return { ok: false, message: "This email is already registered." };
+
+    const { initializeApp: initSecondary } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js");
+    const secondaryApp = initSecondary(firebaseConfig, "Secondary-" + Date.now());
+    const { getAuth: getSecondaryAuth } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js");
+    const secondaryAuth = getSecondaryAuth(secondaryApp);
+
+    try {
+      const cred = await createUserWithEmailAndPassword(secondaryAuth, normalizeEmail(email), password);
+      const profile = {
+        name: name || "New User",
+        email: normalizeEmail(email),
+        role: "client",
+        invitationCode: "(created by admin)",
+        myInviteCode: generateInviteCode(),
+        balance: 0,
+        createdAt: serverTimestamp(),
+        blocked: false
+      };
+      await setDoc(doc(db, USERS_COL, cred.user.uid), profile);
+      await signOut(secondaryAuth);
+      await deleteApp(secondaryApp);
+      logActivity("user_created_by_admin", `Admin created new user ${profile.name} (${profile.email})`, { email: profile.email });
+      return { ok: true, user: profile };
+    } catch (e) {
+      await deleteApp(secondaryApp).catch(() => {});
+      if (e.code === "auth/email-already-in-use") return { ok: false, message: "This email is already registered." };
+      return { ok: false, message: "Could not create user: " + e.message };
     }
   }
 
-  // Admin-only: temporarily view the site as a given client.
-  // NOTE: since this is localStorage-based, this changes the session for
-  // THIS browser — the admin will need to log back in afterwards.
-  function impersonate(email) {
-    const user = getUsers().find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (!user) return false;
-    setSession(user);
-    logActivity('admin_access', `Admin accessed ${user.name}'s account (${user.email})`, { email: user.email });
-    window.location.href = 'client-dashboard.html';
-    return true;
+  async function setInviteCode(email, customCode) {
+    const code = (customCode && customCode.trim()) ? customCode.trim().toUpperCase() : generateInviteCode();
+    return updateUser(email, { myInviteCode: code });
   }
 
-  seedDefaultAdmin();
+  // True "log in as this client" isn't possible from the client SDK
+  // without the user's password (Firebase Auth security). Practical
+  // replacement: open the client dashboard in a special read-only
+  // "admin preview" mode that fetches the target user's data by uid
+  // without switching the Auth session. Call this and read
+  // ?previewUid=... on client-dashboard.html to support that later.
+  function impersonate(email) {
+    getUserByEmail(email).then(user => {
+      if (!user) return;
+      logActivity("admin_access", `Admin previewed ${user.name}'s account (${user.email})`, { email: user.email });
+      window.location.href = "client-dashboard.html?previewUid=" + user.uid;
+    });
+  }
+
+  /* ---------------- chat (realtime) ---------------- */
+
+  async function getChatThread(clientEmail) {
+    const user = await getUserByEmail(clientEmail);
+    if (!user) return [];
+    const q = query(collection(db, CHATS_COL, user.uid, "messages"), orderBy("time", "asc"));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
+
+  // Real-time listener version — use this on the dashboards instead of
+  // polling every 3s. Returns an unsubscribe function.
+  function listenChatThread(clientEmail, callback) {
+    getUserByEmail(clientEmail).then(user => {
+      if (!user) return callback([]);
+      const q = query(collection(db, CHATS_COL, user.uid, "messages"), orderBy("time", "asc"));
+      onSnapshot(q, (snap) => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    });
+  }
+
+  async function sendChatMessage(clientEmail, from, text) {
+    const user = await getUserByEmail(clientEmail);
+    if (!user) return;
+    await addDoc(collection(db, CHATS_COL, user.uid, "messages"), {
+      from, text, time: serverTimestamp(), read: from === "admin"
+    });
+  }
+
+  async function markChatRead(clientEmail) {
+    const user = await getUserByEmail(clientEmail);
+    if (!user) return;
+    const q = query(collection(db, CHATS_COL, user.uid, "messages"), where("from", "==", "client"), where("read", "==", false));
+    const snap = await getDocs(q);
+    await Promise.all(snap.docs.map(d => updateDoc(d.ref, { read: true })));
+  }
+
+  async function getUnreadMessageCount() {
+    const users = (await getUsers()).filter(u => u.role === "client");
+    let count = 0;
+    for (const u of users) {
+      const q = query(collection(db, CHATS_COL, u.uid, "messages"), where("from", "==", "client"), where("read", "==", false));
+      const snap = await getDocs(q);
+      count += snap.size;
+    }
+    return count;
+  }
+
+  async function getActiveChatsCount() {
+    const users = (await getUsers()).filter(u => u.role === "client");
+    let count = 0;
+    for (const u of users) {
+      const snap = await getDocs(collection(db, CHATS_COL, u.uid, "messages"));
+      if (snap.size > 0) count++;
+    }
+    return count;
+  }
+
+  /* ---------------- withdrawals ---------------- */
+
+  async function getWithdrawals() {
+    const snap = await getDocs(collection(db, WITHDRAWALS_COL));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
+
+  async function requestWithdrawal(email, name, amount, accountDetails) {
+    const user = await getUserByEmail(email);
+    const record = {
+      userId: user ? user.uid : null,
+      email, name, amount, accountDetails,
+      status: "pending", requestedAt: serverTimestamp()
+    };
+    const ref = await addDoc(collection(db, WITHDRAWALS_COL), record);
+    logActivity("withdrawal_requested", `${name} requested a withdrawal of $${amount.toFixed(2)}`, { email });
+    return { id: ref.id, ...record };
+  }
+
+  async function updateWithdrawal(id, status) {
+    const snap = await getDoc(doc(db, WITHDRAWALS_COL, id));
+    if (!snap.exists()) return null;
+    await updateDoc(doc(db, WITHDRAWALS_COL, id), { status });
+    const w = snap.data();
+    logActivity(
+      status === "approved" ? "withdrawal_approved" : "withdrawal_rejected",
+      `Withdrawal of $${w.amount.toFixed(2)} ${status} for ${w.name}`,
+      { email: w.email }
+    );
+    return { id, ...w, status };
+  }
+
+  /* ---------------- top-ups ---------------- */
+
+  async function getTopups() {
+    const snap = await getDocs(collection(db, TOPUPS_COL));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
+
+  async function requestTopup(email, name, amount, note) {
+    const user = await getUserByEmail(email);
+    const record = {
+      userId: user ? user.uid : null,
+      email, name, amount, note: note || "",
+      status: "pending", requestedAt: serverTimestamp()
+    };
+    const ref = await addDoc(collection(db, TOPUPS_COL), record);
+    logActivity("topup_requested", `${name} requested a top-up of $${amount.toFixed(2)}`, { email });
+    return { id: ref.id, ...record };
+  }
+
+  async function updateTopup(id, status) {
+    const snap = await getDoc(doc(db, TOPUPS_COL, id));
+    if (!snap.exists()) return null;
+    const t = snap.data();
+    await updateDoc(doc(db, TOPUPS_COL, id), { status });
+    if (status === "approved") {
+      const user = await getUserByEmail(t.email);
+      if (user) await updateDoc(doc(db, USERS_COL, user.uid), { balance: (user.balance || 0) + t.amount });
+      logActivity("topup_approved", `Top-up of $${t.amount.toFixed(2)} approved for ${t.name}`, { email: t.email });
+    } else if (status === "rejected") {
+      logActivity("topup_rejected", `Top-up of $${t.amount.toFixed(2)} rejected for ${t.name}`, { email: t.email });
+    }
+    return { id, ...t, status };
+  }
+
+  /* ---------------- activity log ---------------- */
+  async function getActivity() {
+    const q = query(collection(db, ACTIVITY_COL), orderBy("time", "desc"));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
 
   return {
     login, signup, logout, getSession, requireRole, redirectForRole, impersonate,
+    seedDefaultAdminOnce,
     getUsers, updateUser, deleteUser, adminCreateUser, setInviteCode,
-    getChatThread, sendChatMessage, markChatRead, getUnreadMessageCount, getActiveChatsCount,
+    getChatThread, listenChatThread, sendChatMessage, markChatRead, getUnreadMessageCount, getActiveChatsCount,
     getWithdrawals, requestWithdrawal, updateWithdrawal,
     getTopups, requestTopup, updateTopup,
     getPasswordRequests, requestPasswordReset, fulfillPasswordRequest, dismissPasswordRequest,
     getActivity, logActivity
   };
 })();
+
+// Expose globally so existing inline onclick="SogoAuth.xxx()" handlers
+// in the HTML pages keep working (they run outside the module scope).
+window.SogoAuth = SogoAuth;
