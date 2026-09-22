@@ -264,15 +264,23 @@ const SogoAuth = (() => {
         createdAt: serverTimestamp(),
         blocked: false
       };
+      
       await setDoc(doc(db, USERS_COL, cred.user.uid), profile);
-      await signOut(secondaryAuth);
-      await deleteApp(secondaryApp);
       logActivity("user_created_by_admin", `Admin created new user ${profile.name} (${profile.email})`, { email: profile.email });
+      
       return { ok: true, user: profile };
+
     } catch (e) {
-      await deleteApp(secondaryApp).catch(() => {});
       if (e.code === "auth/email-already-in-use") return { ok: false, message: "This email is already registered." };
       return { ok: false, message: "Could not create user: " + e.message };
+
+    } finally {
+      try {
+        await signOut(secondaryAuth);
+        await deleteApp(secondaryApp);
+      } catch (cleanupError) {
+        /* ignore cleanup error */
+      }
     }
   }
 
@@ -331,25 +339,31 @@ const SogoAuth = (() => {
     await Promise.all(snap.docs.map(d => updateDoc(d.ref, { read: true })));
   }
 
-  async function getUnreadMessageCount() {
+async function getUnreadMessageCount() {
     const users = (await getUsers()).filter(u => u.role === "client");
-    let count = 0;
-    for (const u of users) {
-      const q = query(collection(db, CHATS_COL, u.uid, "messages"), where("from", "==", "client"), where("read", "==", false));
-      const snap = await getDocs(q);
-      count += snap.size;
-    }
-    return count;
+    
+    // Parallel execution for fast performance
+    const promises = users.map(u => {
+      const q = query(
+        collection(db, CHATS_COL, u.uid, "messages"),
+        where("from", "==", "client"),
+        where("read", "==", false)
+      );
+      return getDocs(q);
+    });
+
+    const snapshots = await Promise.all(promises);
+    return snapshots.reduce((total, snap) => total + snap.size, 0);
   }
 
   async function getActiveChatsCount() {
     const users = (await getUsers()).filter(u => u.role === "client");
-    let count = 0;
-    for (const u of users) {
-      const snap = await getDocs(collection(db, CHATS_COL, u.uid, "messages"));
-      if (snap.size > 0) count++;
-    }
-    return count;
+    
+    // Parallel execution for fast performance
+    const promises = users.map(u => getDocs(collection(db, CHATS_COL, u.uid, "messages")));
+
+    const snapshots = await Promise.all(promises);
+    return snapshots.filter(snap => snap.size > 0).length;
   }
 
   /* ---------------- withdrawals ---------------- */
@@ -374,8 +388,21 @@ const SogoAuth = (() => {
   async function updateWithdrawal(id, status) {
     const snap = await getDoc(doc(db, WITHDRAWALS_COL, id));
     if (!snap.exists()) return null;
-    await updateDoc(doc(db, WITHDRAWALS_COL, id), { status });
     const w = snap.data();
+
+    // Pehle status update karein
+    await updateDoc(doc(db, WITHDRAWALS_COL, id), { status });
+
+    // Agar status "approved" hua hai toh user ka balance deduct karein
+    if (status === "approved" && w.status !== "approved") {
+      const user = await getUserByEmail(w.email);
+      if (user) {
+        const currentBalance = user.balance || 0;
+        const newBalance = Math.max(0, currentBalance - w.amount); // negative balance hone se bachane ke liye
+        await updateDoc(doc(db, USERS_COL, user.uid), { balance: newBalance });
+      }
+    }
+
     logActivity(
       status === "approved" ? "withdrawal_approved" : "withdrawal_rejected",
       `Withdrawal of $${w.amount.toFixed(2)} ${status} for ${w.name}`,

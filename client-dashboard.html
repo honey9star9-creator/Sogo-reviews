@@ -690,10 +690,6 @@
   </style>
 </head>
 <body>
-  <script>
-    // Auth guard: only logged-in clients may view this page.
-    var currentSession = SogoAuth.requireRole('client');
-  </script>
 
   <!-- Desktop Sidebar Navigation -->
   <aside class="sidebar">
@@ -1636,5 +1632,60 @@
     renderChat();
     setInterval(() => { renderChat(); renderMyWithdrawals(); renderMyTopups(); }, 3000);
   </script>
+  <script type="module">
+  import { 
+    auth, 
+    db, 
+    onAuthStateChanged, 
+    signOut, 
+    doc, 
+    getDoc, 
+    collection, 
+    query, 
+    where, 
+    onSnapshot 
+  } from './firebase-config.js';
+
+  // Check login status using Firebase Auth
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      console.log("Logged in user UID:", user.uid);
+      
+      // Firestore se login user ki profile detail fetch karna
+      try {
+        const userDocRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userDocRef);
+
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          
+          // User ka naam ya email dashboard header par show karein
+const sidebarName = document.getElementById('sidebarUserName');
+      const dashName = document.getElementById('dashUserName');
+      const dashEmail = document.getElementById('dashUserEmail');
+
+      if (sidebarName) sidebarName.innerText = userData.name || user.email;
+      if (dashName) dashName.innerText = (userData.name || user.email).toUpperCase();
+      if (dashEmail) dashEmail.innerText = user.email;
+    }
+    } else {
+      // Agar user login nahi hai, toh use login page (index.html) par bhej dein
+      window.location.href = "index.html";
+    }
+  });
+
+  // Logout button click function
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        await signOut(auth);
+        window.location.href = "index.html";
+      } catch (error) {
+        console.error("Logout error:", error);
+      }
+    });
+  }
+</script>
 </body>
 </html>

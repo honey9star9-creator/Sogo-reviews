@@ -1,3 +1,22 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { 
+  getAuth, 
+  onAuthStateChanged, 
+  signOut 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { 
+  getFirestore, 
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc, 
+  collection, 
+  addDoc, 
+  query, 
+  where, 
+  onSnapshot, 
+  orderBy 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 // ============================================================
 // SOGO REVIEWS — Firebase Project Configuration
 // ============================================================
@@ -24,6 +43,26 @@ export const firebaseConfig = {
   storageBucket: "sogo-reviews-32cf0.firebasestorage.app",
   messagingSenderId: "689206575129",
   appId: "1:689206575129:web:4e9eca780ad01d6316ea88"
+};
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+
+// Export Firestore & Auth Helpers
+export { 
+  onAuthStateChanged, 
+  signOut, 
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc, 
+  collection, 
+  addDoc, 
+  query, 
+  where, 
+  onSnapshot, 
+  orderBy 
 };
 
 // ============================================================
