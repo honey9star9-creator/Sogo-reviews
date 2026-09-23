@@ -674,5 +674,339 @@
       </div>
     </div>
   </main>
+  <!-- Chart.js CDN (Charts rendering ke liye) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script type="module">
+  // Firebase Auth aur Firestore imports
+  import { auth, db } from './auth.js'; 
+  import { 
+    collection, 
+    doc, 
+    getDoc, 
+    getDocs, 
+    setDoc, 
+    updateDoc, 
+    deleteDoc, 
+    onSnapshot, 
+    query, 
+    where, 
+    serverTimestamp, 
+    increment 
+  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  import { 
+    onAuthStateChanged, 
+    sendPasswordResetEmail, 
+    createUserWithEmailAndPassword 
+  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+  let allUsersList = [];
+
+  // 1. AUTHENTICATION & INITIALIZATION
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      console.log("Admin Logged In:", user.uid);
+      loadAdminData(user.uid);
+      listenToAllUsers();
+      listenToTopupRequests();
+      listenToWithdrawals();
+    } else {
+      console.warn("User not logged in. Redirecting...");
+      window.location.href = "auth.html";
+    }
+  });
+
+  // 2. ADMIN PROFILE & INVITATION DATA LOAD
+  function loadAdminData(adminUid) {
+    const adminDocRef = doc(db, "users", adminUid);
+    onSnapshot(adminDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        
+        // Admin Name & Avatar
+        const adminNameElem = document.getElementById("adminName");
+        const adminAvatarElem = document.getElementById("adminAvatar");
+        if (adminNameElem) adminNameElem.textContent = data.fullName || data.name || "Admin";
+        if (adminAvatarElem) adminAvatarElem.textContent = (data.fullName || data.name || "A").charAt(0).toUpperCase();
+
+        // Invite Code & Link Setup
+        const inviteCode = data.inviteCode || "ADMIN0001";
+        const inviteLink = `https://sogoreview.online/register?ref=${inviteCode}`;
+        
+        const inviteLinkInput = document.getElementById("adminInviteLink");
+        if (inviteLinkInput) inviteLinkInput.value = inviteLink;
+
+        const inviteCodeBtn = document.getElementById("adminInviteCodeBtn");
+        if (inviteCodeBtn) {
+          inviteCodeBtn.textContent = `Copy code (${inviteCode})`;
+          inviteCodeBtn.onclick = () => {
+            navigator.clipboard.writeText(inviteCode);
+            alert("Invitation Code copied: " + inviteCode);
+          };
+        }
+      }
+    }, (err) => console.error("Admin Profile Fetch Error:", err));
+  }
+
+  // 3. REALTIME USERS & DASHBOARD STATS
+  function listenToAllUsers() {
+    const usersRef = collection(db, "users");
+    onSnapshot(usersRef, (snapshot) => {
+      allUsersList = [];
+      let totalUsers = 0;
+      let activeUsers = 0;
+
+      snapshot.forEach((docSnap) => {
+        const u = { id: docSnap.id, ...docSnap.data() };
+        allUsersList.push(u);
+        totalUsers++;
+        if (u.status === "active" || u.status === "Active" || !u.status) {
+          activeUsers++;
+        }
+      });
+
+      // Update Dashboard Metric Cards
+      const totalUsersElem = document.getElementById("statTotalUsers");
+      const activeUsersElem = document.getElementById("statActiveUsers");
+      const headingElem = document.getElementById("allUsersHeading");
+
+      if (totalUsersElem) totalUsersElem.textContent = totalUsers;
+      if (activeUsersElem) activeUsersElem.textContent = activeUsers;
+      if (headingElem) headingElem.textContent = `All Users (${totalUsers})`;
+
+      // Render Users Table
+      renderUsersTable(allUsersList);
+    }, (err) => {
+      console.error("Firestore Users Fetch Error:", err);
+    });
+  }
+
+  // 4. RENDER USERS TABLE
+  function renderUsersTable(users) {
+    const tbody = document.getElementById("allUsersTableBody");
+    if (!tbody) return;
+
+    tbody.innerHTML = "";
+
+    if (users.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px;">No users found in database.</td></tr>`;
+      return;
+    }
+
+    users.forEach((u) => {
+      const tr = document.createElement("tr");
+
+      const isBlocked = u.status === "blocked";
+      const statusBadge = isBlocked 
+        ? `<span class="badge-pending" style="background:#fee2e2; color:#dc2626;">blocked</span>`
+        : `<span class="badge-active">active</span>`;
+
+      tr.innerHTML = `
+        <td>
+          <div style="font-weight:700; color:#0f172a;">${u.fullName || u.name || 'N/A'}</div>
+          <div style="font-size:0.75rem; color:#64748b;">${u.email || '-'}</div>
+        </td>
+        <td>${statusBadge}</td>
+        <td>$${Number(u.wallet || u.balance || 0).toFixed(2)}</td>
+        <td>$${Number(u.earned || 0).toFixed(2)}</td>
+        <td>${u.reviewsCount || u.reviews || 0}</td>
+        <td>${u.activeCount || 1}</td>
+        <td>${u.referredBy || u.referrer || '—'}</td>
+        <td>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button class="btn-sm btn-adjust-bal" data-id="${u.id}">Balance</button>
+            <button class="btn-sm btn-toggle-block" data-id="${u.id}" data-status="${u.status}" style="color:${isBlocked ? '#10b981' : '#ef4444'};">${isBlocked ? 'Unblock' : 'Block'}</button>
+            <button class="btn-sm btn-reset-pwd" data-email="${u.email}">Password</button>
+            <button class="btn-sm btn-delete-user" data-id="${u.id}" style="color:#dc2626;">Delete</button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    attachUserActionListeners();
+  }
+
+  // 5. USER ACTION BUTTON HANDLERS
+  function attachUserActionListeners() {
+    // Balance Adjust
+    document.querySelectorAll(".btn-adjust-bal").forEach(btn => {
+      btn.onclick = async () => {
+        const uid = btn.getAttribute("data-id");
+        const val = prompt("Enter amount to add or subtract (e.g. 50 or -20):");
+        if (val !== null && !isNaN(val)) {
+          const num = parseFloat(val);
+          await updateDoc(doc(db, "users", uid), {
+            wallet: increment(num)
+          });
+          alert("Wallet updated!");
+        }
+      };
+    });
+
+    // Block / Unblock User
+    document.querySelectorAll(".btn-toggle-block").forEach(btn => {
+      btn.onclick = async () => {
+        const uid = btn.getAttribute("data-id");
+        const currentStatus = btn.getAttribute("data-status");
+        const newStatus = currentStatus === "blocked" ? "active" : "blocked";
+        if (confirm(`Change user status to ${newStatus}?`)) {
+          await updateDoc(doc(db, "users", uid), { status: newStatus });
+          alert(`User status changed to ${newStatus}`);
+        }
+      };
+    });
+
+    // Reset Password Email
+    document.querySelectorAll(".btn-reset-pwd").forEach(btn => {
+      btn.onclick = async () => {
+        const email = btn.getAttribute("data-email");
+        if (email && confirm(`Send password reset email to ${email}?`)) {
+          try {
+            await sendPasswordResetEmail(auth, email);
+            alert("Password reset email sent successfully!");
+          } catch (e) {
+            alert("Error sending reset email: " + e.message);
+          }
+        }
+      };
+    });
+
+    // Delete User Doc
+    document.querySelectorAll(".btn-delete-user").forEach(btn => {
+      btn.onclick = async () => {
+        const uid = btn.getAttribute("data-id");
+        if (confirm("Are you sure you want to delete this user record from Firestore?")) {
+          await deleteDoc(doc(db, "users", uid));
+          alert("User record deleted!");
+        }
+      };
+    });
+  }
+
+  // 6. SEARCH USERS FILTER
+  const userSearchInput = document.getElementById("userSearchInput");
+  if (userSearchInput) {
+    userSearchInput.oninput = (e) => {
+      const q = e.target.value.toLowerCase();
+      const filtered = allUsersList.filter(u => 
+        (u.fullName || u.name || "").toLowerCase().includes(q) ||
+        (u.email || "").toLowerCase().includes(q) ||
+        (u.inviteCode || "").toLowerCase().includes(q)
+      );
+      renderUsersTable(filtered);
+    };
+  }
+
+  // 7. CREATE NEW USER FROM ADMIN
+  window.createNewUser = async function() {
+    const nameInput = document.getElementById("newUserName");
+    const emailInput = document.getElementById("newUserEmail");
+    const passInput = document.getElementById("newUserPassword");
+
+    if (!nameInput || !emailInput || !passInput) return;
+
+    const name = nameInput.value.trim();
+    const email = emailInput.value.trim();
+    const pass = passInput.value.trim();
+
+    if (!name || !email || !pass) {
+      alert("Please fill in Name, Email and Password fields.");
+      return;
+    }
+
+    try {
+      // Create user record in Firestore directly
+      const newDocRef = doc(collection(db, "users"));
+      await setDoc(newDocRef, {
+        fullName: name,
+        email: email,
+        status: "active",
+        wallet: 0,
+        earned: 0,
+        reviewsCount: 0,
+        createdAt: serverTimestamp(),
+        referredBy: "Admin"
+      });
+
+      alert("User record created successfully in database!");
+      nameInput.value = "";
+      emailInput.value = "";
+      passInput.value = "";
+    } catch (e) {
+      alert("Error creating user: " + e.message);
+    }
+  };
+
+  // Attach Create User Button event
+  const createBtn = document.querySelector("#tab-dashboard .card .btn-purple");
+  if (createBtn) {
+    createBtn.onclick = (e) => {
+      e.preventDefault();
+      window.createNewUser();
+    };
+  }
+
+  // 8. TOP-UP REQUESTS LISTENER
+  function listenToTopupRequests() {
+    const topupRef = collection(db, "topups");
+    onSnapshot(topupRef, (snap) => {
+      const container = document.getElementById("topupListContainer");
+      const countElem = document.getElementById("topupPendingCount");
+      if (!container) return;
+
+      container.innerHTML = "";
+      let pendingCount = 0;
+
+      snap.forEach((docSnap) => {
+        const item = docSnap.data();
+        if (item.status === "pending") pendingCount++;
+
+        const div = document.createElement("div");
+        div.className = "payment-req-card";
+        div.innerHTML = `
+          <div class="payment-user-info">
+            <div class="proof-badge">Proof</div>
+            <div class="payment-details">
+              <h4>${item.userName || 'User'}</h4>
+              <p>${item.userEmail || '-'}</p>
+              <div class="payment-sub">Amount: $${item.amount || 0} · Method: ${item.method || 'Manual'}</div>
+            </div>
+          </div>
+          <div class="payment-actions">
+            <span class="badge-${item.status || 'pending'}">${item.status || 'pending'}</span>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+
+      if (countElem) countElem.textContent = pendingCount;
+    });
+  }
+
+  // 9. WITHDRAWALS LISTENER
+  function listenToWithdrawals() {
+    const withdrawRef = collection(db, "withdrawals");
+    onSnapshot(withdrawRef, (snap) => {
+      const tbody = document.getElementById("adminWithdrawalsBody");
+      if (!tbody) return;
+
+      tbody.innerHTML = "";
+      snap.forEach((docSnap) => {
+        const w = docSnap.data();
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><strong>${w.userName || 'N/A'}</strong></td>
+          <td>$${w.amount || 0}</td>
+          <td>${w.accountDetails || '-'}</td>
+          <td>${w.requestedAt ? new Date(w.requestedAt.toDate()).toLocaleDateString() : '-'}</td>
+          <td><span class="badge-${w.status || 'pending'}">${w.status || 'pending'}</span></td>
+          <td><button class="btn-sm">Process</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    });
+  }
+</script>
 </body>
 </html>
