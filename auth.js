@@ -116,7 +116,14 @@ const SogoAuth = (() => {
       logActivity("login", `${profile.name} logged in`, { email: profile.email, role: profile.role });
       return { ok: true, user: profile };
     } catch (e) {
-      return { ok: false, message: "Incorrect email/phone or password." };
+      // DEBUG: real Firebase error code/message printed to console so we
+      // can see the actual cause (wrong password vs too-many-requests vs
+      // something else) instead of guessing from the generic UI message.
+      console.error("SogoAuth.login failed:", e.code, e.message);
+      if (e.code === "auth/too-many-requests") {
+        return { ok: false, message: "Too many attempts — please wait a few minutes and try again." };
+      }
+      return { ok: false, message: "Incorrect email/phone or password. (" + (e.code || "unknown") + ")" };
     }
   }
 

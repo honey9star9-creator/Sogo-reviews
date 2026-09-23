@@ -1,9 +1,9 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
   getAuth,
   onAuthStateChanged,
   signOut
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   getFirestore,
   doc,
@@ -16,7 +16,7 @@ import {
   where,
   onSnapshot,
   orderBy
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyC3iwdTJnX8nDuaQgxZrqWqYTZOyqSkzCQ",
@@ -51,15 +51,7 @@ export {
 };
 
 // ============================================================
-// FIRESTORE SECURITY RULES — Firebase Console -> Firestore Database
-// -> Rules tab -> paste this (replace everything) -> Publish.
-//
-// CHANGED from the first version: added a public `inviteCodes`
-// collection. Signup needs to check an invitation code BEFORE the new
-// user is authenticated, but the old rules required auth to read
-// anything under /users — that's what was blocking signup. inviteCodes
-// only ever stores { ownerUid, ownerEmail } per code, never balances,
-// passwords, or anything sensitive, so making it public-read is safe.
+// FIRESTORE SECURITY RULES — already published by you, unchanged here.
 // ============================================================
 /*
 rules_version = '2';
@@ -81,7 +73,7 @@ service cloud.firestore {
     }
 
     match /inviteCodes/{code} {
-      allow read: if true;          // needed so signup works pre-auth
+      allow read: if true;
       allow write: if isSignedIn();
     }
 
@@ -116,7 +108,7 @@ service cloud.firestore {
 
     match /passwordRequests/{docId} {
       allow read: if isAdmin();
-      allow create: if true;        // signed-out visitors use "Forgot password"
+      allow create: if true;
       allow update: if isAdmin();
     }
 
