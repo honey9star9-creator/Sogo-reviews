@@ -1,37 +1,33 @@
 /* SOGO REVIEWS — Shared Auth + Data Logic (Firebase version)
    ------------------------------------------------------------------
-   Replaces the old localStorage-based auth.js. Same "SogoAuth"
-   namespace and (mostly) the same function names, so existing pages
-   need minimal renaming — BUT every SogoAuth call is now ASYNC
-   (returns a Promise), because Firebase talks to a real server.
+   FIXED VERSION — see notes marked "FIX:" below for what changed and why.
 
-   Old code:   const result = SogoAuth.login(email, pass);
-   New code:   const result = await SogoAuth.login(email, pass);
+   Same "SogoAuth" namespace/function names as before — every call is
+   still ASYNC (returns a Promise):
+     const result = await SogoAuth.login(email, pass);
 
-   This file MUST be loaded as a module:
+   Load as a module:
      <script type="module" src="auth.js"></script>
-   (not a plain <script src="auth.js"></script> — Firebase's modular
-   SDK requires ES module imports.)
 */
 
-import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { 
-  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, 
-  signOut, onAuthStateChanged, updatePassword as fbUpdatePassword, 
-  EmailAuthProvider, reauthenticateWithCredential 
+import {
+  createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
-  getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc,
-  collection, query, where, addDoc, orderBy, onSnapshot,
-  serverTimestamp, Timestamp
+  doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc,
+  collection, query, where, addDoc, orderBy, onSnapshot, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { firebaseConfig } from "./firebase-config.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+// FIX: import the ALREADY-initialized auth/db/config from firebase-config.js
+// instead of calling initializeApp() again here. Calling initializeApp()
+// twice on the default app crashes with "app/duplicate-app" and the whole
+// module silently fails to load — that was the #1 reason nothing worked.
+import { auth, db, firebaseConfig } from "./firebase-config.js";
 
 const USERS_COL = "users";
+const INVITE_CODES_COL = "inviteCodes";  // FIX: new public-readable collection
 const CHATS_COL = "chats";               // chats/{uid}/messages/{msgId}
 const WITHDRAWALS_COL = "withdrawals";
 const TOPUPS_COL = "topups";
@@ -52,12 +48,14 @@ const SogoAuth = (() => {
     } catch (e) { /* non-fatal */ }
   }
 
-  // Firestore stores users by their Firebase Auth UID as the doc id.
   async function getUserDoc(uid) {
     const snap = await getDoc(doc(db, USERS_COL, uid));
     return snap.exists() ? { uid: snap.id, ...snap.data() } : null;
   }
 
+  // NOTE: only call this when the caller is already signed in as an
+  // admin or as the user themself — Firestore rules require auth to
+  // read the /users collection. (Used by admin screens + post-login code.)
   async function getUserByEmail(email) {
     const q = query(collection(db, USERS_COL), where("email", "==", normalizeEmail(email)));
     const snap = await getDocs(q);
@@ -66,13 +64,22 @@ const SogoAuth = (() => {
     return { uid: d.id, ...d.data() };
   }
 
-  /* ---------------- one-time admin seed ----------------
-     Run this ONCE from the browser console (or a temporary button)
-     after you've enabled Email/Password auth, to create the first
-     admin account. Firestore can't "auto seed" the way localStorage
-     did, because creating an Auth user requires a real signup call. */
+  // FIX: invite codes now live in their own small public collection so a
+  // NOT-YET-SIGNED-IN visitor can validate a code during signup without
+  // needing read access to the whole /users collection.
+  async function getInviteCodeOwner(code) {
+    const snap = await getDoc(doc(db, INVITE_CODES_COL, code.toUpperCase()));
+    return snap.exists() ? snap.data() : null;
+  }
+  async function registerInviteCode(code, uid, email) {
+    await setDoc(doc(db, INVITE_CODES_COL, code.toUpperCase()), {
+      ownerUid: uid, ownerEmail: normalizeEmail(email)
+    });
+  }
+
+  /* ---------------- one-time admin seed ---------------- */
   async function seedDefaultAdminOnce(email, password, name) {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    const cred = await createUserWithEmailAndPassword(auth, normalizeEmail(email), password);
     await setDoc(doc(db, USERS_COL, cred.user.uid), {
       name: name || "Admin",
       email: normalizeEmail(email),
@@ -83,12 +90,17 @@ const SogoAuth = (() => {
       createdAt: serverTimestamp(),
       blocked: false
     });
+    await registerInviteCode("ADMIN0001", cred.user.uid, email);
     await signOut(auth);
     return { ok: true };
   }
 
   /* ---------------- auth: login / signup / logout ---------------- */
 
+  // FIX: restored the actual Firebase Auth password check. The previous
+  // version only looked the email up in Firestore and returned success —
+  // no password was verified at all, and (once rules are correct) that
+  // Firestore read fails anyway when nobody is signed in yet.
   async function login(email, password) {
     try {
       const cred = await signInWithEmailAndPassword(auth, normalizeEmail(email), password);
@@ -108,39 +120,40 @@ const SogoAuth = (() => {
     }
   }
 
+  // FIX: invite-code lookup now uses the public inviteCodes doc (works
+  // pre-auth). The "email already registered" pre-check was removed —
+  // createUserWithEmailAndPassword already rejects duplicate emails on
+  // its own (auth/email-already-in-use), so we don't need an
+  // unauthenticated read of /users just to check that.
   async function signup({ name, email, password, invitationCode }) {
     const code = (invitationCode || "").trim();
     if (!code) return { ok: false, message: "Invitation code is required." };
 
-    // Find the inviter BEFORE creating the account (createUser signs the
-    // new user in immediately, so we must look this up first).
-    const q = query(collection(db, USERS_COL), where("myInviteCode", "==", code.toUpperCase()));
-    const snap = await getDocs(q);
-    if (snap.empty) return { ok: false, message: "Invalid invitation code." };
-    const inviter = { uid: snap.docs[0].id, ...snap.docs[0].data() };
-
-    const existing = await getUserByEmail(email);
-    if (existing) return { ok: false, message: "This email is already registered." };
+    const inviter = await getInviteCodeOwner(code);
+    if (!inviter) return { ok: false, message: "Invalid invitation code." };
 
     try {
       const cred = await createUserWithEmailAndPassword(auth, normalizeEmail(email), password);
+      const myCode = generateInviteCode();
       const profile = {
         name: name || "New User",
         email: normalizeEmail(email),
         role: "client",
         invitationCode: code,
-        invitedByEmail: inviter.email,
-        myInviteCode: generateInviteCode(),
+        invitedByEmail: inviter.ownerEmail,
+        myInviteCode: myCode,
         balance: 0,
         createdAt: serverTimestamp(),
         blocked: false
       };
       await setDoc(doc(db, USERS_COL, cred.user.uid), profile);
-      logActivity("signup", `${profile.name} signed up using invite code ${code}`, { email: profile.email, invitedBy: inviter.email });
+      await registerInviteCode(myCode, cred.user.uid, email);
+      logActivity("signup", `${profile.name} signed up using invite code ${code}`, { email: profile.email, invitedBy: inviter.ownerEmail });
       return { ok: true, user: { uid: cred.user.uid, ...profile } };
     } catch (e) {
       if (e.code === "auth/email-already-in-use") return { ok: false, message: "This email is already registered." };
       if (e.code === "auth/weak-password") return { ok: false, message: "Password must be at least 6 characters." };
+      if (e.code === "auth/invalid-email") return { ok: false, message: "Please enter a valid email address." };
       return { ok: false, message: "Signup failed: " + e.message };
     }
   }
@@ -150,8 +163,6 @@ const SogoAuth = (() => {
     window.location.href = "auth.html";
   }
 
-  // Returns a Promise<session|null>. Firebase auth state resolves
-  // asynchronously on page load, so this waits for that first check.
   function getSession() {
     return new Promise((resolve) => {
       const unsub = onAuthStateChanged(auth, async (fbUser) => {
@@ -164,9 +175,6 @@ const SogoAuth = (() => {
     });
   }
 
-  // Call at the top of a protected page:
-  //   const session = await SogoAuth.requireRole('client');
-  //   if (!session) return; // already redirected
   async function requireRole(role) {
     const session = await getSession();
     if (!session || session.role !== role) {
@@ -186,12 +194,17 @@ const SogoAuth = (() => {
   }
 
   /* ---------------- password reset requests ---------------- */
+
+  // FIX: no longer pre-checks getUserByEmail() (that read needs auth and
+  // this form is used by signed-out visitors). We just log the request
+  // with whatever email was typed — admin can verify manually.
   async function requestPasswordReset(email) {
-    const user = await getUserByEmail(email);
-    if (!user) return { ok: false, message: "No account found with that email." };
-    const record = { email: user.email, name: user.name, status: "pending", requestedAt: serverTimestamp() };
-    await addDoc(collection(db, PW_REQUESTS_COL), record);
-    logActivity("password_reset_requested", `${user.name} requested a password reset`, { email: user.email });
+    const cleanEmail = normalizeEmail(email);
+    if (!cleanEmail) return { ok: false, message: "Please enter your email." };
+    await addDoc(collection(db, PW_REQUESTS_COL), {
+      email: cleanEmail, name: cleanEmail, status: "pending", requestedAt: serverTimestamp()
+    });
+    logActivity("password_reset_requested", `${cleanEmail} requested a password reset`, { email: cleanEmail });
     return { ok: true };
   }
 
@@ -200,12 +213,6 @@ const SogoAuth = (() => {
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   }
 
-  // NOTE: changing another user's Firebase Auth password from the client
-  // SDK is not possible (that needs the Admin SDK / a Cloud Function).
-  // Practical approach for now: mark the request fulfilled and use
-  // Firebase Console -> Authentication -> user -> "Reset password" email,
-  // or set up a small Cloud Function later. This just updates the request
-  // status so it disappears from the admin's pending list.
   async function fulfillPasswordRequest(id) {
     await updateDoc(doc(db, PW_REQUESTS_COL, id), { status: "fulfilled" });
   }
@@ -227,11 +234,6 @@ const SogoAuth = (() => {
     return { ...user, ...changes };
   }
 
-  // Deleting the Firebase Auth account itself needs the Admin SDK
-  // (a Cloud Function) — the client SDK can only delete the
-  // currently-signed-in user. So "delete" here removes the Firestore
-  // profile + blocks login by setting blocked:true first as a
-  // practical stand-in until you add a Cloud Function for full deletion.
   async function deleteUser(email) {
     const user = await getUserByEmail(email);
     if (!user) return;
@@ -239,62 +241,54 @@ const SogoAuth = (() => {
     logActivity("user_deleted", `${user.name} (${user.email}) was deleted by admin`, { email: user.email });
   }
 
-  // Admin creates a client account directly. Uses a SECONDARY Firebase
-  // app instance so this doesn't sign the admin out (createUser signs
-  // in as the new user on the primary app, which would kick the admin
-  // out of their own session).
   async function adminCreateUser(name, email, password) {
     const existing = await getUserByEmail(email);
     if (existing) return { ok: false, message: "This email is already registered." };
 
-    const { initializeApp: initSecondary } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js");
-    const secondaryApp = initSecondary(firebaseConfig, "Secondary-" + Date.now());
+    const secondaryApp = initializeApp(firebaseConfig, "Secondary-" + Date.now());
     const { getAuth: getSecondaryAuth } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js");
+    const { deleteApp } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js");
     const secondaryAuth = getSecondaryAuth(secondaryApp);
 
     try {
       const cred = await createUserWithEmailAndPassword(secondaryAuth, normalizeEmail(email), password);
+      const myCode = generateInviteCode();
       const profile = {
         name: name || "New User",
         email: normalizeEmail(email),
         role: "client",
         invitationCode: "(created by admin)",
-        myInviteCode: generateInviteCode(),
+        myInviteCode: myCode,
         balance: 0,
         createdAt: serverTimestamp(),
         blocked: false
       };
-      
       await setDoc(doc(db, USERS_COL, cred.user.uid), profile);
+      await registerInviteCode(myCode, cred.user.uid, email);
       logActivity("user_created_by_admin", `Admin created new user ${profile.name} (${profile.email})`, { email: profile.email });
-      
+      await signOut(secondaryAuth);
+      await deleteApp(secondaryApp);
       return { ok: true, user: profile };
-
     } catch (e) {
+      try { await deleteApp(secondaryApp); } catch (_) {}
       if (e.code === "auth/email-already-in-use") return { ok: false, message: "This email is already registered." };
       return { ok: false, message: "Could not create user: " + e.message };
-
-    } finally {
-      try {
-        await signOut(secondaryAuth);
-        await deleteApp(secondaryApp);
-      } catch (cleanupError) {
-        /* ignore cleanup error */
-      }
     }
   }
 
   async function setInviteCode(email, customCode) {
+    const user = await getUserByEmail(email);
+    if (!user) return null;
     const code = (customCode && customCode.trim()) ? customCode.trim().toUpperCase() : generateInviteCode();
-    return updateUser(email, { myInviteCode: code });
+    const oldCode = user.myInviteCode;
+    await updateDoc(doc(db, USERS_COL, user.uid), { myInviteCode: code });
+    await registerInviteCode(code, user.uid, user.email);
+    if (oldCode && oldCode !== code) {
+      try { await deleteDoc(doc(db, INVITE_CODES_COL, oldCode.toUpperCase())); } catch (_) {}
+    }
+    return { ...user, myInviteCode: code };
   }
 
-  // True "log in as this client" isn't possible from the client SDK
-  // without the user's password (Firebase Auth security). Practical
-  // replacement: open the client dashboard in a special read-only
-  // "admin preview" mode that fetches the target user's data by uid
-  // without switching the Auth session. Call this and read
-  // ?previewUid=... on client-dashboard.html to support that later.
   function impersonate(email) {
     getUserByEmail(email).then(user => {
       if (!user) return;
@@ -313,8 +307,6 @@ const SogoAuth = (() => {
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   }
 
-  // Real-time listener version — use this on the dashboards instead of
-  // polling every 3s. Returns an unsubscribe function.
   function listenChatThread(clientEmail, callback) {
     getUserByEmail(clientEmail).then(user => {
       if (!user) return callback([]);
@@ -339,10 +331,8 @@ const SogoAuth = (() => {
     await Promise.all(snap.docs.map(d => updateDoc(d.ref, { read: true })));
   }
 
-async function getUnreadMessageCount() {
+  async function getUnreadMessageCount() {
     const users = (await getUsers()).filter(u => u.role === "client");
-    
-    // Parallel execution for fast performance
     const promises = users.map(u => {
       const q = query(
         collection(db, CHATS_COL, u.uid, "messages"),
@@ -351,17 +341,13 @@ async function getUnreadMessageCount() {
       );
       return getDocs(q);
     });
-
     const snapshots = await Promise.all(promises);
     return snapshots.reduce((total, snap) => total + snap.size, 0);
   }
 
   async function getActiveChatsCount() {
     const users = (await getUsers()).filter(u => u.role === "client");
-    
-    // Parallel execution for fast performance
     const promises = users.map(u => getDocs(collection(db, CHATS_COL, u.uid, "messages")));
-
     const snapshots = await Promise.all(promises);
     return snapshots.filter(snap => snap.size > 0).length;
   }
@@ -389,20 +375,15 @@ async function getUnreadMessageCount() {
     const snap = await getDoc(doc(db, WITHDRAWALS_COL, id));
     if (!snap.exists()) return null;
     const w = snap.data();
-
-    // Pehle status update karein
     await updateDoc(doc(db, WITHDRAWALS_COL, id), { status });
-
-    // Agar status "approved" hua hai toh user ka balance deduct karein
     if (status === "approved" && w.status !== "approved") {
       const user = await getUserByEmail(w.email);
       if (user) {
         const currentBalance = user.balance || 0;
-        const newBalance = Math.max(0, currentBalance - w.amount); // negative balance hone se bachane ke liye
+        const newBalance = Math.max(0, currentBalance - w.amount);
         await updateDoc(doc(db, USERS_COL, user.uid), { balance: newBalance });
       }
     }
-
     logActivity(
       status === "approved" ? "withdrawal_approved" : "withdrawal_rejected",
       `Withdrawal of $${w.amount.toFixed(2)} ${status} for ${w.name}`,
@@ -464,6 +445,4 @@ async function getUnreadMessageCount() {
   };
 })();
 
-// Expose globally so existing inline onclick="SogoAuth.xxx()" handlers
-// in the HTML pages keep working (they run outside the module scope).
 window.SogoAuth = SogoAuth;

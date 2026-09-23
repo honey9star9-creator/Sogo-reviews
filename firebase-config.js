@@ -1,40 +1,22 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { 
-  getAuth, 
-  onAuthStateChanged, 
-  signOut 
+import {
+  getAuth,
+  onAuthStateChanged,
+  signOut
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { 
-  getFirestore, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
-  collection, 
-  addDoc, 
-  query, 
-  where, 
-  onSnapshot, 
-  orderBy 
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  addDoc,
+  query,
+  where,
+  onSnapshot,
+  orderBy
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-// ============================================================
-// SOGO REVIEWS — Firebase Project Configuration
-// ============================================================
-// Firebase Console -> Project Settings -> General -> "Your apps"
-// -> Web app (</>) -> yahan se config copy karke neeche paste karein.
-//
-// Agar abhi Firebase project nahi banaya, steps:
-// 1. https://console.firebase.google.com kholein
-// 2. "Add project" -> naam den (e.g. sogo-reviews) -> continue
-// 3. Left menu -> Build -> Authentication -> Get started ->
-//    "Email/Password" provider ko Enable karein
-// 4. Left menu -> Build -> Firestore Database -> Create database ->
-//    "Start in production mode" (rules neeche di gayi hain) ->
-//    region choose karein (jo aapke users ke qareeb ho)
-// 5. Project Settings (gear icon) -> General -> scroll down to
-//    "Your apps" -> Web icon (</>) -> app register karein ->
-//    config object copy karein aur neeche paste karein
-// ============================================================
 
 export const firebaseConfig = {
   apiKey: "AIzaSyAnRvEjCBtJ6makOpL1swXwadU7I3_f-8k",
@@ -44,32 +26,40 @@ export const firebaseConfig = {
   messagingSenderId: "689206575129",
   appId: "1:689206575129:web:4e9eca780ad01d6316ea88"
 };
-// Initialize Firebase
+
+// Initialize Firebase — this is the ONLY place initializeApp() should be
+// called for the primary app. auth.js and packages.js import `auth`/`db`
+// from here instead of calling initializeApp() again (calling it twice
+// on the default app crashes with "app/duplicate-app").
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// Export Firestore & Auth Helpers
-export { 
-  onAuthStateChanged, 
-  signOut, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
-  collection, 
-  addDoc, 
-  query, 
-  where, 
-  onSnapshot, 
-  orderBy 
+export {
+  onAuthStateChanged,
+  signOut,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  addDoc,
+  query,
+  where,
+  onSnapshot,
+  orderBy
 };
 
 // ============================================================
-// FIRESTORE SECURITY RULES — ye rules Firebase Console ->
-// Firestore Database -> Rules tab mein paste karein (default rules
-// se replace karke "Publish" dabayein). In rules ke bina koi bhi
-// user seedha database se sabka data parh/badal sakta hai.
+// FIRESTORE SECURITY RULES — Firebase Console -> Firestore Database
+// -> Rules tab -> paste this (replace everything) -> Publish.
+//
+// CHANGED from the first version: added a public `inviteCodes`
+// collection. Signup needs to check an invitation code BEFORE the new
+// user is authenticated, but the old rules required auth to read
+// anything under /users — that's what was blocking signup. inviteCodes
+// only ever stores { ownerUid, ownerEmail } per code, never balances,
+// passwords, or anything sensitive, so making it public-read is safe.
 // ============================================================
 /*
 rules_version = '2';
@@ -88,6 +78,11 @@ service cloud.firestore {
       allow create: if isSignedIn();
       allow update: if isOwner(uid) || isAdmin();
       allow delete: if isAdmin();
+    }
+
+    match /inviteCodes/{code} {
+      allow read: if true;          // needed so signup works pre-auth
+      allow write: if isSignedIn();
     }
 
     match /packages/{pkgId} {
@@ -121,7 +116,7 @@ service cloud.firestore {
 
     match /passwordRequests/{docId} {
       allow read: if isAdmin();
-      allow create: if true;
+      allow create: if true;        // signed-out visitors use "Forgot password"
       allow update: if isAdmin();
     }
 
