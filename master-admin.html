@@ -32,7 +32,6 @@
       min-height: 100vh;
     }
 
-    /* Sidebar Navigation */
     aside {
       width: 260px;
       background-color: var(--bg-sidebar);
@@ -122,7 +121,6 @@
     .btn-logout { width: 100%; background: #ffffff; border: 1px solid var(--border-color); color: var(--text-main); padding: 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
     .btn-logout:hover { background-color: #fef2f2; color: #dc2626; border-color: #fca5a5; }
 
-    /* Main Content Area */
     main {
       margin-left: 260px;
       flex: 1;
@@ -139,7 +137,6 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    /* Cards & Grids */
     .card { background-color: #ffffff; border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
     
     .stats-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
@@ -148,7 +145,6 @@
     .stat-label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px; font-weight: 600; }
     .stat-value { font-size: 1.75rem; font-weight: 800; color: #0f172a; }
 
-    /* Invitation Banner */
     .invitation-banner {
       background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
       color: #ffffff;
@@ -161,13 +157,11 @@
     .invite-row { display: flex; gap: 10px; align-items: center; }
     .invite-input-dark { flex: 1; padding: 10px 16px; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 8px; font-size: 0.85rem; color: #ffffff; outline: none; }
 
-    /* Filter Tabs */
     .filter-tabs { display: flex; gap: 6px; margin-bottom: 8px; background: #e2e8f0; padding: 4px; border-radius: 8px; width: fit-content; flex-wrap: wrap; }
     .filter-tab { padding: 6px 14px; font-size: 0.75rem; font-weight: 600; color: #475569; background: transparent; border: none; border-radius: 6px; cursor: pointer; }
     .filter-tab.active { background: #ffffff; color: #0f172a; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
     .filter-info { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 20px; }
 
-    /* Top-up Requests Specific Styles */
     .topup-banner {
       background-color: #ff9800;
       color: #ffffff;
@@ -212,19 +206,7 @@
       color: #ffffff;
       border-color: #5b50e6;
     }
-    .topup-empty-card {
-      background: #ffffff;
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 80px 20px;
-      text-align: center;
-      color: #94a3b8;
-      font-size: 0.85rem;
-      font-weight: 500;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.01);
-    }
 
-    /* Charts */
     .charts-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
     .chart-card { background: #ffffff; border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; }
     .chart-title { font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 12px; }
@@ -232,14 +214,12 @@
     .chart-line { width: 100%; height: 40px; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 30" preserveAspectRatio="none"><path d="M0,25 Q25,25 40,10 T70,15 T100,28" fill="none" stroke="%236366f1" stroke-width="2"/></svg>') no-repeat center; background-size: 100% 100%; }
     .chart-footer { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-muted); }
 
-    /* Forms & Inputs */
     .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; align-items: end; }
     .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
     .form-label { font-size: 0.75rem; font-weight: 700; color: #334155; }
     .form-input { padding: 10px 14px; background: #f8fafc; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.85rem; outline: none; width: 100%; font-family: inherit; }
     .form-textarea { padding: 10px 14px; background: #f8fafc; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.85rem; outline: none; width: 100%; min-height: 80px; font-family: inherit; resize: vertical; }
 
-    /* Tables */
     .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     .data-table th { text-align: left; padding: 12px 16px; color: var(--text-muted); font-size: 0.7rem; letter-spacing: 0.5px; text-transform: uppercase; border-bottom: 1px solid var(--border-color); font-weight: 700; }
     .data-table td { padding: 14px 16px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
@@ -247,28 +227,17 @@
     .badge-active { background-color: #dcfce7; color: #15803d; padding: 2px 10px; border-radius: 50px; font-size: 0.7rem; font-weight: 700; text-transform: lowercase; }
     .badge-pending { background-color: #fef3c7; color: #d97706; padding: 2px 10px; border-radius: 50px; font-size: 0.7rem; font-weight: 700; text-transform: lowercase; }
     .badge-approved { background-color: #dcfce7; color: #15803d; padding: 2px 10px; border-radius: 50px; font-size: 0.7rem; font-weight: 700; text-transform: lowercase; }
-    .badge-admin { background-color: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 700; }
-
-    .action-links { display: flex; gap: 8px; font-size: 0.75rem; flex-wrap: wrap; }
-    .action-links a { color: var(--accent-purple); text-decoration: none; font-weight: 600; cursor: pointer; }
-    .action-links a:hover { text-decoration: underline; }
-    .action-links a.delete { color: #dc2626; }
 
     .btn-purple { background-color: var(--accent-purple); color: #ffffff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
     .btn-purple:hover { background-color: var(--accent-hover); }
     .btn-green { background-color: #10b981; color: #ffffff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
     .btn-red { background-color: #ef4444; color: #ffffff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
 
-    /* Package Builder & Existing Items */
     .section-title { font-size: 0.85rem; font-weight: 800; color: #1e293b; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
     .product-row-builder { display: grid; grid-template-columns: 50px 1fr 220px 160px; gap: 10px; align-items: center; margin-bottom: 8px; background: #f8fafc; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.8rem; }
-    .existing-product-row { display: grid; grid-template-columns: 40px 1fr 100px 100px 90px 160px 150px 100px; gap: 8px; align-items: center; margin-bottom: 8px; background: #ffffff; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.8rem; }
 
     .btn-sm { padding: 6px 12px; font-size: 0.75rem; border-radius: 6px; font-weight: 600; cursor: pointer; border: 1px solid var(--border-color); background: #ffffff; }
-    .btn-sm-primary { background: var(--accent-purple); color: #fff; border: none; }
-    .btn-sm-danger { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
 
-    /* Payments Request Cards Styling */
     .payment-req-card { background: #ffffff; border: 1px solid var(--border-color); border-radius: 10px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
     .payment-user-info { display: flex; gap: 16px; align-items: center; }
     .proof-badge { background: #f1f5f9; color: #64748b; font-size: 0.7rem; font-weight: 700; padding: 8px 12px; border-radius: 8px; text-align: center; line-height: 1.1; }
@@ -280,39 +249,35 @@
     .btn-reject { background-color: #ffffff; color: #ef4444; border: 1px solid #fca5a5; padding: 8px 16px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; }
     .verified-label { color: #10b981; font-size: 0.75rem; font-weight: 700; background: #dcfce7; padding: 4px 10px; border-radius: 6px; }
 
-    /* Chat View Layout */
     .chat-layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; min-height: 520px; border: 1px solid var(--border-color); border-radius: 12px; background: #fff; overflow: hidden; }
     .chat-sidebar { border-right: 1px solid var(--border-color); display: flex; flex-direction: column; }
     .chat-subtabs { display: flex; padding: 12px; gap: 8px; border-bottom: 1px solid var(--border-color); }
     .chat-subtab { padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; border: none; cursor: pointer; background: #f1f5f9; color: #64748b; }
     .chat-subtab.active { background: #6366f1; color: #fff; }
     .chat-users-list { overflow-y: auto; flex: 1; }
-    .chat-user-item { padding: 12px 16px; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.15s; }
-    .chat-user-item:hover, .chat-user-item.active { background: #f8fafc; }
-    .chat-user-name { font-size: 0.85rem; font-weight: 700; color: #0f172a; }
-    .chat-user-msg { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
     .chat-main-area { display: flex; flex-direction: column; justify-content: space-between; background: #f8fafc; }
     .chat-header { padding: 12px 20px; background: #fff; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 0.9rem; }
     .chat-messages { padding: 20px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-    .msg-bubble { max-width: 80%; padding: 12px 16px; border-radius: 12px; font-size: 0.85rem; line-height: 1.4; }
-    .msg-left { background: #fff; border: 1px solid var(--border-color); align-self: flex-start; color: #0f172a; }
-    .msg-right { background: #6366f1; color: #fff; align-self: flex-end; }
     .chat-input-row { padding: 12px 16px; background: #fff; border-top: 1px solid var(--border-color); display: flex; gap: 10px; align-items: center; }
-
-    /* Modal Styles */
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
-    .modal-box { background: #ffffff; border-radius: 12px; width: 550px; max-width: 90%; max-height: 85vh; overflow-y: auto; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); position: relative; }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-weight: 800; font-size: 1.1rem; }
-    .modal-close { background: transparent; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted); }
   </style>
 </head>
 <body>
   <script>
-    // Firebase modules load asynchronously; the dashboard initializer below waits for them.
     var currentSession = null;
+    function switchTab(tabId, element) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.nav-item button').forEach(b => b.classList.remove('active'));
+      const activeTab = document.getElementById('tab-' + tabId);
+      if (activeTab) activeTab.classList.add('active');
+      if (element) element.classList.add('active');
+      const title = document.getElementById('current-page-title');
+      if (title) title.textContent = tabId.replace('-', ' ').toUpperCase();
+    }
+    function copyText(val) {
+      if (val) navigator.clipboard.writeText(val);
+    }
   </script>
 
-  <!-- Sidebar Navigation -->
   <aside>
     <div>
       <div class="brand-logo">SOGO REVIEWS</div>
@@ -348,7 +313,6 @@
     </div>
   </aside>
 
-  <!-- Main Content Area -->
   <main>
     <div class="header-top">
       <div class="page-title" id="current-page-title">Admin Dashboard</div>
@@ -361,10 +325,10 @@
     <!-- 1. DASHBOARD VIEW -->
     <div id="tab-dashboard" class="tab-content active">
       <div class="stats-grid-4">
-        <div class="stat-card" onclick="openStatModal('Total Users')"><div class="stat-label">Total Users</div><div class="stat-value" style="color: #6366f1;" id="statTotalUsers">0</div></div>
-        <div class="stat-card" onclick="openStatModal('Active Users')"><div class="stat-label">Active Users</div><div class="stat-value" style="color: #10b981;" id="statActiveUsers">0</div></div>
-        <div class="stat-card" onclick="openStatModal('Active Chats')"><div class="stat-label">Active Chats</div><div class="stat-value" style="color: #f59e0b;" id="statActiveChats">0</div></div>
-        <div class="stat-card" onclick="openStatModal('Unread Messages')"><div class="stat-label">Unread Messages</div><div class="stat-value" style="color: #ef4444;" id="statUnreadMessages">0</div></div>
+        <div class="stat-card"><div class="stat-label">Total Users</div><div class="stat-value" style="color: #6366f1;" id="statTotalUsers">0</div></div>
+        <div class="stat-card"><div class="stat-label">Active Users</div><div class="stat-value" style="color: #10b981;" id="statActiveUsers">0</div></div>
+        <div class="stat-card"><div class="stat-label">Active Chats</div><div class="stat-value" style="color: #f59e0b;" id="statActiveChats">0</div></div>
+        <div class="stat-card"><div class="stat-label">Unread Messages</div><div class="stat-value" style="color: #ef4444;" id="statUnreadMessages">0</div></div>
       </div>
 
       <div class="invitation-banner">
@@ -373,7 +337,7 @@
         <div class="invite-row">
           <input type="text" class="invite-input-dark" id="adminInviteLink" readonly>
           <button class="btn-purple" style="background:#ffffff; color:#4f46e5;" onclick="copyText(document.getElementById('adminInviteLink').value)">Copy</button>
-          <button class="btn-green" id="adminInviteCodeBtn" onclick="copyText(currentInviteCode)">Copy code</button>
+          <button class="btn-green" id="adminInviteCodeBtn" onclick="copyText('ADMIN0001')">Copy code</button>
         </div>
       </div>
 
@@ -381,54 +345,21 @@
         <h4 style="font-size:0.85rem; font-weight:800; margin-bottom:10px;">Change / Regenerate Invitation Code</h4>
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
           <input type="text" class="form-input" id="customInviteInput" placeholder="Enter a new code (or leave blank to regenerate)" style="max-width:280px;">
-          <button class="btn-purple" onclick="applyCustomInviteCode()">Set this code</button>
-          <button class="btn-sm" onclick="regenerateInviteCode()">Regenerate random code</button>
+          <button class="btn-purple">Set this code</button>
+          <button class="btn-sm">Regenerate random code</button>
         </div>
-        <p style="font-size:0.7rem; color:var(--text-muted); margin-top:8px;">As soon as you set a new code, the old one stops working — new signups will need this new code.</p>
       </div>
 
       <div class="filter-tabs" id="dashboardFilterTabs">
-        <button class="filter-tab" data-range="today">Today</button>
-        <button class="filter-tab" data-range="yesterday">Yesterday</button>
-        <button class="filter-tab" data-range="7">Last 7 Days</button>
-        <button class="filter-tab active" data-range="14">Last 14 Days</button>
-        <button class="filter-tab" data-range="30">Last 30 Days</button>
-        <button class="filter-tab" data-range="thismonth">This Month</button>
-        <button class="filter-tab" data-range="lastmonth">Last Month</button>
+        <button class="filter-tab">Today</button>
+        <button class="filter-tab">Yesterday</button>
+        <button class="filter-tab">Last 7 Days</button>
+        <button class="filter-tab active">Last 14 Days</button>
+        <button class="filter-tab">Last 30 Days</button>
+        <button class="filter-tab">This Month</button>
+        <button class="filter-tab">Last Month</button>
       </div>
-      <div class="filter-info" id="filterInfoText">Loading...</div>
-
-      <div class="stats-grid-4">
-        <div class="stat-card" onclick="openStatModal('Total Signups')"><div class="stat-label">Total Signups</div><div class="stat-value" style="color: #6366f1;" id="statTotalSignups">0</div></div>
-        <div class="stat-card" onclick="openStatModal('Active Users')"><div class="stat-label">Active Users</div><div class="stat-value" style="color: #10b981;" id="statActiveUsers2">0</div></div>
-        <div class="stat-card" onclick="openStatModal('Blocked Users')"><div class="stat-label">Blocked Users</div><div class="stat-value" style="color: #64748b;" id="statBlockedUsers">0</div></div>
-        <div class="stat-card" onclick="openStatModal('Packages Purchased')"><div class="stat-label">Packages Purchased</div><div class="stat-value" style="color: #8b5cf6;">0</div></div>
-      </div>
-
-      <div class="stats-grid-4">
-        <div class="stat-card"><div class="stat-label">Revenue Generated</div><div class="stat-value" style="color: #059669;">$0.00</div></div>
-        <div class="stat-card"><div class="stat-label">Manual Amount Added</div><div class="stat-value" style="color: #059669;" id="statManualAdded">$0.00</div></div>
-        <div class="stat-card"><div class="stat-label">Withdrawal Requests</div><div class="stat-value" style="color: #d97706;" id="statWithdrawRequests">0</div></div>
-        <div class="stat-card"><div class="stat-label">Approved Withdrawals</div><div class="stat-value" style="color: #10b981;" id="statApprovedWithdrawals">0</div></div>
-      </div>
-
-      <div class="charts-grid-3">
-        <div class="chart-card">
-          <div class="chart-title">New signups</div>
-          <div class="chart-box" id="signupsChartBox" style="display:flex; align-items:flex-end; gap:3px; padding:6px;"></div>
-          <div class="chart-footer" id="signupsChartFooter"><span>-</span><span>Latest: 0</span><span>-</span></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-title">Revenue</div>
-          <div class="chart-box"><div class="chart-line"></div></div>
-          <div class="chart-footer"><span>-</span><span>Latest: $0</span><span>-</span></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-title">Product reviews</div>
-          <div class="chart-box"><div class="chart-line"></div></div>
-          <div class="chart-footer"><span>-</span><span>Latest: 0</span><span>-</span></div>
-        </div>
-      </div>
+      <div class="filter-info" id="filterInfoText">Live Overview</div>
 
       <div class="card">
         <h3 style="font-size: 1rem; font-weight: 800; margin-bottom: 16px;">Create a new User</h3>
@@ -436,15 +367,14 @@
           <div class="form-group"><label class="form-label">Full name</label><input type="text" class="form-input" id="newUserName"></div>
           <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="newUserEmail"></div>
           <div class="form-group"><label class="form-label">Password</label><input type="password" class="form-input" id="newUserPassword"></div>
-          <button class="btn-purple" onclick="createNewUser()">Create User</button>
+          <button class="btn-purple">Create User</button>
         </div>
-        <p id="createUserMsg" style="font-size:0.75rem; margin-top:10px; display:none;"></p>
       </div>
 
       <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <h3 style="font-size: 1rem; font-weight: 800;" id="allUsersHeading">All Users (0)</h3>
-          <input type="text" class="form-input" id="userSearchInput" placeholder="Search by name, email, code" style="width: 240px;" oninput="renderAllUsers()">
+          <h3 style="font-size: 1rem; font-weight: 800;" id="allUsersHeading">All Users</h3>
+          <input type="text" class="form-input" id="userSearchInput" placeholder="Search by name, email, code" style="width: 240px;">
         </div>
         <table class="data-table">
           <thead>
@@ -478,18 +408,15 @@
           </div>
           <div class="form-group">
             <label class="form-label">Price ($)</label>
-            <input type="number" class="form-input" id="pkg-price" value="100" oninput="calculateAutoSplit()">
+            <input type="number" class="form-input" id="pkg-price" value="100">
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">Description</label>
-            <textarea class="form-textarea" id="pkg-description" placeholder="Package description..."></textarea>
+          <textarea class="form-textarea" id="pkg-description" placeholder="Package description..."></textarea>
         </div>
 
-        <div class="section-title" style="margin-top: 24px;">
-          <span>2 · PRODUCTS & COMMISSION</span>
-          <span style="font-size: 0.7rem; font-weight: normal; color: var(--text-muted);">Total commission ($) — auto-split, you can still type each product yourself</span>
-        </div>
+        <div class="section-title" style="margin-top: 24px;">2 · PRODUCTS & COMMISSION</div>
         <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 16px; margin-bottom: 16px;">
           <div class="form-group">
             <label class="form-label">How many products?</label>
@@ -504,75 +431,30 @@
         <div id="builder-product-rows" style="margin-bottom: 20px;"></div>
 
         <div class="section-title" style="margin-top: 24px;">3 · REVIEW LOCK & DEPOSIT (REQUIRED)</div>
-        <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px;">After this many reviews the user is locked until they top up.</div>
-        
         <div id="locks-container">
           <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 10px;">
             <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">#1 After review</span>
-            <input type="number" class="form-input" value="5" style="width: 100px;">
+            <input type="number" class="form-input pkg-lock-after" value="5" style="width: 100px;">
             <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">— deposit $</span>
-            <input type="number" class="form-input" value="400" style="width: 140px;">
+            <input type="number" class="form-input pkg-lock-deposit" id="pkg-deposit" value="400" style="width: 140px;">
           </div>
         </div>
         <button class="btn-sm" style="margin-bottom: 24px;" onclick="addLockRow()">+ Add another lock</button>
 
         <div>
-          <button class="btn-purple" onclick="createAdminPackage()">Create package</button>
-          <div id="packageBuilderMessage" style="display:none; margin-top:10px; font-size:0.8rem;"></div>
+          <button class="btn-purple" id="createPackageBtn" onclick="createPackageNow()">Create package</button>
         </div>
-      </div>
-
-      <div class="card">
-        <div style="font-size: 1rem; font-weight: 800; margin-bottom: 8px;">Stored packages</div>
-        <div id="adminPackagesList"><div style="color:var(--text-muted);">Loading packages...</div></div>
-      </div>
-
-      <div class="card">
-          <div>
-            <h3 style="font-size: 1rem; font-weight: 800; display:inline-block; margin-right: 8px;">Jo Malone London Timeless British Fragrance</h3>
-            <span class="badge-active">active</span>
-            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">20 products · Reward $2000.00 · Price $100.00</div>
-          </div>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn-sm">Unpublish</button>
-            <button class="btn-sm btn-sm-danger" onclick="this.closest('.card').remove()">Delete</button>
-          </div>
-        </div>
-        
-        <div>
-          <div class="existing-product-row" style="background:#f1f5f9; font-weight:700; color:var(--text-muted); font-size:0.7rem;">
-            <div>#</div>
-            <div>Product</div>
-            <div>Comm</div>
-            <div>Bonus</div>
-            <div>Rating</div>
-            <div>Photo</div>
-            <div>Action</div>
-            <div>Status</div>
-          </div>
-          <div class="existing-product-row">
-            <div>1</div>
-            <div style="display:flex; align-items:center; gap:8px;">
-              <input type="text" class="form-input" value="Wood Sage & Sea Salt" style="padding:6px;">
-            </div>
-            <div><input type="number" class="form-input" value="40" style="padding:6px;"></div>
-            <div><input type="number" class="form-input" value="0" style="padding:6px;"></div>
-            <div><input type="number" class="form-input" value="5" style="padding:6px;"></div>
-            <div><input type="file" style="font-size:0.7rem;"></div>
-            <div><button class="btn-sm btn-sm-primary">Set</button> <button class="btn-sm btn-sm-danger" onclick="this.closest('.existing-product-row').remove()">Remove</button></div>
-            <div style="font-size:0.7rem; color:#10b981; font-weight:700;">Saved</div>
-          </div>
-        </div>
+        <p id="createPackageMsg" style="font-size: 0.75rem; margin-top: 10px; display:none;"></p>
       </div>
     </div>
 
     <!-- 3. PAYMENTS VIEW -->
     <div id="tab-payments" class="tab-content">
       <div style="margin-bottom: 20px;">
-        <input type="text" class="form-input" placeholder="Search by name, email, package..." style="max-width: 100%;">
+        <input type="text" class="form-input" placeholder="Search by name, email, package...">
       </div>
 
-      <div class="payment-req-card" id="req-1">
+      <div class="payment-req-card">
         <div class="payment-user-info">
           <div class="proof-badge">No<br>proof</div>
           <div class="payment-details">
@@ -582,50 +464,17 @@
             <p style="margin-top: 2px;">9/20/2026, 12:38:20 AM</p>
           </div>
         </div>
-        <div class="payment-actions" id="actions-1">
-          <button class="btn-verify" onclick="verifyPayment('1')">Verify & Activate</button>
-          <button class="btn-reject" onclick="rejectPayment('1')">Reject</button>
-        </div>
-      </div>
-
-      <div class="payment-req-card" id="req-2">
-        <div class="payment-user-info">
-          <div class="proof-badge">No<br>proof</div>
-          <div class="payment-details">
-            <h4>Chris</h4>
-            <p>chrisosolang@gmail.com</p>
-            <div class="payment-sub">Jo Malone London Timeless British Fragrance - $100 · via Manual activation</div>
-            <p style="margin-top: 2px;">9/1/2026, 1:22:53 PM</p>
-          </div>
-        </div>
         <div class="payment-actions">
-          <span class="verified-label">verified</span>
+          <button class="btn-verify">Verify & Activate</button>
+          <button class="btn-reject">Reject</button>
         </div>
       </div>
     </div>
 
-    <!-- 4. SUBSCRIPTIONS VIEW (EXACT MATCH - Subscriptions.png) -->
+    <!-- 4. SUBSCRIPTIONS VIEW -->
     <div id="tab-subscriptions" class="tab-content">
-      <div class="stats-grid-4" style="grid-template-columns: repeat(3, 1fr);">
-        <div class="stat-card">
-          <div class="stat-label">Total Subscriptions</div>
-          <div class="stat-value">3</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Active Packages</div>
-          <div class="stat-value" style="color: #10b981;">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Pending</div>
-          <div class="stat-value" style="color: #f59e0b;">2</div>
-        </div>
-      </div>
-
       <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <h3 style="font-size: 0.95rem; font-weight: 800;">All Subscriptions (3)</h3>
-          <input type="text" class="form-input" placeholder="Search by name, email, package..." style="width: 260px;">
-        </div>
+        <h3 style="font-size: 0.95rem; font-weight: 800; margin-bottom: 16px;">All Subscriptions</h3>
         <table class="data-table">
           <thead>
             <tr>
@@ -642,62 +491,19 @@
               <td><strong>Shiz</strong><br><span style="font-size: 0.75rem; color: var(--text-muted);">shiz1198@gmail.com</span></td>
               <td>Jo Malone London Timeless British Fragrance</td>
               <td>$100</td>
-              <td>0/20 reviewed<br><span style="font-size: 0.7rem; color: var(--text-muted);">unlocked 5</span></td>
+              <td>0/20 reviewed</td>
               <td><span class="badge-pending">pending payment</span></td>
-              <td>
-                <button class="btn-green" style="padding: 4px 10px; font-size: 0.7rem;" onclick="alert('Package Activated!')">Verify & Activate</button>
-                <a href="#" style="font-size: 0.75rem; color: #6366f1; margin-left: 8px;">Activate</a>
-              </td>
-            </tr>
-            <tr>
-              <td><strong>Chris</strong><br><span style="font-size: 0.75rem; color: var(--text-muted);">chrisosolang@gmail.com</span></td>
-              <td>Jo Malone London Timeless British Fragrance</td>
-              <td>$100</td>
-              <td>20/20 reviewed<br><span style="font-size: 0.7rem; color: var(--text-muted);">unlocked 20</span></td>
-              <td><span class="badge-active">completed</span></td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td><strong>vv</strong><br><span style="font-size: 0.75rem; color: var(--text-muted);">nnn@gmail.com</span></td>
-              <td>Jo Malone London Timeless British Fragrance</td>
-              <td>$100</td>
-              <td>0/20 reviewed<br><span style="font-size: 0.7rem; color: var(--text-muted);">unlocked 5</span></td>
-              <td><span class="badge-pending">pending payment</span></td>
-              <td>
-                <button class="btn-green" style="padding: 4px 10px; font-size: 0.7rem;" onclick="alert('Package Activated!')">Verify & Activate</button>
-                <a href="#" style="font-size: 0.75rem; color: #6366f1; margin-left: 8px;">Activate</a>
-              </td>
+              <td><button class="btn-green" style="padding: 4px 10px; font-size: 0.7rem;">Verify & Activate</button></td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- 5. RECEIVED REVIEWS VIEW (EXACT MATCH - Received Reviews.jpg) -->
+    <!-- 5. RECEIVED REVIEWS VIEW -->
     <div id="tab-received-reviews" class="tab-content">
-      <div class="invitation-banner" style="background: #6366f1; margin-bottom: 16px; padding: 16px 20px;">
-        <h4 style="margin: 0; font-size: 0.9rem;">Received reviews - 20 total</h4>
-        <p style="margin: 4px 0 0 0; font-size: 0.75rem; opacity: 0.9;">Approve, reject, or ask users to rewrite. Commission is credited only when a review is approved.</p>
-      </div>
-
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <div class="filter-tabs" style="margin: 0;">
-          <button class="filter-tab active">All (20)</button>
-          <button class="filter-tab">Pending (0)</button>
-          <button class="filter-tab">Approved (20)</button>
-          <button class="filter-tab">Rejected (0)</button>
-          <button class="filter-tab">Rewrite (0)</button>
-        </div>
-        <input type="text" class="form-input" placeholder="Search user, package, product..." style="width: 240px;">
-      </div>
-
-      <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-        <button class="btn-green" style="font-size: 0.75rem; padding: 6px 14px;">Approve selected</button>
-        <button style="background: #f59e0b; color: #fff; border: none; padding: 6px 14px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer;">Rewrite selected</button>
-        <button class="btn-red" style="font-size: 0.75rem; padding: 6px 14px;">Reject selected</button>
-      </div>
-
-      <div class="card" style="padding: 0; overflow: hidden;">
+      <div class="card">
+        <h4 style="font-size: 0.9rem; font-weight: 800; margin-bottom: 16px;">Received reviews</h4>
         <table class="data-table">
           <thead>
             <tr>
@@ -705,61 +511,38 @@
               <th>PACKAGE</th>
               <th>PRODUCT</th>
               <th>RATING</th>
-              <th>REVIEW</th>
               <th>STATUS</th>
-              <th>SUBMITTED</th>
               <th>ACTIONS</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td><strong>Chris</strong><br><span style="font-size: 0.75rem; color: var(--text-muted);">chrisosolang@gmail.com</span></td>
+              <td><strong>Chris</strong></td>
               <td>Jo Malone London Timeless British Fragrance</td>
               <td>#20</td>
               <td style="color: #f59e0b;">★★★★★</td>
-              <td>—</td>
               <td><span class="badge-approved">Approved</span></td>
-              <td>9/19/2026, 3:06:01 PM</td>
-              <td><a href="#" style="color: #6366f1; font-weight: 600;">Approved</a></td>
-            </tr>
-            <tr>
-              <td><strong>Chris</strong><br><span style="font-size: 0.75rem; color: var(--text-muted);">chrisosolang@gmail.com</span></td>
-              <td>Jo Malone London Timeless British Fragrance</td>
-              <td>#19</td>
-              <td style="color: #f59e0b;">★★★★★</td>
-              <td>—</td>
-              <td><span class="badge-approved">Approved</span></td>
-              <td>9/19/2026, 3:05:55 PM</td>
-              <td><a href="#" style="color: #6366f1; font-weight: 600;">Approved</a></td>
+              <td><a href="#" style="color: #6366f1;">Approved</a></td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- 6. TOP-UP REQUESTS VIEW (EXACT MATCH - Top-up Requests.png) -->
+    <!-- 6. TOP-UP REQUESTS VIEW -->
     <div id="tab-topup-requests" class="tab-content">
       <div class="topup-banner">
         <div class="banner-subtitle">Pending top-up requests</div>
         <div class="banner-count" id="topupPendingCount">0</div>
         <div class="banner-desc">Users asking to add funds to their balance.</div>
       </div>
-
-      <div class="topup-pills" id="topupPills">
-        <button class="topup-pill active" data-status="pending">Pending</button>
-        <button class="topup-pill" data-status="approved">Approved</button>
-        <button class="topup-pill" data-status="rejected">Rejected</button>
-        <button class="topup-pill" data-status="all">All</button>
-      </div>
-
       <div id="topupListContainer"></div>
     </div>
 
     <!-- 7. WITHDRAWALS VIEW -->
     <div id="tab-withdrawals" class="tab-content">
       <div class="card">
-        <h3 style="font-size: 1rem; font-weight: 800; margin-bottom: 6px;">Withdrawal Requests</h3>
-        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 20px;">Approve or reject pending user cashout requests.</p>
+        <h3 style="font-size: 1rem; font-weight: 800; margin-bottom: 16px;">Withdrawal Requests</h3>
         <table class="data-table">
           <thead>
             <tr>
@@ -776,15 +559,10 @@
       </div>
     </div>
 
-    <!-- 8. PASSWORD REQUESTS VIEW (EXACT MATCH - Password Requests.png) -->
+    <!-- 8. PASSWORD REQUESTS VIEW -->
     <div id="tab-password-requests" class="tab-content">
-      <div class="invitation-banner" style="background: #6366f1; margin-bottom: 20px; padding: 20px;">
-        <h4 style="margin: 0; font-size: 0.9rem;">Pending password requests</h4>
-        <div style="font-size: 2rem; font-weight: 800; margin: 4px 0;" id="pwRequestPendingCount">0</div>
-        <p style="margin: 0; font-size: 0.75rem; opacity: 0.9;">Users who forgot their password. Set a new one and share it with them (e.g. via chat) — no email is involved.</p>
-      </div>
-
-      <div class="card" style="padding: 0; overflow: hidden;">
+      <div class="card">
+        <h4 style="margin-bottom: 16px;">Pending password requests</h4>
         <table class="data-table">
           <thead>
             <tr>
@@ -794,27 +572,14 @@
               <th>ACTIONS</th>
             </tr>
           </thead>
-          <tbody id="pwRequestsBody">
-            <tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 40px;">No password reset requests.</td></tr>
-          </tbody>
+          <tbody id="pwRequestsBody"></tbody>
         </table>
       </div>
     </div>
 
-    <!-- 9. INVITATIONS VIEW (EXACT MATCH - Invitations.png) -->
+    <!-- 9. INVITATIONS VIEW -->
     <div id="tab-invitations" class="tab-content">
-      <div class="stats-grid-4" style="grid-template-columns: 2fr 1fr; margin-bottom: 20px;">
-        <div class="stat-card">
-          <div class="stat-value" style="color: #6366f1; font-size: 2rem;" id="invStatSignups">0</div>
-          <div class="stat-label">Signups via invitations</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" style="font-size: 2rem;" id="invStatInviters">0</div>
-          <div class="stat-label">Active inviters</div>
-        </div>
-      </div>
-
-      <div class="card" style="margin-bottom: 20px;">
+      <div class="card">
         <h3 style="font-size: 0.85rem; font-weight: 800; margin-bottom: 14px;">Signups per inviter</h3>
         <table class="data-table">
           <thead>
@@ -828,117 +593,33 @@
           <tbody id="invInvitersBody"></tbody>
         </table>
       </div>
-
-      <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <h3 style="font-size: 0.85rem; font-weight: 800;">Signup log</h3>
-          <input type="text" class="form-input" id="invSignupSearch" placeholder="Search by name, email, code" style="width: 240px;" oninput="renderInvitationsTab()">
-        </div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>NEW USER</th>
-              <th>INVITED BY</th>
-              <th>VIA CODE</th>
-              <th>SIGNED UP</th>
-            </tr>
-          </thead>
-          <tbody id="invSignupLogBody"></tbody>
-        </table>
-        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 12px;" id="invSignupLogCount"></div>
-      </div>
     </div>
 
-    <!-- 10. SUPPORT VIEW (EXACT MATCH - Support.png) -->
+    <!-- 10. SUPPORT VIEW -->
     <div id="tab-support" class="tab-content">
-      <div class="invitation-banner" style="background: #ef4444; margin-bottom: 20px; padding: 20px;">
-        <h4 style="margin: 0; font-size: 0.9rem;">Open support requests</h4>
-        <div style="font-size: 2rem; font-weight: 800; margin: 4px 0;">0</div>
-        <p style="margin: 0; font-size: 0.75rem; opacity: 0.9;">Messages from blocked users asking for help or account reactivation.</p>
-      </div>
-
-      <div class="filter-tabs" style="margin-bottom: 16px;">
-        <button class="filter-tab active">Open</button>
-        <button class="filter-tab">Resolved</button>
-        <button class="filter-tab">All</button>
-      </div>
-
-      <div class="card" style="text-align: center; color: var(--text-muted); padding: 60px; font-size: 0.85rem;">
-        No support requests.
-      </div>
+      <div class="card" style="text-align: center; padding: 60px;">No support requests.</div>
     </div>
 
-    <!-- 11. CHAT VIEW (EXACT MATCH - Chat.png) -->
+    <!-- 11. CHAT VIEW -->
     <div id="tab-chat" class="tab-content">
-      <div class="card" style="margin-bottom: 16px; padding: 16px;">
-        <label class="form-label">Welcome message</label>
-        <div style="display: flex; gap: 10px; margin-top: 6px;">
-          <input type="text" class="form-input" value="Welcome to SOGO Reviews. How can we help?">
-          <button class="btn-purple">Save</button>
-        </div>
-      </div>
-
       <div class="chat-layout">
         <div class="chat-sidebar">
-          <div class="chat-subtabs">
-            <button class="chat-subtab active">Active</button>
-            <button class="chat-subtab">Archived</button>
-          </div>
           <div class="chat-users-list" id="adminChatUsersList"></div>
         </div>
-
         <div class="chat-main-area">
-          <div class="chat-header">
-            <span id="adminChatHeaderName">Select a user</span>
-          </div>
+          <div class="chat-header"><span id="adminChatHeaderName">Select a user</span></div>
           <div class="chat-messages" id="adminChatMessages"></div>
           <div class="chat-input-row">
-            <input type="text" class="form-input" id="adminChatInput" placeholder="Message..." style="border: none; background: transparent;" onkeydown="if(event.key==='Enter'){sendAdminChat();}">
-            <button class="btn-purple" onclick="sendAdminChat()">Send</button>
+            <input type="text" class="form-input" id="adminChatInput" placeholder="Message...">
+            <button class="btn-purple">Send</button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 12. ACTIVITY VIEW (EXACT MATCH - Activity.jpg) -->
+    <!-- 12. ACTIVITY VIEW -->
     <div id="tab-activity" class="tab-content">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h3 style="font-size: 1.1rem; font-weight: 800;">Activity</h3>
-        <button class="btn-purple"><i class="fa-solid fa-download"></i> Download live backup</button>
-      </div>
-
-      <div class="card" style="margin-bottom: 20px;">
-        <h4 style="font-size: 0.85rem; font-weight: 800; margin-bottom: 12px;">Daily backups</h4>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>WHEN</th>
-              <th>CONTENTS</th>
-              <th>ACTION</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>9/19/2026, 7:00:24 PM</td>
-              <td>8 users, 1 packages, 60 messages, 2 payments</td>
-              <td><a href="#" style="color: #6366f1;">Download</a></td>
-            </tr>
-            <tr>
-              <td>9/18/2026, 7:00:24 PM</td>
-              <td>8 users, 1 packages, 48 messages, 2 payments</td>
-              <td><a href="#" style="color: #6366f1;">Download</a></td>
-            </tr>
-            <tr>
-              <td>9/17/2026, 7:00:24 PM</td>
-              <td>8 users, 1 packages, 31 messages, 2 payments</td>
-              <td><a href="#" style="color: #6366f1;">Download</a></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
       <div class="card">
-        <input type="text" class="form-input" id="activitySearch" placeholder="Search activity..." style="max-width: 300px; margin-bottom: 16px;" oninput="renderActivityTab()">
         <table class="data-table">
           <thead>
             <tr>
@@ -952,11 +633,9 @@
       </div>
     </div>
 
-    <!-- 13. ACCESS LOG VIEW (EXACT MATCH - Access Log.png) -->
+    <!-- 13. ACCESS LOG VIEW -->
     <div id="tab-access-log" class="tab-content">
-      <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px;">Every time an admin uses Access to view a user account, it is recorded here.</p>
-
-      <div class="card" style="padding: 0; overflow: hidden;">
+      <div class="card">
         <table class="data-table">
           <thead>
             <tr>
@@ -965,1031 +644,35 @@
               <th>WHEN</th>
             </tr>
           </thead>
-          <tbody id="accessLogBody">
-            <tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 40px;">No access events yet.</td></tr>
-          </tbody>
+          <tbody id="accessLogBody"></tbody>
         </table>
       </div>
     </div>
 
-    <!-- 14. REPORTS VIEW (EXACT MATCH - Reports.png) -->
+    <!-- 14. REPORTS VIEW -->
     <div id="tab-reports" class="tab-content">
-      <div class="filter-tabs" style="margin-bottom: 20px;">
-        <button class="filter-tab">Today</button>
-        <button class="filter-tab">Yesterday</button>
-        <button class="filter-tab">Last 7 Days</button>
-        <button class="filter-tab active">Last 14 Days</button>
-        <button class="filter-tab">Last 30 Days</button>
-        <button class="filter-tab">This Month</button>
-        <button class="filter-tab">Last Month</button>
-        <button class="filter-tab">Custom</button>
-      </div>
-
-      <div class="stats-grid-4" style="grid-template-columns: repeat(3, 1fr); gap: 20px;">
-        <div class="stat-card">
-          <div class="stat-label">New signups</div>
-          <div class="stat-value" style="font-size: 2rem;">2</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Verified payments</div>
-          <div class="stat-value" style="font-size: 2rem;">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Revenue</div>
-          <div class="stat-value" style="font-size: 2rem;">$0.00</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Approved reviews</div>
-          <div class="stat-value" style="font-size: 2rem;">20</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Withdrawal requests</div>
-          <div class="stat-value" style="font-size: 2rem;">1</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Withdrawal volume</div>
-          <div class="stat-value" style="font-size: 2rem;">$14400.00</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Top-up requests</div>
-          <div class="stat-value" style="font-size: 2rem;">1</div>
-        </div>
+      <div class="stats-grid-4">
+        <div class="stat-card"><div class="stat-label">New signups</div><div class="stat-value">0</div></div>
+        <div class="stat-card"><div class="stat-label">Verified payments</div><div class="stat-value">0</div></div>
       </div>
     </div>
 
     <!-- 15. UPLOADS VIEW -->
     <div id="tab-uploads" class="tab-content">
       <div class="card">
-        <h3 style="font-size: 1rem; font-weight: 800; margin-bottom: 6px;">Uploads Directory</h3>
-        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 20px;">Manage uploaded assets, proof screenshots, and product images.</p>
-        <input type="file" style="margin-bottom: 20px;">
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
-          <div style="border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; text-align: center;">
-            <i class="fa-solid fa-image" style="font-size: 2rem; color: #6366f1;"></i>
-            <div style="font-size: 0.75rem; margin-top: 8px;">proof_1.jpg</div>
-          </div>
-        </div>
+        <h3>Uploads Directory</h3>
+        <input type="file" style="margin-top: 10px;">
       </div>
     </div>
 
-    <!-- 16. PROFILE SETTINGS VIEW (EXACT MATCH - Profile Settings.png) -->
+    <!-- 16. PROFILE SETTINGS VIEW -->
     <div id="tab-profile-settings" class="tab-content">
       <div class="card">
-        <h4 style="font-size: 0.85rem; font-weight: 800; margin-bottom: 16px;">Profile picture</h4>
-        <div style="display: flex; align-items: center; gap: 16px;">
-          <div class="user-avatar" style="width: 48px; height: 48px; font-size: 1rem;">CS</div>
-          <label class="btn-sm" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <i class="fa-solid fa-image"></i> CHOOSE PHOTO
-            <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 400;">JPG, PNG, WEBP or GIF - max 5 MB</span>
-            <input type="file" style="display: none;">
-          </label>
-        </div>
-      </div>
-
-      <div class="card">
-        <h4 style="font-size: 0.85rem; font-weight: 800; margin-bottom: 16px;">Profile details</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;">
-          <div class="form-group">
-            <label class="form-label">Full name</label>
-            <input type="text" class="form-input" value="Customer Support">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Email</label>
-            <input type="email" class="form-input" value="kami_12@gmail.com" readonly style="background: #f1f5f9;">
-          </div>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;">
-          <div class="form-group">
-            <label class="form-label">Phone</label>
-            <input type="text" class="form-input" placeholder="e.g. +91 300 1234567">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Address</label>
-            <input type="text" class="form-input" placeholder="Your address">
-          </div>
-        </div>
-        <div class="form-group" style="margin-bottom: 20px;">
-          <label class="form-label">Bio</label>
-          <textarea class="form-textarea" placeholder="A few words about you"></textarea>
-        </div>
+        <h4 style="margin-bottom: 16px;">Profile details</h4>
+        <div class="form-group"><label class="form-label">Full name</label><input type="text" class="form-input" value="Customer Support"></div>
         <button class="btn-purple">Save changes</button>
       </div>
-
-      <div class="card">
-        <h4 style="font-size: 0.85rem; font-weight: 800; margin-bottom: 4px;">Change password</h4>
-        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 16px;">Enter your current password, then choose a new one.</p>
-        
-        <div class="form-group">
-          <label class="form-label">Current password</label>
-          <input type="password" class="form-input">
-        </div>
-        <div class="form-group">
-          <label class="form-label">New password</label>
-          <input type="password" class="form-input" placeholder="At least 6 characters">
-        </div>
-        <div class="form-group" style="margin-bottom: 20px;">
-          <label class="form-label">Confirm new password</label>
-          <input type="password" class="form-input">
-        </div>
-        <button class="btn-purple">Change password</button>
-      </div>
-
-      <div class="card">
-        <h4 style="font-size: 0.85rem; font-weight: 800; margin-bottom: 4px;">Log out everywhere</h4>
-        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 16px;">Sign out of this account on every device.</p>
-        <button class="btn-sm">Log out all devices</button>
-      </div>
     </div>
-
   </main>
-
-  <!-- UNIVERSAL MODAL POPUP -->
-  <div class="modal-overlay" id="generic-modal">
-    <div class="modal-box">
-      <div class="modal-header">
-        <span id="modal-title">Modal Title</span>
-        <button class="modal-close" onclick="closeModal()">&times;</button>
-      </div>
-      <div id="modal-body"></div>
-    </div>
-  </div>
-
-  <script>
-    function switchTab(tabId, btn) {
-      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-      document.querySelectorAll('.nav-item button').forEach(b => b.classList.remove('active'));
-      
-      const selectedTab = document.getElementById('tab-' + tabId);
-      if (selectedTab) selectedTab.classList.add('active');
-      
-      if (btn) {
-        btn.classList.add('active');
-      } else {
-        document.querySelectorAll('.nav-item button').forEach(b => {
-          if(b.getAttribute('onclick')?.includes(tabId)) b.classList.add('active');
-        });
-      }
-
-      const titles = {
-        'dashboard': 'Admin Dashboard',
-        'packages': 'Packages',
-        'payments': 'Payments',
-        'subscriptions': 'Subscriptions',
-        'received-reviews': 'Received Reviews',
-        'topup-requests': 'Top-up Requests',
-        'withdrawals': 'Withdrawals',
-        'password-requests': 'Password Requests',
-        'invitations': 'Invitations',
-        'support': 'Support',
-        'chat': 'Chat',
-        'activity': 'Activity',
-        'access-log': 'Access Log',
-        'reports': 'Reports',
-        'uploads': 'Uploads',
-        'profile-settings': 'Profile Settings'
-      };
-      document.getElementById('current-page-title').innerText = titles[tabId] || 'Admin Portal';
-    }
-
-    function closeModal() { document.getElementById('generic-modal').style.display = 'none'; }
-    function openModal() { document.getElementById('generic-modal').style.display = 'flex'; }
-
-    async function openStatModal(statName) {
-      document.getElementById('modal-title').innerText = statName;
-      const clients = (await SogoAuth.getUsers()).filter(u => u.role === 'client');
-      const range = getCurrentRange();
-      let list = [];
-
-      if (statName === 'Total Users') list = clients;
-      else if (statName === 'Active Users') list = clients.filter(u => !u.blocked);
-      else if (statName === 'Blocked Users') list = clients.filter(u => u.blocked);
-      else if (statName === 'Total Signups') list = clients.filter(u => inRange(u.createdAt, range));
-      else if (statName === 'Active Chats' || statName === 'Unread Messages') {
-        const threads = await Promise.all(clients.map(async u => ({ user: u, thread: await SogoAuth.getChatThread(u.email) })));
-        list = threads
-          .filter(({ thread }) => statName === 'Active Chats'
-            ? thread.length > 0
-            : thread.some(m => m.from === 'client' && !m.read))
-          .map(({ user }) => user);
-      } else if (statName === 'Packages Purchased') {
-        list = [];
-      }
-
-      if (list.length === 0) {
-        document.getElementById('modal-body').innerHTML = '<p style="font-size:0.85rem; color:#64748b; padding:20px 0; text-align:center;">No records found.</p>';
-      } else {
-        document.getElementById('modal-body').innerHTML = `
-          <p style="font-size:0.85rem; color:#64748b; margin-bottom:12px;">${list.length} record(s):</p>
-          <div style="display:flex; flex-direction:column; gap:8px; max-height:320px; overflow-y:auto;">
-            ${list.map(u => `
-              <div style="padding:10px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between;">
-                <span><strong>${escapeHtmlAdmin(u.name)}</strong><br><small>${escapeHtmlAdmin(u.email)}</small></span>
-                <span class="${u.blocked ? 'badge-pending' : 'badge-active'}">${u.blocked ? 'Blocked' : 'Active'}</span>
-              </div>
-            `).join('')}
-          </div>
-        `;
-      }
-      openModal();
-    }
-
-    // Package Builder Logic
-    function generateProductRows() {
-      const count = parseInt(document.getElementById('pkg-count').value) || 0;
-      const totalComm = parseFloat(document.getElementById('pkg-total-comm').value) || 0;
-      const perProductComm = count > 0 ? (totalComm / count).toFixed(0) : 0;
-      
-      const container = document.getElementById('builder-product-rows');
-      if(!container) return;
-      container.innerHTML = '';
-
-      for (let i = 1; i <= count; i++) {
-        container.innerHTML += `
-          <div class="product-row-builder">
-            <span style="font-weight:700; color:var(--text-muted);">#${i}</span>
-            <input type="text" class="form-input" placeholder="Product ${i}" style="padding:6px;">
-            <input type="file" style="font-size:0.75rem;">
-            <input type="text" class="form-input" value="Commission $ ${perProductComm}" style="padding:6px;">
-          </div>
-        `;
-      }
-    }
-
-    function calculateAutoSplit() {
-      generateProductRows();
-    }
-
-    function addLockRow() {
-      const container = document.getElementById('locks-container');
-      const lockNum = container.children.length + 1;
-      const div = document.createElement('div');
-      div.style = "display: flex; gap: 12px; align-items: center; margin-bottom: 10px;";
-      div.innerHTML = `
-        <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">#${lockNum} After review</span>
-        <input type="number" class="form-input" value="10" style="width: 100px;">
-        <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">— deposit $</span>
-        <input type="number" class="form-input" value="500" style="width: 140px;">
-        <button class="btn-sm btn-sm-danger" onclick="this.parentElement.remove()">Remove</button>
-      `;
-      container.appendChild(div);
-    }
-
-    async function createAdminPackage() {
-      const message = document.getElementById('packageBuilderMessage');
-      const showMessage = (text, color) => {
-        if (!message) return;
-        message.textContent = text;
-        message.style.color = color;
-        message.style.display = 'block';
-      };
-      const name = document.getElementById('pkg-name')?.value.trim();
-      const price = Number(document.getElementById('pkg-price')?.value);
-      const description = document.getElementById('pkg-description')?.value.trim() || '';
-      const totalCommission = Number(document.getElementById('pkg-total-comm')?.value);
-      const productRows = [...document.querySelectorAll('#builder-product-rows .product-row-builder')];
-      const products = productRows.map((row, index) => {
-        const inputs = row.querySelectorAll('input');
-        const commissionText = (inputs[1]?.value || '').replace(/[^0-9.-]/g, '');
-        return { name: inputs[0]?.value.trim() || `Product ${index + 1}`, commission: Number(commissionText) || 0 };
-      });
-      const lockRows = [...document.querySelectorAll('#locks-container > div')].map(row => {
-        const inputs = row.querySelectorAll('input');
-        return { afterReview: Number(inputs[0]?.value) || 0, deposit: Number(inputs[1]?.value) || 0 };
-      }).filter(lock => lock.afterReview > 0 && lock.deposit >= 0);
-      if (!window.SogoPackages) return showMessage('Package module abhi load nahi hua. Page refresh karein.', '#dc2626');
-      if (!name || !Number.isFinite(price) || price <= 0 || products.length === 0) {
-        return showMessage('Package name, valid price aur kam az kam ek product zaroori hai.', '#dc2626');
-      }
-      try {
-        await SogoPackages.createPackage({ name, price, description, products, totalCommission, lockRows });
-        showMessage('Package successfully create ho gaya.', '#059669');
-        document.getElementById('pkg-name').value = '';
-        document.getElementById('pkg-description').value = '';
-        await renderAdminPackages();
-      } catch (error) {
-        console.error(error);
-        showMessage(error.message || 'Package create nahi ho saka.', '#dc2626');
-      }
-    }
-
-    async function renderAdminPackages() {
-      const container = document.getElementById('adminPackagesList');
-      if (!container || !window.SogoPackages) return;
-      try {
-        const packages = await SogoPackages.getPackages();
-        container.innerHTML = packages.length ? packages.map(pkg => `
-          <div style="padding:12px 0; border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; gap:12px; align-items:center;">
-            <div><strong>${escapeHtmlAdmin(pkg.name)}</strong><br><small>$${Number(pkg.price || 0).toFixed(2)} · ${(pkg.products || []).length} products · ${pkg.published ? 'Published' : 'Unpublished'}</small></div>
-            <div><button class="btn-sm" onclick="toggleAdminPackage('${pkg.id}', ${!pkg.published})">${pkg.published ? 'Unpublish' : 'Publish'}</button> <button class="btn-sm btn-sm-danger" onclick="deleteAdminPackage('${pkg.id}')">Delete</button></div>
-          </div>`).join('') : '<div style="color:var(--text-muted); padding:12px 0;">No packages created yet.</div>';
-      } catch (error) { container.textContent = 'Packages load nahi ho sake.'; }
-    }
-
-    async function toggleAdminPackage(id, published) {
-      await SogoPackages.togglePublish(id, published);
-      await renderAdminPackages();
-    }
-
-    async function deleteAdminPackage(id) {
-      if (!confirm('Is package ko delete karna hai?')) return;
-      await SogoPackages.deletePackage(id);
-      await renderAdminPackages();
-    }
-
-
-      const actionsDiv = document.getElementById('actions-' + id);
-      actionsDiv.innerHTML = `<span class="verified-label">verified</span>`;
-      alert('Package activation verified & activated successfully!');
-    }
-
-    function rejectPayment(id) {
-      if(confirm('Are you sure you want to reject this request?')) {
-        document.getElementById('req-' + id).remove();
-        alert('Request rejected successfully.');
-      }
-    }
-
-    window.onload = async function() {
-      const authApi = await waitForSogoAuth;
-      currentSession = await authApi.requireRole('admin');
-      if (!currentSession) return;
-      generateProductRows();
-      await loadAdminInfo();
-      await setupInviteCard();
-      await renderAdminPackages();
-      setActiveRange('14');
-      await Promise.all([
-        renderAllUsers(),
-        renderAdminChatList(),
-        renderAdminWithdrawals(),
-        renderTopupsTab(),
-        renderPasswordRequestsTab(),
-        renderInvitationsTab(),
-        renderActivityTab(),
-        renderAccessLogTab()
-      ]);
-      setInterval(() => {
-        renderAllUsers();
-        renderAdminChatList();
-        renderAdminChatMessages();
-        renderAdminWithdrawals();
-        renderDashboardStats();
-        renderTopupsTab();
-        renderPasswordRequestsTab();
-        renderInvitationsTab();
-        renderActivityTab();
-        renderAccessLogTab();
-        renderAdminPackages();
-      }, 3000);
-    };
-
-    const waitForSogoAuth = new Promise((resolve) => {
-      const ready = () => window.SogoAuth ? resolve(window.SogoAuth) : setTimeout(ready, 0);
-      ready();
-    });
-
-    async function loadAdminInfo() {
-      if (!currentSession || !window.SogoAuth) return;
-      const admin = await SogoAuth.getUserDoc(currentSession.uid);
-      if (!admin) return;
-      document.getElementById('adminName').textContent = admin.name || 'Admin';
-      document.getElementById('adminAvatar').textContent = (admin.name || 'A').charAt(0).toUpperCase();
-    }
-
-    function escapeHtmlAdmin(str) {
-      const div = document.createElement('div');
-      div.textContent = str || '';
-      return div.innerHTML;
-    }
-
-    function copyText(text) {
-      navigator.clipboard.writeText(text || '');
-    }
-
-    /* ================= INVITATION CODE ================= */
-    let currentInviteCode = '';
-
-    async function getAdminUser() {
-      if (!currentSession || !window.SogoAuth) return null;
-      return await SogoAuth.getUserDoc(currentSession.uid);
-    }
-
-    async function setupInviteCard() {
-      const admin = await getAdminUser();
-      if (!admin) return;
-      currentInviteCode = admin.myInviteCode || '';
-      document.getElementById('adminInviteLink').value = 'https://sogoreview.online/register?ref=' + currentInviteCode;
-      document.getElementById('adminInviteCodeBtn').textContent = currentInviteCode + ' Copy';
-      const joined = (await SogoAuth.getUsers()).filter(u => (u.invitationCode || '').toUpperCase() === currentInviteCode.toUpperCase()).length;
-      document.getElementById('inviteJoinCount').textContent = joined;
-    }
-
-    async function applyCustomInviteCode() {
-      const admin = await getAdminUser();
-      const input = document.getElementById('customInviteInput');
-      const value = input.value.trim();
-      if (!admin) return;
-      if (!value) { alert('Please enter a code, or use the "Regenerate" button.'); return; }
-      await SogoAuth.setInviteCode(admin.email, value);
-      input.value = '';
-      await setupInviteCard();
-      alert('Invitation code updated: ' + value.toUpperCase());
-    }
-
-    async function regenerateInviteCode() {
-      const admin = await getAdminUser();
-      if (!admin) return;
-      const result = await SogoAuth.setInviteCode(admin.email, '');
-      await setupInviteCard();
-      alert('New invitation code: ' + (result?.myInviteCode || currentInviteCode));
-    }
-
-    /* ================= DATE RANGE FILTER ================= */
-    let currentRangeKey = '14';
-
-    function getCurrentRange() {
-      const now = new Date();
-      let start, end;
-      end = new Date(now); end.setHours(23, 59, 59, 999);
-
-      if (currentRangeKey === 'today') {
-        start = new Date(now); start.setHours(0, 0, 0, 0);
-      } else if (currentRangeKey === 'yesterday') {
-        start = new Date(now); start.setDate(start.getDate() - 1); start.setHours(0, 0, 0, 0);
-        end = new Date(start); end.setHours(23, 59, 59, 999);
-      } else if (currentRangeKey === 'thismonth') {
-        start = new Date(now.getFullYear(), now.getMonth(), 1);
-      } else if (currentRangeKey === 'lastmonth') {
-        start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-      } else {
-        const days = parseInt(currentRangeKey, 10) || 14;
-        start = new Date(now); start.setDate(start.getDate() - (days - 1)); start.setHours(0, 0, 0, 0);
-      }
-      return { start, end };
-    }
-
-    function logoutAdmin() {
-      if (window.SogoAuth) SogoAuth.logout();
-    }
-
-    function toDateAdmin(value) {
-      if (!value) return null;
-      if (typeof value.toDate === 'function') return value.toDate();
-      if (value.seconds != null) return new Date(value.seconds * 1000 + Math.floor((value.nanoseconds || 0) / 1000000));
-      const date = new Date(value);
-      return Number.isNaN(date.getTime()) ? null : date;
-    }
-
-    function formatDateAdmin(value) {
-      const date = toDateAdmin(value);
-      return date ? date.toLocaleString() : '—';
-    }
-
-    function inRange(isoDate, range) {
-      const d = toDateAdmin(isoDate);
-      return !!d && d >= range.start && d <= range.end;
-    }
-
-    function fmtShort(d) {
-      return String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-    }
-
-    function setActiveRange(rangeKey) {
-      currentRangeKey = rangeKey;
-      document.querySelectorAll('#dashboardFilterTabs .filter-tab').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.range === rangeKey);
-      });
-      renderDashboardStats();
-    }
-
-    document.addEventListener('click', function (e) {
-      const btn = e.target.closest('#dashboardFilterTabs .filter-tab');
-      if (btn) setActiveRange(btn.dataset.range);
-    });
-
-    /* ================= DASHBOARD STATS ================= */
-    async function renderDashboardStats() {
-      const clients = (await SogoAuth.getUsers()).filter(u => u.role === 'client');
-      const range = getCurrentRange();
-
-      document.getElementById('statTotalUsers').textContent = clients.length;
-      document.getElementById('statActiveUsers').textContent = clients.filter(u => !u.blocked).length;
-      document.getElementById('statActiveChats').textContent = await SogoAuth.getActiveChatsCount();
-      document.getElementById('statUnreadMessages').textContent = await SogoAuth.getUnreadMessageCount();
-
-      document.getElementById('filterInfoText').textContent =
-        'Showing ' + range.start.toISOString().slice(0, 10) + ' – ' + range.end.toISOString().slice(0, 10) + '. Click any card for details.';
-
-      const signupsInRange = clients.filter(u => inRange(u.createdAt, range));
-      document.getElementById('statTotalSignups').textContent = signupsInRange.length;
-      document.getElementById('statActiveUsers2').textContent = clients.filter(u => !u.blocked).length;
-      document.getElementById('statBlockedUsers').textContent = clients.filter(u => u.blocked).length;
-
-      const withdrawals = await SogoAuth.getWithdrawals();
-      document.getElementById('statWithdrawRequests').textContent = withdrawals.filter(w => inRange(w.requestedAt, range)).length;
-      document.getElementById('statApprovedWithdrawals').textContent = withdrawals.filter(w => w.status === 'approved' && inRange(w.requestedAt, range)).length;
-      const manualAdded = clients.reduce((sum, u) => sum + (u.balance || 0), 0);
-      document.getElementById('statManualAdded').textContent = '$' + manualAdded.toFixed(2);
-
-      const dayMs = 24 * 60 * 60 * 1000;
-      const days = Math.max(1, Math.round((range.end - range.start) / dayMs) + 1);
-      const counts = new Array(Math.min(days, 30)).fill(0);
-      signupsInRange.forEach(u => {
-        const idx = Math.floor((new Date(u.createdAt) - range.start) / dayMs);
-        if (idx >= 0 && idx < counts.length) counts[idx]++;
-      });
-      const max = Math.max(1, ...counts);
-      const box = document.getElementById('signupsChartBox');
-      if (box) {
-        box.innerHTML = counts.map(c => `<div style="flex:1; background:linear-gradient(180deg,#6366f1,#818cf8); border-radius:3px 3px 0 0; height:${Math.max(4, (c / max) * 60)}px;" title="${c}"></div>`).join('');
-      }
-      const footer = document.getElementById('signupsChartFooter');
-      if (footer) {
-        footer.innerHTML = `<span>${fmtShort(range.start)}</span><span>Latest: ${signupsInRange.length}</span><span>${fmtShort(range.end)}</span>`;
-      }
-    }
-
-    /* ================= CREATE USER ================= */
-    async function createNewUser() {
-      const name = document.getElementById('newUserName').value.trim();
-      const email = document.getElementById('newUserEmail').value.trim();
-      const password = document.getElementById('newUserPassword').value;
-      const msgEl = document.getElementById('createUserMsg');
-
-      if (!name || !email || !password) {
-        msgEl.textContent = 'Sab fields bharein.';
-        msgEl.style.color = '#dc2626';
-        msgEl.style.display = 'block';
-        return;
-      }
-      const result = await SogoAuth.adminCreateUser(name, email, password);
-      if (!result.ok) {
-        msgEl.textContent = result.message;
-        msgEl.style.color = '#dc2626';
-        msgEl.style.display = 'block';
-        return;
-      }
-      msgEl.textContent = 'User successfully ban gaya.';
-      msgEl.style.color = '#059669';
-      msgEl.style.display = 'block';
-      document.getElementById('newUserName').value = '';
-      document.getElementById('newUserEmail').value = '';
-      document.getElementById('newUserPassword').value = '';
-      await Promise.all([renderAllUsers(), renderDashboardStats(), renderInvitationsTab()]);
-    }
-
-    /* ================= ALL USERS TABLE ================= */
-    async function renderAllUsers() {
-      const body = document.getElementById('allUsersTableBody');
-      const heading = document.getElementById('allUsersHeading');
-      if (!body) return;
-      const allUsers = await SogoAuth.getUsers();
-      let clients = allUsers.filter(u => u.role === 'client');
-
-      const searchEl = document.getElementById('userSearchInput');
-      const query = searchEl ? searchEl.value.trim().toLowerCase() : '';
-      if (query) {
-        clients = clients.filter(u =>
-          (u.name || '').toLowerCase().includes(query) ||
-          (u.email || '').toLowerCase().includes(query) ||
-          (u.myInviteCode || '').toLowerCase().includes(query)
-        );
-      }
-
-      heading.textContent = 'All Users (' + clients.length + ')';
-
-      if (clients.length === 0) {
-        body.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:30px;">No clients found.</td></tr>';
-        return;
-      }
-
-      body.innerHTML = clients.map(u => {
-        const referrer = allUsers.find(x => (x.email || '').toLowerCase() === (u.invitedByEmail || '').toLowerCase());
-        return `
-        <tr>
-          <td><strong>${escapeHtmlAdmin(u.name)}</strong><br><span style="font-size: 0.75rem; color: var(--text-muted);">${escapeHtmlAdmin(u.email)}</span></td>
-          <td><span class="${u.blocked ? 'badge-pending' : 'badge-active'}">${u.blocked ? 'blocked' : 'active'}</span></td>
-          <td>$${(u.balance || 0).toFixed(2)}</td>
-          <td>$0.00</td>
-          <td>0</td>
-          <td>1</td>
-          <td>${referrer ? escapeHtmlAdmin(referrer.name) : '—'}</td>
-          <td>
-            <div class="action-links">
-              <a onclick="openAdminChatFor('${u.email}')">Message</a>
-              <a onclick="adjustBalance('${u.email}')">Balance</a>
-              <a onclick="openMonitorModal('${u.email}')">Monitor</a>
-              <a onclick="switchTab('received-reviews', document.getElementById('nav-reviews-btn'))">Reviews</a>
-              <a onclick="accessAsUser('${u.email}')">Access</a>
-              <a onclick="setUserPassword('${u.email}')">Password</a>
-              <a onclick="toggleBlockUser('${u.email}')" style="color: #d97706;">${u.blocked ? 'Unblock' : 'Block'}</a>
-              <a class="delete" onclick="deleteUserConfirm('${u.email}')">Delete</a>
-            </div>
-          </td>
-        </tr>
-      `;
-      }).join('');
-    }
-
-    async function adjustBalance(email) {
-      const users = await SogoAuth.getUsers();
-      const user = users.find(u => (u.email || '').toLowerCase() === email.toLowerCase());
-      if (!user) return;
-      const current = user.balance || 0;
-      const input = prompt('Enter new balance (USD):', current);
-      if (input === null) return;
-      const value = parseFloat(input);
-      if (isNaN(value) || value < 0) { alert('Please enter a valid number.'); return; }
-      await SogoAuth.updateUserByUid(user.uid, { balance: value });
-      await SogoAuth.logActivity('manual_credit', `Balance for ${user.name} manually set to $${value.toFixed(2)}`, { email });
-      await Promise.all([renderAllUsers(), renderDashboardStats()]);
-    }
-
-    async function openMonitorModal(email) {
-      const [users, allWithdrawals, thread] = await Promise.all([
-        SogoAuth.getUsers(), SogoAuth.getWithdrawals(), SogoAuth.getChatThread(email)
-      ]);
-      const user = users.find(u => (u.email || '').toLowerCase() === email.toLowerCase());
-      if (!user) return;
-      const withdrawals = allWithdrawals.filter(w => (w.email || '').toLowerCase() === email.toLowerCase());
-
-      document.getElementById('modal-title').innerText = 'Monitor: ' + user.name;
-      document.getElementById('modal-body').innerHTML = `
-        <div style="display:flex; flex-direction:column; gap:10px; font-size:0.85rem;">
-          <div><strong>Email:</strong> ${escapeHtmlAdmin(user.email)}</div>
-          <div><strong>Balance:</strong> $${(user.balance || 0).toFixed(2)}</div>
-          <div><strong>Status:</strong> ${user.blocked ? 'Blocked' : 'Active'}</div>
-          <div><strong>Signed up:</strong> ${formatDateAdmin(user.createdAt)}</div>
-          <div><strong>Invitation code used:</strong> ${escapeHtmlAdmin(user.invitationCode || '—')}</div>
-          <div><strong>Own invite code:</strong> ${escapeHtmlAdmin(user.myInviteCode || '—')}</div>
-          <div><strong>Chat messages:</strong> ${thread.length}</div>
-          <div><strong>Withdrawal requests:</strong> ${withdrawals.length}</div>
-        </div>
-      `;
-      openModal();
-    }
-
-    function accessAsUser(email) {
-      if (!confirm("You will be logged into this client's account (in this browser). You'll need to log back in as Admin afterwards. Continue?")) return;
-      SogoAuth.impersonate(email);
-    }
-
-    function setUserPassword() {
-      alert('Password changes are managed through Firebase Authentication. This dashboard cannot set a user password directly. Ask the user to use the password-reset request flow.');
-    }
-
-    async function toggleBlockUser(email) {
-      const users = await SogoAuth.getUsers();
-      const user = users.find(u => (u.email || '').toLowerCase() === email.toLowerCase());
-      if (!user) return;
-      const newState = !user.blocked;
-      await SogoAuth.updateUserByUid(user.uid, { blocked: newState });
-      await SogoAuth.logActivity(newState ? 'user_blocked' : 'user_unblocked', `${user.name} was ${newState ? 'blocked' : 'unblocked'}`, { email });
-      await Promise.all([renderAllUsers(), renderDashboardStats()]);
-    }
-
-    async function deleteUserConfirm(email) {
-      if (!confirm('Are you sure you want to permanently delete this user? This cannot be undone.')) return;
-      await SogoAuth.deleteUser(email);
-      await Promise.all([renderAllUsers(), renderDashboardStats(), renderInvitationsTab()]);
-    }
-
-    /* ================= ADMIN CHAT ================= */
-    let selectedChatEmail = null;
-
-    async function renderAdminChatList() {
-      const list = document.getElementById('adminChatUsersList');
-      if (!list) return;
-      const clients = (await SogoAuth.getUsers()).filter(u => u.role === 'client');
-
-      if (clients.length === 0) {
-        selectedChatEmail = null;
-        list.innerHTML = '<div style="padding:16px; font-size:12px; color:var(--text-muted);">No clients yet.</div>';
-        return;
-      }
-
-      if (!selectedChatEmail || !clients.some(u => u.email === selectedChatEmail)) selectedChatEmail = clients[0].email;
-      const threads = await Promise.all(clients.map(async user => ({
-        user,
-        thread: await SogoAuth.getChatThread(user.email)
-      })));
-
-      list.innerHTML = threads.map(({ user, thread }) => {
-        const last = thread.length ? thread[thread.length - 1].text : 'No messages';
-        const unread = thread.some(m => m.from === 'client' && !m.read);
-        const activeClass = (user.email === selectedChatEmail) ? 'active' : '';
-        return `
-          <div class="chat-user-item ${activeClass}" onclick="openAdminChatFor('${user.email}')">
-            <div class="chat-user-name">${escapeHtmlAdmin(user.name)}${unread ? ' <span style="color:#ef4444;">●</span>' : ''}</div>
-            <div class="chat-user-msg">${escapeHtmlAdmin(last).slice(0, 40)}</div>
-          </div>
-        `;
-      }).join('');
-
-      document.getElementById('adminChatHeaderName').textContent =
-        (clients.find(c => c.email === selectedChatEmail) || {}).name || 'Select a user';
-    }
-
-    async function openAdminChatFor(email) {
-      selectedChatEmail = email;
-      switchTab('chat', document.getElementById('nav-chat-btn'));
-      await SogoAuth.markChatRead(email);
-      await Promise.all([renderAdminChatList(), renderAdminChatMessages()]);
-    }
-
-    async function renderAdminChatMessages() {
-      const box = document.getElementById('adminChatMessages');
-      if (!box || !selectedChatEmail) return;
-      const thread = await SogoAuth.getChatThread(selectedChatEmail);
-      box.innerHTML = thread.map(m => {
-        const fromAdmin = m.from === 'admin';
-        return `<div class="msg-bubble ${fromAdmin ? 'msg-right' : 'msg-left'}">${escapeHtmlAdmin(m.text)}<br><span style="font-size:0.65rem; opacity:0.7;">${formatDateAdmin(m.time)}</span></div>`;
-      }).join('') || '<p style="color:var(--text-muted); font-size:12px; padding:10px;">No messages yet.</p>';
-    }
-
-    async function sendAdminChat() {
-      const input = document.getElementById('adminChatInput');
-      const text = input.value.trim();
-      if (!text || !selectedChatEmail) return;
-      input.value = '';
-      await SogoAuth.sendChatMessage(selectedChatEmail, 'admin', text);
-      await Promise.all([renderAdminChatMessages(), renderAdminChatList()]);
-    }
-
-    /* ================= ADMIN WITHDRAWALS ================= */
-    async function renderAdminWithdrawals() {
-      const body = document.getElementById('adminWithdrawalsBody');
-      if (!body) return;
-      const list = (await SogoAuth.getWithdrawals()).slice().sort((a, b) => (toDateAdmin(b.requestedAt) || 0) - (toDateAdmin(a.requestedAt) || 0));
-
-      if (list.length === 0) {
-        body.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:30px;">No withdrawal requests yet.</td></tr>';
-        return;
-      }
-
-      const badgeClass = { pending: 'badge-pending', approved: 'badge-active', rejected: 'badge-pending' };
-      body.innerHTML = list.map(w => `
-        <tr>
-          <td><strong>${escapeHtmlAdmin(w.name)}</strong><br><span style="font-size: 0.75rem; color: var(--text-muted);">${escapeHtmlAdmin(w.email)}</span></td>
-          <td><strong>$${Number(w.amount || 0).toFixed(2)}</strong></td>
-          <td>${escapeHtmlAdmin(w.accountDetails)}</td>
-          <td>${formatDateAdmin(w.requestedAt)}</td>
-          <td><span class="${badgeClass[w.status] || 'badge-pending'}">${escapeHtmlAdmin(w.status || 'pending')}</span></td>
-          <td>
-            ${w.status === 'pending' ? `
-              <button class="btn-green" style="padding: 4px 10px; font-size: 0.7rem;" onclick="approveWithdrawal('${w.id}')">Approve</button>
-              <button class="btn-red" style="padding: 4px 10px; font-size: 0.7rem; margin-left: 4px;" onclick="rejectWithdrawal('${w.id}')">Reject</button>
-            ` : '—'}
-          </td>
-        </tr>
-      `).join('');
-    }
-
-    async function approveWithdrawal(id) {
-      await SogoAuth.updateWithdrawal(id, 'approved');
-      await Promise.all([renderAdminWithdrawals(), renderAllUsers(), renderDashboardStats(), renderActivityTab()]);
-    }
-
-    async function rejectWithdrawal(id) {
-      await SogoAuth.updateWithdrawal(id, 'rejected');
-      await Promise.all([renderAdminWithdrawals(), renderDashboardStats(), renderActivityTab()]);
-    }
-
-    /* ================= TOP-UP REQUESTS ================= */
-    let currentTopupFilter = 'pending';
-
-    document.addEventListener('click', function (e) {
-      const pill = e.target.closest('#topupPills .topup-pill');
-      if (pill) {
-        currentTopupFilter = pill.dataset.status;
-        document.querySelectorAll('#topupPills .topup-pill').forEach(b => b.classList.toggle('active', b === pill));
-        renderTopupsTab();
-      }
-    });
-
-    async function renderTopupsTab() {
-      const countEl = document.getElementById('topupPendingCount');
-      const container = document.getElementById('topupListContainer');
-      if (!container) return;
-
-      const all = await SogoAuth.getTopups();
-      countEl.textContent = all.filter(t => t.status === 'pending').length;
-
-      const list = (currentTopupFilter === 'all' ? all : all.filter(t => t.status === currentTopupFilter)).slice().reverse();
-
-      if (list.length === 0) {
-        container.innerHTML = '<div class="topup-empty-card">No top-up requests.</div>';
-        return;
-      }
-
-      const badgeClass = { pending: 'badge-pending', approved: 'badge-active', rejected: 'badge-pending' };
-      container.innerHTML = `
-        <div class="card" style="padding: 0; overflow: hidden;">
-          <table class="data-table">
-            <thead><tr><th>USER</th><th>AMOUNT</th><th>NOTE</th><th>REQUESTED</th><th>STATUS</th><th>ACTION</th></tr></thead>
-            <tbody>
-              ${list.map(t => `
-                <tr>
-                  <td><strong>${escapeHtmlAdmin(t.name)}</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">${escapeHtmlAdmin(t.email)}</span></td>
-                  <td><strong>$${Number(t.amount || 0).toFixed(2)}</strong></td>
-                  <td>${escapeHtmlAdmin(t.note || '—')}</td>
-                  <td>${formatDateAdmin(t.requestedAt)}</td>
-                  <td><span class="${badgeClass[t.status] || 'badge-pending'}">${escapeHtmlAdmin(t.status || 'pending')}</span></td>
-                  <td>
-                    ${t.status === 'pending' ? `
-                      <button class="btn-green" style="padding:4px 10px; font-size:0.7rem;" onclick="approveTopup('${t.id}')">Approve</button>
-                      <button class="btn-red" style="padding:4px 10px; font-size:0.7rem; margin-left:4px;" onclick="rejectTopup('${t.id}')">Reject</button>
-                    ` : '—'}
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-    }
-
-    async function approveTopup(id) {
-      try {
-        await SogoAuth.updateTopup(id, 'approved');
-        await Promise.all([renderTopupsTab(), renderAllUsers(), renderDashboardStats()]);
-      } catch (e) { alert(e.message || 'Could not approve top-up.'); }
-    }
-
-    async function rejectTopup(id) {
-      try {
-        await SogoAuth.updateTopup(id, 'rejected');
-        await renderTopupsTab();
-      } catch (e) { alert(e.message || 'Could not reject top-up.'); }
-    }
-
-    /* ================= PASSWORD REQUESTS ================= */
-    async function renderPasswordRequestsTab() {
-      const body = document.getElementById('pwRequestsBody');
-      const countEl = document.getElementById('pwRequestPendingCount');
-      if (!body) return;
-      const all = await SogoAuth.getPasswordRequests();
-      countEl.textContent = all.filter(r => r.status === 'pending').length;
-
-      if (all.length === 0) {
-        body.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:40px;">No password reset requests.</td></tr>';
-        return;
-      }
-
-      const badgeClass = { pending: 'badge-pending', fulfilled: 'badge-active', dismissed: 'badge-pending' };
-      body.innerHTML = all.slice().reverse().map(r => `
-        <tr>
-          <td><strong>${escapeHtmlAdmin(r.name)}</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">${escapeHtmlAdmin(r.email)}</span></td>
-          <td>${formatDateAdmin(r.requestedAt)}</td>
-          <td><span class="${badgeClass[r.status] || 'badge-pending'}">${escapeHtmlAdmin(r.status || 'pending')}</span></td>
-          <td>
-            ${r.status === 'pending' ? `
-              <button class="btn-green" style="padding:4px 10px; font-size:0.7rem;" onclick="fulfillPwRequest('${r.id}')">Set new password</button>
-              <button class="btn-red" style="padding:4px 10px; font-size:0.7rem; margin-left:4px;" onclick="dismissPwRequest('${r.id}')">Dismiss</button>
-            ` : '—'}
-          </td>
-        </tr>
-      `).join('');
-    }
-
-    async function fulfillPwRequest(id) {
-      const newPass = prompt('Enter a new password for this user:');
-      if (newPass === null) return;
-      if (newPass.length < 6) { alert('Password must be at least 6 characters.'); return; }
-      try {
-        await SogoAuth.fulfillPasswordRequest(id, newPass);
-        await renderPasswordRequestsTab();
-        alert('Password request marked fulfilled. Use Firebase Authentication/Admin tooling to set the password securely.');
-      } catch (e) { alert(e.message || 'Could not update password request.'); }
-    }
-
-    async function dismissPwRequest(id) {
-      try {
-        await SogoAuth.dismissPasswordRequest(id);
-        await renderPasswordRequestsTab();
-      } catch (e) { alert(e.message || 'Could not dismiss password request.'); }
-    }
-
-    /* ================= INVITATIONS TAB ================= */
-    async function renderInvitationsTab() {
-      const allUsers = await SogoAuth.getUsers();
-      const clients = allUsers.filter(u => u.role === 'client');
-      const signupsViaInvite = clients.length; // every client signup requires a code
-
-      document.getElementById('invStatSignups').textContent = signupsViaInvite;
-
-      // Group by inviter
-      const inviterCounts = {};
-      clients.forEach(u => {
-        const key = u.invitedByEmail || 'unknown';
-        inviterCounts[key] = (inviterCounts[key] || 0) + 1;
-      });
-      const inviterEmails = Object.keys(inviterCounts).filter(e => e !== 'unknown');
-      document.getElementById('invStatInviters').textContent = inviterEmails.length;
-
-      const invitersBody = document.getElementById('invInvitersBody');
-      if (invitersBody) {
-        if (inviterEmails.length === 0) {
-          invitersBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:20px;">No invitations used yet.</td></tr>';
-        } else {
-          invitersBody.innerHTML = inviterEmails.map(email => {
-            const inviter = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-            if (!inviter) return '';
-            return `
-              <tr>
-                <td><strong>${escapeHtmlAdmin(inviter.name)}</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">${escapeHtmlAdmin(inviter.email)}</span></td>
-                <td><span class="${inviter.role === 'admin' ? 'badge-admin' : 'badge-active'}">${inviter.role}</span></td>
-                <td><strong>${escapeHtmlAdmin(inviter.myInviteCode)}</strong></td>
-                <td>${inviterCounts[email]}</td>
-              </tr>
-            `;
-          }).join('');
-        }
-      }
-
-      let log = clients.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      const query = (document.getElementById('invSignupSearch') || {}).value;
-      if (query && query.trim()) {
-        const q = query.trim().toLowerCase();
-        log = log.filter(u => (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q) || (u.invitationCode || '').toLowerCase().includes(q));
-      }
-
-      const logBody = document.getElementById('invSignupLogBody');
-      const logCount = document.getElementById('invSignupLogCount');
-      if (logBody) {
-        if (log.length === 0) {
-          logBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:20px;">No signups found.</td></tr>';
-        } else {
-          logBody.innerHTML = log.map(u => {
-            const inviter = allUsers.find(x => x.email.toLowerCase() === (u.invitedByEmail || '').toLowerCase());
-            return `
-              <tr>
-                <td><strong>${escapeHtmlAdmin(u.name)}</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">${escapeHtmlAdmin(u.email)}</span></td>
-                <td>${inviter ? escapeHtmlAdmin(inviter.name) + (inviter.role === 'admin' ? ' <span class="badge-admin">admin</span>' : '') : '—'}</td>
-                <td>${escapeHtmlAdmin(u.invitationCode || '—')}</td>
-                <td>${u.createdAt ? new Date(u.createdAt).toLocaleString() : '—'}</td>
-              </tr>
-            `;
-          }).join('');
-        }
-        if (logCount) logCount.textContent = 'Showing 1-' + log.length + ' of ' + log.length;
-      }
-    }
-
-    /* ================= ACTIVITY & ACCESS LOG ================= */
-    async function renderActivityTab() {
-      const body = document.getElementById('activityLogBody');
-      if (!body) return;
-      let list = (await SogoAuth.getActivity()).slice().reverse();
-
-      const query = (document.getElementById('activitySearch') || {}).value;
-      if (query && query.trim()) {
-        const q = query.trim().toLowerCase();
-        list = list.filter(a => a.message.toLowerCase().includes(q) || a.type.toLowerCase().includes(q));
-      }
-
-      if (list.length === 0) {
-        body.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding:30px;">No activity yet.</td></tr>';
-        return;
-      }
-
-      const labelMap = {
-        login: 'Login', signup: 'Signup', user_created_by_admin: 'User Created',
-        user_deleted: 'User Deleted', withdrawal_requested: 'Withdrawal Requested',
-        withdrawal_approved: 'Withdrawal Approved', withdrawal_rejected: 'Withdrawal Rejected',
-        topup_requested: 'Top-up Requested', topup_approved: 'Top-up Approved', topup_rejected: 'Top-up Rejected',
-        password_reset_requested: 'Password Reset Requested', password_reset_fulfilled: 'Password Reset',
-        admin_access: 'Impersonate', manual_credit: 'Manual Credit', user_blocked: 'Blocked', user_unblocked: 'Unblocked'
-      };
-
-      body.innerHTML = list.slice(0, 100).map(a => `
-        <tr>
-          <td><strong>${labelMap[a.type] || a.type}</strong></td>
-          <td>${escapeHtmlAdmin(a.message)}</td>
-          <td>${new Date(a.time).toLocaleString()}</td>
-        </tr>
-      `).join('');
-    }
-
-    async function renderAccessLogTab() {
-      const body = document.getElementById('accessLogBody');
-      if (!body) return;
-      const list = (await SogoAuth.getActivity()).filter(a => a.type === 'admin_access').slice().reverse();
-
-      if (list.length === 0) {
-        body.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding:40px;">No access events yet.</td></tr>';
-        return;
-      }
-
-      body.innerHTML = list.map(a => `
-        <tr>
-          <td><strong>${escapeHtmlAdmin(a.message.split(' (')[0])}</strong></td>
-          <td>${escapeHtmlAdmin(a.meta.email || '')}</td>
-          <td>${new Date(a.time).toLocaleString()}</td>
-        </tr>
-      `).join('');
-    }
-  </script>
 </body>
 </html>
