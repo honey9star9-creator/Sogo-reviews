@@ -19,7 +19,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyAnRvEjCBtJ6makOpL1swXwadU7I3_f-8k",
+  apiKey: "AIzaSyC3iwdTJnX8nDuaQgxZrqWqYTZOyqSkzCQ",
   authDomain: "sogo-reviews-32cf0.firebaseapp.com",
   projectId: "sogo-reviews-32cf0",
   storageBucket: "sogo-reviews-32cf0.firebasestorage.app",
