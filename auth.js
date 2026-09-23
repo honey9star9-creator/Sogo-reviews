@@ -16,7 +16,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc,
-  collection, query, where, addDoc, orderBy, onSnapshot, serverTimestamp
+  collection, query, where, addDoc, orderBy, onSnapshot, serverTimestamp,
+  runTransaction
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 
@@ -38,7 +39,26 @@ const SogoAuth = (() => {
 
   /* ---------------- helpers ---------------- */
   function normalizeEmail(email) { return (email || "").trim().toLowerCase(); }
-  function generateInviteCode() { return Math.random().toString(36).substring(2, 10).toUpperCase(); }
+  function normalizeInviteCode(code) {
+    return String(code || "").trim().toUpperCase().replace(/\s+/g, "");
+  }
+  function parseFiniteAmount(value) {
+    const amount = Number(value);
+    return Number.isFinite(amount) ? amount : NaN;
+  }
+  function generateInviteCode() {
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const bytes = new Uint32Array(8);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, n => alphabet[n % alphabet.length]).join("");
+  }
+  function toDate(value) {
+    if (!value) return null;
+    if (typeof value.toDate === "function") return value.toDate();
+    if (value.seconds != null) return new Date(value.seconds * 1000 + Math.floor((value.nanoseconds || 0) / 1000000));
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
 
   async function logActivity(type, message, meta) {
     try {
@@ -68,16 +88,47 @@ const SogoAuth = (() => {
   // NOT-YET-SIGNED-IN visitor can validate a code during signup without
   // needing read access to the whole /users collection.
   async function getInviteCodeOwner(code) {
-    const snap = await getDoc(doc(db, INVITE_CODES_COL, code.toUpperCase()));
+    const normalized = normalizeInviteCode(code);
+    if (!normalized) return null;
+    const snap = await getDoc(doc(db, INVITE_CODES_COL, normalized));
     return snap.exists() ? snap.data() : null;
   }
   async function registerInviteCode(code, uid, email) {
-    await setDoc(doc(db, INVITE_CODES_COL, code.toUpperCase()), {
+    const normalized = normalizeInviteCode(code);
+    if (!normalized || !uid) throw new Error("Invalid invitation code.");
+    const ref = doc(db, INVITE_CODES_COL, normalized);
+    const existing = await getDoc(ref);
+    if (existing.exists() && existing.data().ownerUid !== uid) {
+      throw new Error("Invitation code is already assigned.");
+    }
+    await setDoc(ref, {
       ownerUid: uid, ownerEmail: normalizeEmail(email)
-    });
+    }, { merge: false });
   }
 
-  /* ---------------- one-time admin seed ---------------- */
+  async function reserveInviteCode(uid, email, preferredCode = "", maxAttempts = 8) {
+    const requested = normalizeInviteCode(preferredCode);
+    if (requested) {
+      const existing = await getInviteCodeOwner(requested);
+      if (existing && existing.ownerUid !== uid) throw new Error("Invitation code is already assigned.");
+      await registerInviteCode(requested, uid, email);
+      return requested;
+    }
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const candidate = generateInviteCode();
+      const existing = await getInviteCodeOwner(candidate);
+      if (existing) continue;
+      try {
+        await registerInviteCode(candidate, uid, email);
+        return candidate;
+      } catch (e) {
+        if (attempt === maxAttempts - 1) throw e;
+      }
+    }
+    throw new Error("Could not allocate a unique invitation code.");
+  }
+
+
   async function seedDefaultAdminOnce(email, password, name) {
     const cred = await createUserWithEmailAndPassword(auth, normalizeEmail(email), password);
     await setDoc(doc(db, USERS_COL, cred.user.uid), {
@@ -137,24 +188,28 @@ const SogoAuth = (() => {
     if (!code) return { ok: false, message: "Invitation code is required." };
 
     const inviter = await getInviteCodeOwner(code);
-    if (!inviter) return { ok: false, message: "Invalid invitation code." };
+    if (!inviter || !inviter.ownerUid) return { ok: false, message: "Invalid invitation code." };
 
     try {
       const cred = await createUserWithEmailAndPassword(auth, normalizeEmail(email), password);
-      const myCode = generateInviteCode();
+      const myCode = await reserveInviteCode(cred.user.uid, email);
       const profile = {
         name: name || "New User",
         email: normalizeEmail(email),
         role: "client",
-        invitationCode: code,
-        invitedByEmail: inviter.ownerEmail,
+        invitationCode: normalizeInviteCode(code),
+        invitedByEmail: normalizeEmail(inviter.ownerEmail),
         myInviteCode: myCode,
         balance: 0,
         createdAt: serverTimestamp(),
         blocked: false
       };
-      await setDoc(doc(db, USERS_COL, cred.user.uid), profile);
-      await registerInviteCode(myCode, cred.user.uid, email);
+      try {
+        await setDoc(doc(db, USERS_COL, cred.user.uid), profile);
+      } catch (profileError) {
+        try { await deleteDoc(doc(db, INVITE_CODES_COL, myCode)); } catch (_) {}
+        throw profileError;
+      }
       logActivity("signup", `${profile.name} signed up using invite code ${code}`, { email: profile.email, invitedBy: inviter.ownerEmail });
       return { ok: true, user: { uid: cred.user.uid, ...profile } };
     } catch (e) {
@@ -229,6 +284,12 @@ const SogoAuth = (() => {
 
   /* ---------------- users (admin) ---------------- */
 
+  async function updateUserByUid(uid, changes) {
+    if (!uid) return null;
+    await updateDoc(doc(db, USERS_COL, uid), changes);
+    return getUserDoc(uid);
+  }
+
   async function getUsers() {
     const snap = await getDocs(collection(db, USERS_COL));
     return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
@@ -286,12 +347,26 @@ const SogoAuth = (() => {
   async function setInviteCode(email, customCode) {
     const user = await getUserByEmail(email);
     if (!user) return null;
-    const code = (customCode && customCode.trim()) ? customCode.trim().toUpperCase() : generateInviteCode();
-    const oldCode = user.myInviteCode;
-    await updateDoc(doc(db, USERS_COL, user.uid), { myInviteCode: code });
-    await registerInviteCode(code, user.uid, user.email);
+    const requested = normalizeInviteCode(customCode);
+    if (requested && !/^[A-Z0-9]{6,32}$/.test(requested)) {
+      throw new Error('Invitation code must be 6–32 letters or numbers.');
+    }
+    const oldCode = normalizeInviteCode(user.myInviteCode);
+    const code = await reserveInviteCode(user.uid, user.email, requested);
+    try {
+      await updateDoc(doc(db, USERS_COL, user.uid), { myInviteCode: code });
+    } catch (e) {
+      if (!oldCode || oldCode !== code) {
+        try { await deleteDoc(doc(db, INVITE_CODES_COL, code)); } catch (_) {}
+      }
+      throw e;
+    }
     if (oldCode && oldCode !== code) {
-      try { await deleteDoc(doc(db, INVITE_CODES_COL, oldCode.toUpperCase())); } catch (_) {}
+      try {
+        const oldRef = doc(db, INVITE_CODES_COL, oldCode);
+        const oldSnap = await getDoc(oldRef);
+        if (oldSnap.exists() && oldSnap.data().ownerUid === user.uid) await deleteDoc(oldRef);
+      } catch (_) {}
     }
     return { ...user, myInviteCode: code };
   }
@@ -315,18 +390,41 @@ const SogoAuth = (() => {
   }
 
   function listenChatThread(clientEmail, callback) {
+    let stopped = false;
+    let unsubscribe = () => { stopped = true; };
     getUserByEmail(clientEmail).then(user => {
-      if (!user) return callback([]);
+      if (stopped) return;
+      if (!user) { callback([]); return; }
       const q = query(collection(db, CHATS_COL, user.uid, "messages"), orderBy("time", "asc"));
-      onSnapshot(q, (snap) => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+      unsubscribe = onSnapshot(q, (snap) => {
+        if (!stopped) callback(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }, (error) => {
+        console.error("Chat listener failed:", error);
+        if (!stopped) callback([]);
+      });
+    }).catch(error => {
+      console.error("Chat listener setup failed:", error);
+      if (!stopped) callback([]);
     });
+    return () => {
+      stopped = true;
+      unsubscribe();
+    };
   }
 
-  async function sendChatMessage(clientEmail, from, text) {
-    const user = await getUserByEmail(clientEmail);
-    if (!user) return;
-    await addDoc(collection(db, CHATS_COL, user.uid, "messages"), {
-      from, text, time: serverTimestamp(), read: from === "admin"
+  async function sendChatMessage(clientEmail, _from, text) {
+    const cleanText = String(text || '').trim();
+    if (!cleanText) throw new Error('Message cannot be empty.');
+    const fbUser = auth.currentUser;
+    if (!fbUser) throw new Error('You must be signed in to send a message.');
+    const sender = await getUserDoc(fbUser.uid);
+    const client = await getUserByEmail(clientEmail);
+    if (!sender || !client) throw new Error('Chat participant not found.');
+    const isAdmin = sender.role === 'admin';
+    if (!isAdmin && client.uid !== fbUser.uid) throw new Error('You are not allowed to send in this chat.');
+    const from = isAdmin ? 'admin' : 'client';
+    await addDoc(collection(db, CHATS_COL, client.uid, 'messages'), {
+      from, text: cleanText, time: serverTimestamp(), read: from === 'admin'
     });
   }
 
@@ -366,37 +464,70 @@ const SogoAuth = (() => {
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   }
 
-  async function requestWithdrawal(email, name, amount, accountDetails) {
-    const user = await getUserByEmail(email);
+  async function requestWithdrawal({ amount, accountDetails }) {
+    const fbUser = auth.currentUser;
+    if (!fbUser) throw new Error('You must be signed in to request a withdrawal.');
+    const user = await getUserDoc(fbUser.uid);
+    const cleanAmount = parseFiniteAmount(amount);
+    const cleanAccountDetails = String(accountDetails || '').trim();
+    if (!user) throw new Error('User profile not found.');
+    if (user.role !== 'client') throw new Error('Only client accounts can request withdrawals.');
+    if (!Number.isFinite(cleanAmount) || cleanAmount <= 0) throw new Error('Enter a valid positive withdrawal amount.');
+    if (!cleanAccountDetails) throw new Error('Enter the account details for this withdrawal.');
+    const balance = parseFiniteAmount(user.balance);
+    if (!Number.isFinite(balance) || cleanAmount > balance) throw new Error('Insufficient balance.');
+    const pendingSnap = await getDocs(query(
+      collection(db, WITHDRAWALS_COL),
+      where('userId', '==', fbUser.uid),
+      where('status', '==', 'pending')
+    ));
+    const pendingTotal = pendingSnap.docs.reduce((total, item) => total + (parseFiniteAmount(item.data().amount) || 0), 0);
+    if (pendingTotal + cleanAmount > balance) throw new Error('This amount exceeds your available balance after pending withdrawals.');
     const record = {
-      userId: user ? user.uid : null,
-      email, name, amount, accountDetails,
-      status: "pending", requestedAt: serverTimestamp()
+      userId: fbUser.uid,
+      email: normalizeEmail(fbUser.email || user.email),
+      name: user.name || '',
+      amount: cleanAmount,
+      accountDetails: cleanAccountDetails,
+      status: 'pending', requestedAt: serverTimestamp()
     };
     const ref = await addDoc(collection(db, WITHDRAWALS_COL), record);
-    logActivity("withdrawal_requested", `${name} requested a withdrawal of $${amount.toFixed(2)}`, { email });
+    logActivity('withdrawal_requested', `${record.name} requested a withdrawal of $${cleanAmount.toFixed(2)}`, { email: record.email });
     return { id: ref.id, ...record };
   }
 
   async function updateWithdrawal(id, status) {
-    const snap = await getDoc(doc(db, WITHDRAWALS_COL, id));
-    if (!snap.exists()) return null;
-    const w = snap.data();
-    await updateDoc(doc(db, WITHDRAWALS_COL, id), { status });
-    if (status === "approved" && w.status !== "approved") {
-      const user = await getUserByEmail(w.email);
-      if (user) {
-        const currentBalance = user.balance || 0;
-        const newBalance = Math.max(0, currentBalance - w.amount);
-        await updateDoc(doc(db, USERS_COL, user.uid), { balance: newBalance });
+    if (!['approved', 'rejected'].includes(status)) throw new Error('Invalid withdrawal status.');
+    const withdrawalRef = doc(db, WITHDRAWALS_COL, id);
+    let result = null;
+    await runTransaction(db, async (transaction) => {
+      const withdrawalSnap = await transaction.get(withdrawalRef);
+      if (!withdrawalSnap.exists()) throw new Error('Withdrawal request not found.');
+      const w = withdrawalSnap.data();
+      if (w.status !== 'pending') {
+        result = { id, ...w };
+        return;
       }
+      const amount = parseFiniteAmount(w.amount);
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error('Withdrawal amount is invalid.');
+      if (status === 'approved') {
+        if (!w.userId) throw new Error('Withdrawal has no owner.');
+        const userRef = doc(db, USERS_COL, w.userId);
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) throw new Error('Withdrawal owner not found.');
+        const balance = parseFiniteAmount(userSnap.data().balance);
+        if (!Number.isFinite(balance) || balance < amount) throw new Error('Insufficient balance for approval.');
+        transaction.update(userRef, { balance: balance - amount });
+      }
+      transaction.update(withdrawalRef, { status, processedAt: serverTimestamp() });
+      result = { id, ...w, status };
+    });
+    if (result && result.status === status) {
+      const amount = parseFiniteAmount(result.amount);
+      await logActivity(status === 'approved' ? 'withdrawal_approved' : 'withdrawal_rejected',
+        `Withdrawal of $${amount.toFixed(2)} ${status} for ${result.name || result.email}`, { email: result.email });
     }
-    logActivity(
-      status === "approved" ? "withdrawal_approved" : "withdrawal_rejected",
-      `Withdrawal of $${w.amount.toFixed(2)} ${status} for ${w.name}`,
-      { email: w.email }
-    );
-    return { id, ...w, status };
+    return result;
   }
 
   /* ---------------- top-ups ---------------- */
@@ -406,31 +537,58 @@ const SogoAuth = (() => {
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   }
 
-  async function requestTopup(email, name, amount, note) {
-    const user = await getUserByEmail(email);
+  async function requestTopup({ amount, note }) {
+    const fbUser = auth.currentUser;
+    if (!fbUser) throw new Error('You must be signed in to request a top-up.');
+    const user = await getUserDoc(fbUser.uid);
+    const cleanAmount = parseFiniteAmount(amount);
+    if (!user) throw new Error('User profile not found.');
+    if (!Number.isFinite(cleanAmount) || cleanAmount <= 0) throw new Error('Enter a valid positive top-up amount.');
     const record = {
-      userId: user ? user.uid : null,
-      email, name, amount, note: note || "",
-      status: "pending", requestedAt: serverTimestamp()
+      userId: fbUser.uid,
+      email: normalizeEmail(fbUser.email || user.email),
+      name: user.name || '',
+      amount: cleanAmount,
+      note: String(note || '').trim(),
+      status: 'pending', requestedAt: serverTimestamp()
     };
     const ref = await addDoc(collection(db, TOPUPS_COL), record);
-    logActivity("topup_requested", `${name} requested a top-up of $${amount.toFixed(2)}`, { email });
+    logActivity('topup_requested', `${record.name} requested a top-up of $${cleanAmount.toFixed(2)}`, { email: record.email });
     return { id: ref.id, ...record };
   }
 
   async function updateTopup(id, status) {
-    const snap = await getDoc(doc(db, TOPUPS_COL, id));
-    if (!snap.exists()) return null;
-    const t = snap.data();
-    await updateDoc(doc(db, TOPUPS_COL, id), { status });
-    if (status === "approved") {
-      const user = await getUserByEmail(t.email);
-      if (user) await updateDoc(doc(db, USERS_COL, user.uid), { balance: (user.balance || 0) + t.amount });
-      logActivity("topup_approved", `Top-up of $${t.amount.toFixed(2)} approved for ${t.name}`, { email: t.email });
-    } else if (status === "rejected") {
-      logActivity("topup_rejected", `Top-up of $${t.amount.toFixed(2)} rejected for ${t.name}`, { email: t.email });
+    if (!['approved', 'rejected'].includes(status)) throw new Error('Invalid top-up status.');
+    const topupRef = doc(db, TOPUPS_COL, id);
+    let result = null;
+    await runTransaction(db, async (transaction) => {
+      const topupSnap = await transaction.get(topupRef);
+      if (!topupSnap.exists()) throw new Error('Top-up request not found.');
+      const t = topupSnap.data();
+      if (t.status !== 'pending') {
+        result = { id, ...t };
+        return;
+      }
+      const amount = parseFiniteAmount(t.amount);
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error('Top-up amount is invalid.');
+      if (status === 'approved') {
+        if (!t.userId) throw new Error('Top-up has no owner.');
+        const userRef = doc(db, USERS_COL, t.userId);
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) throw new Error('Top-up owner not found.');
+        const balance = parseFiniteAmount(userSnap.data().balance);
+        if (!Number.isFinite(balance) || balance < 0) throw new Error('User balance is invalid.');
+        transaction.update(userRef, { balance: balance + amount });
+      }
+      transaction.update(topupRef, { status, processedAt: serverTimestamp() });
+      result = { id, ...t, status };
+    });
+    if (result && result.status === status) {
+      const amount = parseFiniteAmount(result.amount);
+      await logActivity(status === 'approved' ? 'topup_approved' : 'topup_rejected',
+        `Top-up of $${amount.toFixed(2)} ${status} for ${result.name || result.email}`, { email: result.email });
     }
-    return { id, ...t, status };
+    return result;
   }
 
   /* ---------------- activity log ---------------- */
@@ -442,7 +600,7 @@ const SogoAuth = (() => {
 
   return {
     login, signup, logout, getSession, requireRole, redirectForRole, impersonate,
-    seedDefaultAdminOnce,
+    getUserDoc, getUserByEmail, updateUserByUid, seedDefaultAdminOnce,
     getUsers, updateUser, deleteUser, adminCreateUser, setInviteCode,
     getChatThread, listenChatThread, sendChatMessage, markChatRead, getUnreadMessageCount, getActiveChatsCount,
     getWithdrawals, requestWithdrawal, updateWithdrawal,

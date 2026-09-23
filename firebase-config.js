@@ -67,14 +67,27 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin();
-      allow create: if isSignedIn();
-      allow update: if isOwner(uid) || isAdmin();
+      allow create: if isAdmin() || (isSignedIn() && request.auth.uid == uid
+        && request.resource.data.role == 'client'
+        && request.resource.data.email == request.auth.token.email);
+      allow update: if isAdmin() || (isOwner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name', 'phone', 'avatarUrl'
+        ]));
       allow delete: if isAdmin();
     }
 
     match /inviteCodes/{code} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow create: if isAdmin() || (isSignedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerEmail == request.auth.token.email
+        && !exists(/databases/$(database)/documents/inviteCodes/$(code)));
+      allow update: if isAdmin() || (isSignedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerEmail == request.auth.token.email);
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.ownerUid == request.auth.uid);
     }
 
     match /packages/{pkgId} {
@@ -84,8 +97,11 @@ service cloud.firestore {
 
     match /userPackages/{docId} {
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'pending_payment';
+      allow update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentProofUrl']));
+      allow delete: if isAdmin();
     }
 
     match /chats/{userId}/messages/{msgId} {
@@ -96,7 +112,9 @@ service cloud.firestore {
 
     match /withdrawals/{docId} {
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.amount is number && request.resource.data.amount > 0;
       allow update: if isAdmin();
     }
 
@@ -114,7 +132,7 @@ service cloud.firestore {
 
     match /activity/{docId} {
       allow read: if isAdmin();
-      allow create: if isSignedIn();
+      allow create: if isAdmin();
     }
   }
 }
