@@ -1,27 +1,16 @@
-/* SOGO REVIEWS — Shared Auth + Data Logic (Firebase version)
-   ------------------------------------------------------------------
-   FULL UPDATED VERSION - ZERO CODE OMITTED
+/* SOGO REVIEWS — Shared Auth + Data Logic (Supabase version)
+    ------------------------------------------------------------------
+    FULL UPDATED VERSION - ZERO CODE OMITTED
 */
 
-import {
-  createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  signOut, onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import {
-  doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc,
-  collection, query, where, addDoc, orderBy, onSnapshot, serverTimestamp,
-  runTransaction
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-
-import { auth, db, firebaseConfig } from "./firebase-config.js";
+import { supabase } from "./supabase-config.js";
 
 const USERS_COL = "users";
-const INVITE_CODES_COL = "inviteCodes";
-const CHATS_COL = "chats";
+const INVITE_CODES_COL = "invite_codes";
+const MESSAGES_COL = "messages";
 const WITHDRAWALS_COL = "withdrawals";
 const TOPUPS_COL = "topups";
-const PW_REQUESTS_COL = "passwordRequests";
+const PW_REQUESTS_COL = "password_requests";
 const ACTIVITY_COL = "activity";
 
 const SogoAuth = (() => {
@@ -32,51 +21,60 @@ const SogoAuth = (() => {
 
   async function logActivity(type, message, meta) {
     try {
-      await addDoc(collection(db, ACTIVITY_COL), {
-        type, message, meta: meta || {}, time: serverTimestamp()
-      });
+      await supabase.from(ACTIVITY_COL).insert([{
+        type, message, meta: meta || {}, time: new Date().toISOString()
+      }]);
     } catch (e) { /* non-fatal */ }
   }
 
   async function getUserDoc(uid) {
-    const snap = await getDoc(doc(db, USERS_COL, uid));
-    return snap.exists() ? { uid: snap.id, ...snap.data() } : null;
+    const { data, error } = await supabase.from(USERS_COL).select('*').eq('id', uid).maybeSingle();
+    if (error || !data) return null;
+    return { uid: data.id, ...data };
   }
 
   async function getUserByEmail(email) {
-    const q = query(collection(db, USERS_COL), where("email", "==", normalizeEmail(email)));
-    const snap = await getDocs(q);
-    if (snap.empty) return null;
-    const d = snap.docs[0];
-    return { uid: d.id, ...d.data() };
+    const { data, error } = await supabase.from(USERS_COL).select('*').eq('email', normalizeEmail(email)).maybeSingle();
+    if (error || !data) return null;
+    return { uid: data.id, ...data };
   }
 
   async function getInviteCodeOwner(code) {
-    const snap = await getDoc(doc(db, INVITE_CODES_COL, code.toUpperCase()));
-    return snap.exists() ? snap.data() : null;
+    const { data, error } = await supabase.from(INVITE_CODES_COL).select('*').eq('code', code.toUpperCase()).maybeSingle();
+    if (error || !data) return null;
+    return data;
   }
 
   async function registerInviteCode(code, uid, email) {
-    await setDoc(doc(db, INVITE_CODES_COL, code.toUpperCase()), {
-      ownerUid: uid, ownerEmail: normalizeEmail(email)
+    await supabase.from(INVITE_CODES_COL).upsert({
+      code: code.toUpperCase(),
+      owner_uid: uid,
+      owner_email: normalizeEmail(email)
     });
   }
 
   /* ---------------- one-time admin seed ---------------- */
   async function seedDefaultAdminOnce(email, password, name) {
-    const cred = await createUserWithEmailAndPassword(auth, normalizeEmail(email), password);
-    await setDoc(doc(db, USERS_COL, cred.user.uid), {
+    const { data, error } = await supabase.auth.signUp({
+      email: normalizeEmail(email),
+      password
+    });
+    if (error) return { ok: false, message: error.message };
+    const uid = data.user.id;
+
+    await supabase.from(USERS_COL).upsert({
+      id: uid,
       name: name || "Admin",
       email: normalizeEmail(email),
       role: "admin",
-      invitationCode: "",
-      myInviteCode: "ADMIN0001",
+      invitation_code: "",
+      my_invite_code: "ADMIN0001",
       balance: 0,
-      createdAt: serverTimestamp(),
+      created_at: new Date().toISOString(),
       blocked: false
     });
-    await registerInviteCode("ADMIN0001", cred.user.uid, email);
-    await signOut(auth);
+    await registerInviteCode("ADMIN0001", uid, email);
+    await supabase.auth.signOut();
     return { ok: true };
   }
 
@@ -84,24 +82,26 @@ const SogoAuth = (() => {
 
   async function login(email, password) {
     try {
-      const cred = await signInWithEmailAndPassword(auth, normalizeEmail(email), password);
-      const profile = await getUserDoc(cred.user.uid);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: normalizeEmail(email),
+        password
+      });
+      if (error) throw error;
+
+      const profile = await getUserDoc(data.user.id);
       if (!profile) {
-        await signOut(auth);
+        await supabase.auth.signOut();
         return { ok: false, message: "Account profile not found." };
       }
       if (profile.blocked) {
-        await signOut(auth);
+        await supabase.auth.signOut();
         return { ok: false, message: "This account has been blocked. Please contact support." };
       }
       logActivity("login", `${profile.name} logged in`, { email: profile.email, role: profile.role });
       return { ok: true, user: profile };
     } catch (e) {
-      console.error("SogoAuth.login failed:", e.code, e.message);
-      if (e.code === "auth/too-many-requests") {
-        return { ok: false, message: "Too many attempts — please wait a few minutes and try again." };
-      }
-      return { ok: false, message: "Incorrect email/phone or password. (" + (e.code || "unknown") + ")" };
+      console.error("SogoAuth.login failed:", e.message);
+      return { ok: false, message: "Incorrect email/phone or password. (" + (e.message || "unknown") + ")" };
     }
   }
 
@@ -113,46 +113,48 @@ const SogoAuth = (() => {
     if (!inviter) return { ok: false, message: "Invalid invitation code." };
 
     try {
-      const cred = await createUserWithEmailAndPassword(auth, normalizeEmail(email), password);
+      const { data, error } = await supabase.auth.signUp({
+        email: normalizeEmail(email),
+        password
+      });
+      if (error) throw error;
+
+      const uid = data.user.id;
       const myCode = generateInviteCode();
       const profile = {
+        id: uid,
         name: name || "New User",
         email: normalizeEmail(email),
         role: "client",
-        invitationCode: code,
-        invitedByEmail: inviter.ownerEmail,
-        myInviteCode: myCode,
+        invitation_code: code,
+        invited_by_email: inviter.owner_email || inviter.ownerEmail,
+        my_invite_code: myCode,
         balance: 0,
-        createdAt: serverTimestamp(),
+        created_at: new Date().toISOString(),
         blocked: false
       };
-      await setDoc(doc(db, USERS_COL, cred.user.uid), profile);
-      await registerInviteCode(myCode, cred.user.uid, email);
-      logActivity("signup", `${profile.name} signed up using invite code ${code}`, { email: profile.email, invitedBy: inviter.ownerEmail });
-      return { ok: true, user: { uid: cred.user.uid, ...profile } };
+      await supabase.from(USERS_COL).upsert(profile);
+      await registerInviteCode(myCode, uid, email);
+      logActivity("signup", `${profile.name} signed up using invite code ${code}`, { email: profile.email, invitedBy: profile.invited_by_email });
+      return { ok: true, user: { uid, ...profile } };
     } catch (e) {
-      if (e.code === "auth/email-already-in-use") return { ok: false, message: "This email is already registered." };
-      if (e.code === "auth/weak-password") return { ok: false, message: "Password must be at least 6 characters." };
-      if (e.code === "auth/invalid-email") return { ok: false, message: "Please enter a valid email address." };
+      if (e.message && e.message.includes("already registered")) return { ok: false, message: "This email is already registered." };
+      if (e.message && e.message.includes("Password")) return { ok: false, message: "Password must be at least 6 characters." };
       return { ok: false, message: "Signup failed: " + e.message };
     }
   }
 
   async function logout() {
-    await signOut(auth);
+    await supabase.auth.signOut();
     window.location.href = "auth.html";
   }
 
-  function getSession() {
-    return new Promise((resolve) => {
-      const unsub = onAuthStateChanged(auth, async (fbUser) => {
-        unsub();
-        if (!fbUser) return resolve(null);
-        const profile = await getUserDoc(fbUser.uid);
-        if (!profile) return resolve(null);
-        resolve({ uid: fbUser.uid, email: profile.email, name: profile.name, role: profile.role });
-      });
-    });
+  async function getSession() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session || !session.user) return null;
+    const profile = await getUserDoc(session.user.id);
+    if (!profile) return null;
+    return { uid: session.user.id, email: profile.email, name: profile.name, role: profile.role };
   }
 
   async function requireRole(role) {
@@ -178,49 +180,49 @@ const SogoAuth = (() => {
   async function requestPasswordReset(email) {
     const cleanEmail = normalizeEmail(email);
     if (!cleanEmail) return { ok: false, message: "Please enter your email." };
-    await addDoc(collection(db, PW_REQUESTS_COL), {
-      email: cleanEmail, name: cleanEmail, status: "pending", requestedAt: serverTimestamp()
-    });
+    await supabase.from(PW_REQUESTS_COL).insert([{
+      email: cleanEmail, name: cleanEmail, status: "pending", requested_at: new Date().toISOString()
+    }]);
     logActivity("password_reset_requested", `${cleanEmail} requested a password reset`, { email: cleanEmail });
     return { ok: true };
   }
 
   async function getPasswordRequests() {
-    const snap = await getDocs(collection(db, PW_REQUESTS_COL));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const { data } = await supabase.from(PW_REQUESTS_COL).select('*');
+    return data || [];
   }
 
   async function fulfillPasswordRequest(id) {
-    await updateDoc(doc(db, PW_REQUESTS_COL, id), { status: "fulfilled" });
+    await supabase.from(PW_REQUESTS_COL).update({ status: "fulfilled" }).eq('id', id);
   }
   async function dismissPasswordRequest(id) {
-    await updateDoc(doc(db, PW_REQUESTS_COL, id), { status: "dismissed" });
+    await supabase.from(PW_REQUESTS_COL).update({ status: "dismissed" }).eq('id', id);
   }
 
   /* ---------------- users (admin) ---------------- */
 
   async function updateUserByUid(uid, changes) {
     if (!uid) return null;
-    await updateDoc(doc(db, USERS_COL, uid), changes);
+    await supabase.from(USERS_COL).update(changes).eq('id', uid);
     return getUserDoc(uid);
   }
 
   async function getUsers() {
-    const snap = await getDocs(collection(db, USERS_COL));
-    return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+    const { data } = await supabase.from(USERS_COL).select('*');
+    return (data || []).map(d => ({ uid: d.id, ...d }));
   }
 
   async function updateUser(email, changes) {
     const user = await getUserByEmail(email);
     if (!user) return null;
-    await updateDoc(doc(db, USERS_COL, user.uid), changes);
+    await supabase.from(USERS_COL).update(changes).eq('id', user.uid);
     return { ...user, ...changes };
   }
 
   async function deleteUser(email) {
     const user = await getUserByEmail(email);
     if (!user) return;
-    await deleteDoc(doc(db, USERS_COL, user.uid));
+    await supabase.from(USERS_COL).delete().eq('id', user.uid);
     logActivity("user_deleted", `${user.name} (${user.email}) was deleted by admin`, { email: user.email });
   }
 
@@ -228,33 +230,30 @@ const SogoAuth = (() => {
     const existing = await getUserByEmail(email);
     if (existing) return { ok: false, message: "This email is already registered." };
 
-    const secondaryApp = initializeApp(firebaseConfig, "Secondary-" + Date.now());
-    const { getAuth: getSecondaryAuth } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js");
-    const { deleteApp } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js");
-    const secondaryAuth = getSecondaryAuth(secondaryApp);
-
     try {
-      const cred = await createUserWithEmailAndPassword(secondaryAuth, normalizeEmail(email), password);
+      const { data, error } = await supabase.auth.signUp({
+        email: normalizeEmail(email),
+        password
+      });
+      if (error) throw error;
+      const uid = data.user.id;
       const myCode = generateInviteCode();
       const profile = {
+        id: uid,
         name: name || "New User",
         email: normalizeEmail(email),
         role: "client",
-        invitationCode: "(created by admin)",
-        myInviteCode: myCode,
+        invitation_code: "(created by admin)",
+        my_invite_code: myCode,
         balance: 0,
-        createdAt: serverTimestamp(),
+        created_at: new Date().toISOString(),
         blocked: false
       };
-      await setDoc(doc(db, USERS_COL, cred.user.uid), profile);
-      await registerInviteCode(myCode, cred.user.uid, email);
+      await supabase.from(USERS_COL).upsert(profile);
+      await registerInviteCode(myCode, uid, email);
       logActivity("user_created_by_admin", `Admin created new user ${profile.name} (${profile.email})`, { email: profile.email });
-      await signOut(secondaryAuth);
-      await deleteApp(secondaryApp);
       return { ok: true, user: profile };
     } catch (e) {
-      try { await deleteApp(secondaryApp); } catch (_) {}
-      if (e.code === "auth/email-already-in-use") return { ok: false, message: "This email is already registered." };
       return { ok: false, message: "Could not create user: " + e.message };
     }
   }
@@ -263,13 +262,13 @@ const SogoAuth = (() => {
     const user = await getUserByEmail(email);
     if (!user) return null;
     const code = (customCode && customCode.trim()) ? customCode.trim().toUpperCase() : generateInviteCode();
-    const oldCode = user.myInviteCode;
-    await updateDoc(doc(db, USERS_COL, user.uid), { myInviteCode: code });
+    const oldCode = user.my_invite_code || user.myInviteCode;
+    await supabase.from(USERS_COL).update({ my_invite_code: code }).eq('id', user.uid);
     await registerInviteCode(code, user.uid, user.email);
     if (oldCode && oldCode !== code) {
-      try { await deleteDoc(doc(db, INVITE_CODES_COL, oldCode.toUpperCase())); } catch (_) {}
+      try { await supabase.from(INVITE_CODES_COL).delete().eq('code', oldCode.toUpperCase()); } catch (_) {}
     }
-    return { ...user, myInviteCode: code };
+    return { ...user, my_invite_code: code };
   }
 
   function impersonate(email) {
@@ -285,115 +284,134 @@ const SogoAuth = (() => {
   async function getChatThread(clientEmail) {
     const user = await getUserByEmail(clientEmail);
     if (!user) return [];
-    const q = query(collection(db, CHATS_COL, user.uid, "messages"), orderBy("time", "asc"));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const { data } = await supabase
+      .from(MESSAGES_COL)
+      .select('*')
+      .eq('user_id', user.uid)
+      .order('time', { ascending: true });
+    return data || [];
   }
 
   function listenChatThread(clientEmail, callback) {
     getUserByEmail(clientEmail).then(user => {
       if (!user) return callback([]);
-      const q = query(collection(db, CHATS_COL, user.uid, "messages"), orderBy("time", "asc"));
-      onSnapshot(q, (snap) => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+      getChatThread(clientEmail).then(callback);
+      supabase
+        .channel(`public:messages:${user.uid}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: MESSAGES_COL,
+          filter: `user_id=eq.${user.uid}`
+        }, () => {
+          getChatThread(clientEmail).then(callback);
+        })
+        .subscribe();
     });
   }
 
   async function sendChatMessage(clientEmail, from, text) {
     const user = await getUserByEmail(clientEmail);
     if (!user) return;
-    await addDoc(collection(db, CHATS_COL, user.uid, "messages"), {
-      from, text, time: serverTimestamp(), read: from === "admin"
-    });
+    await supabase.from(MESSAGES_COL).insert([{
+      user_id: user.uid,
+      from,
+      text,
+      time: new Date().toISOString(),
+      read: from === "admin"
+    }]);
   }
 
   async function markChatRead(clientEmail) {
     const user = await getUserByEmail(clientEmail);
     if (!user) return;
-    const q = query(collection(db, CHATS_COL, user.uid, "messages"), where("from", "==", "client"), where("read", "==", false));
-    const snap = await getDocs(q);
-    await Promise.all(snap.docs.map(d => updateDoc(d.ref, { read: true })));
+    await supabase
+      .from(MESSAGES_COL)
+      .update({ read: true })
+      .eq('user_id', user.uid)
+      .eq('from', 'client')
+      .eq('read', false);
   }
 
   async function getUnreadMessageCount() {
     const users = (await getUsers()).filter(u => u.role === "client");
-    const promises = users.map(u => {
-      const q = query(
-        collection(db, CHATS_COL, u.uid, "messages"),
-        where("from", "==", "client"),
-        where("read", "==", false)
-      );
-      return getDocs(q);
-    });
-    const snapshots = await Promise.all(promises);
-    return snapshots.reduce((total, snap) => total + snap.size, 0);
+    let totalUnread = 0;
+    for (const u of users) {
+      const { count } = await supabase
+        .from(MESSAGES_COL)
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', u.uid)
+        .eq('from', 'client')
+        .eq('read', false);
+      if (count) totalUnread += count;
+    }
+    return totalUnread;
   }
 
   async function getActiveChatsCount() {
     const users = (await getUsers()).filter(u => u.role === "client");
-    const promises = users.map(u => getDocs(collection(db, CHATS_COL, u.uid, "messages")));
-    const snapshots = await Promise.all(promises);
-    return snapshots.filter(snap => snap.size > 0).length;
+    let activeCount = 0;
+    for (const u of users) {
+      const { count } = await supabase
+        .from(MESSAGES_COL)
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', u.uid);
+      if (count && count > 0) activeCount++;
+    }
+    return activeCount;
   }
 
   /* ---------------- withdrawals ---------------- */
 
   async function getWithdrawals() {
-    const snap = await getDocs(collection(db, WITHDRAWALS_COL));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const { data } = await supabase.from(WITHDRAWALS_COL).select('*');
+    return data || [];
   }
 
   async function requestWithdrawal(email, name, amount, accountDetails) {
     const user = await getUserByEmail(email);
     const record = {
-      userId: user ? user.uid : null,
-      email, name, amount, accountDetails,
-      status: "pending", requestedAt: serverTimestamp()
+      user_id: user ? user.uid : null,
+      email, name, amount, account_details: accountDetails,
+      status: "pending", requested_at: new Date().toISOString()
     };
-    const ref = await addDoc(collection(db, WITHDRAWALS_COL), record);
-    logActivity("withdrawal_requested", `${name} requested a withdrawal of $${amount.toFixed(2)}`, { email });
-    return { id: ref.id, ...record };
+    const { data } = await supabase.from(WITHDRAWALS_COL).insert([record]).select().single();
+    logActivity("withdrawal_requested", `${name} requested a withdrawal of $${Number(amount).toFixed(2)}`, { email });
+    return data ? { id: data.id, ...record } : record;
   }
 
   async function updateWithdrawal(id, status) {
-    const withdrawalRef = doc(db, WITHDRAWALS_COL, id);
-
     if (status !== "approved") {
-      const snap = await getDoc(withdrawalRef);
-      if (!snap.exists()) return null;
-      const w = snap.data();
-      if (w.status === "approved") return { id, ...w };
-      await updateDoc(withdrawalRef, { status });
+      const { data: w } = await supabase.from(WITHDRAWALS_COL).select('*').eq('id', id).single();
+      if (!w) return null;
+      if (w.status === "approved") return w;
+      await supabase.from(WITHDRAWALS_COL).update({ status }).eq('id', id);
       logActivity("withdrawal_rejected", `Withdrawal of $${Number(w.amount || 0).toFixed(2)} rejected for ${w.name}`, { email: w.email });
-      return { id, ...w, status };
+      return { ...w, status };
     }
 
     try {
-      const result = await runTransaction(db, async (tx) => {
-        const wSnap = await tx.get(withdrawalRef);
-        if (!wSnap.exists()) throw new Error("Withdrawal request not found.");
-        const w = wSnap.data();
-        if (w.status === "approved") return { alreadyApproved: true, w };
-        if (!(Number(w.amount) > 0)) throw new Error("This withdrawal has an invalid amount and cannot be approved.");
+      const { data: w, error: wErr } = await supabase.from(WITHDRAWALS_COL).select('*').eq('id', id).single();
+      if (wErr || !w) throw new Error("Withdrawal request not found.");
+      if (w.status === "approved") return { ...w, alreadyApproved: true };
+      if (!(Number(w.amount) > 0)) throw new Error("This withdrawal has an invalid amount and cannot be approved.");
 
-        const user = await getUserByEmail(w.email);
-        if (!user) throw new Error("User not found.");
-        const userRef = doc(db, USERS_COL, user.uid);
-        const uSnap = await tx.get(userRef);
-        const currentBalance = (uSnap.exists() ? uSnap.data().balance : 0) || 0;
+      const user = await getUserByEmail(w.email);
+      if (!user) throw new Error("User not found.");
 
-        if (currentBalance < w.amount) {
-          throw new Error(`Insufficient balance: user has $${currentBalance.toFixed(2)}, withdrawal is $${Number(w.amount).toFixed(2)}.`);
-        }
+      const { data: userData, error: uErr } = await supabase.from(USERS_COL).select('balance').eq('id', user.uid).single();
+      if (uErr || !userData) throw new Error("User balance not found.");
+      const currentBalance = userData.balance || 0;
 
-        tx.update(userRef, { balance: currentBalance - w.amount });
-        tx.update(withdrawalRef, { status: "approved" });
-        return { alreadyApproved: false, w };
-      });
-
-      if (!result.alreadyApproved) {
-        logActivity("withdrawal_approved", `Withdrawal of $${Number(result.w.amount || 0).toFixed(2)} approved for ${result.w.name}`, { email: result.w.email });
+      if (currentBalance < w.amount) {
+        throw new Error(`Insufficient balance: user has $${currentBalance.toFixed(2)}, withdrawal is $${Number(w.amount).toFixed(2)}.`);
       }
-      return { id, ...result.w, status: "approved" };
+
+      await supabase.from(USERS_COL).update({ balance: currentBalance - w.amount }).eq('id', user.uid);
+      await supabase.from(WITHDRAWALS_COL).update({ status: "approved" }).eq('id', id);
+
+      logActivity("withdrawal_approved", `Withdrawal of $${Number(w.amount || 0).toFixed(2)} approved for ${w.name}`, { email: w.email });
+      return { ...w, status: "approved" };
     } catch (e) {
       return { ok: false, message: e.message || "Could not approve withdrawal." };
     }
@@ -402,58 +420,50 @@ const SogoAuth = (() => {
   /* ---------------- top-ups ---------------- */
 
   async function getTopups() {
-    const snap = await getDocs(collection(db, TOPUPS_COL));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const { data } = await supabase.from(TOPUPS_COL).select('*');
+    return data || [];
   }
 
   async function requestTopup(email, name, amount, note) {
     const user = await getUserByEmail(email);
     const record = {
-      userId: user ? user.uid : null,
+      user_id: user ? user.uid : null,
       email, name, amount, note: note || "",
-      status: "pending", requestedAt: serverTimestamp()
+      status: "pending", requested_at: new Date().toISOString()
     };
-    const ref = await addDoc(collection(db, TOPUPS_COL), record);
-    logActivity("topup_requested", `${name} requested a top-up of $${amount.toFixed(2)}`, { email });
-    return { id: ref.id, ...record };
+    const { data } = await supabase.from(TOPUPS_COL).insert([record]).select().single();
+    logActivity("topup_requested", `${name} requested a top-up of $${Number(amount).toFixed(2)}`, { email });
+    return data ? { id: data.id, ...record } : record;
   }
 
   async function updateTopup(id, status) {
-    const topupRef = doc(db, TOPUPS_COL, id);
-
     if (status !== "approved") {
-      const snap = await getDoc(topupRef);
-      if (!snap.exists()) return null;
-      const t = snap.data();
-      if (t.status === "approved") return { id, ...t };
-      await updateDoc(topupRef, { status });
+      const { data: t } = await supabase.from(TOPUPS_COL).select('*').eq('id', id).single();
+      if (!t) return null;
+      if (t.status === "approved") return t;
+      await supabase.from(TOPUPS_COL).update({ status }).eq('id', id);
       logActivity("topup_rejected", `Top-up of $${Number(t.amount || 0).toFixed(2)} rejected for ${t.name}`, { email: t.email });
-      return { id, ...t, status };
+      return { ...t, status };
     }
 
     try {
-      const result = await runTransaction(db, async (tx) => {
-        const tSnap = await tx.get(topupRef);
-        if (!tSnap.exists()) throw new Error("Top-up request not found.");
-        const t = tSnap.data();
-        if (t.status === "approved") return { alreadyApproved: true, t };
-        if (!(Number(t.amount) > 0)) throw new Error("This top-up has an invalid amount and cannot be approved.");
+      const { data: t, error: tErr } = await supabase.from(TOPUPS_COL).select('*').eq('id', id).single();
+      if (tErr || !t) throw new Error("Top-up request not found.");
+      if (t.status === "approved") return { ...t, alreadyApproved: true };
+      if (!(Number(t.amount) > 0)) throw new Error("This top-up has an invalid amount and cannot be approved.");
 
-        const user = await getUserByEmail(t.email);
-        if (!user) throw new Error("User not found.");
-        const userRef = doc(db, USERS_COL, user.uid);
-        const uSnap = await tx.get(userRef);
-        const currentBalance = (uSnap.exists() ? uSnap.data().balance : 0) || 0;
+      const user = await getUserByEmail(t.email);
+      if (!user) throw new Error("User not found.");
 
-        tx.update(userRef, { balance: currentBalance + t.amount });
-        tx.update(topupRef, { status: "approved" });
-        return { alreadyApproved: false, t };
-      });
+      const { data: userData, error: uErr } = await supabase.from(USERS_COL).select('balance').eq('id', user.uid).single();
+      if (uErr || !userData) throw new Error("User balance not found.");
+      const currentBalance = userData.balance || 0;
 
-      if (!result.alreadyApproved) {
-        logActivity("topup_approved", `Top-up of $${Number(result.t.amount || 0).toFixed(2)} approved for ${result.t.name}`, { email: result.t.email });
-      }
-      return { id, ...result.t, status: "approved" };
+      await supabase.from(USERS_COL).update({ balance: currentBalance + t.amount }).eq('id', user.uid);
+      await supabase.from(TOPUPS_COL).update({ status: "approved" }).eq('id', id);
+
+      logActivity("topup_approved", `Top-up of $${Number(t.amount || 0).toFixed(2)} approved for ${t.name}`, { email: t.email });
+      return { ...t, status: "approved" };
     } catch (e) {
       return { ok: false, message: e.message || "Could not approve top-up." };
     }
@@ -461,9 +471,8 @@ const SogoAuth = (() => {
 
   /* ---------------- activity log ---------------- */
   async function getActivity() {
-    const q = query(collection(db, ACTIVITY_COL), orderBy("time", "desc"));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const { data } = await supabase.from(ACTIVITY_COL).select('*').order('time', { ascending: false });
+    return data || [];
   }
 
   return {

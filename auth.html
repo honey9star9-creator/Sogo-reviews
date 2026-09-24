@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="auth.css">
-  <!-- CHANGED: type="module" is required for the Firebase SDK -->
+  <!-- CHANGED: type="module" is required for ES module imports -->
   <script type="module" src="auth.js"></script>
 </head>
 <body class="auth-body">
@@ -126,7 +126,7 @@
     }
 
     // CHANGED: getSession()/redirectForRole() are now async — wait for
-    // the module script (and Firebase) to be ready before calling them.
+    // the module script to be ready before calling them.
     window.addEventListener('DOMContentLoaded', async () => {
       // Small wait so the type="module" auth.js has attached window.SogoAuth.
       let tries = 0;

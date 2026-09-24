@@ -8,9 +8,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script type="module" src="auth.js"></script>
-  <script type="module" src="packages.js"></script>
-  <style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+ <script type="module" src="./supabase-config.js"></script>
+ <script type="module" src="auth.js"></script>
+<script type="module" src="packages.js"></script>
+<style>
     :root {
       --bg-dark: #f8f9fa;
       --bg-sidebar: #ffffff;
@@ -345,8 +347,8 @@
         <h4 style="font-size:0.85rem; font-weight:800; margin-bottom:10px;">Change / Regenerate Invitation Code</h4>
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
           <input type="text" class="form-input" id="customInviteInput" placeholder="Enter a new code (or leave blank to regenerate)" style="max-width:280px;">
-          <button class="btn-purple">Set this code</button>
-          <button class="btn-sm">Regenerate random code</button>
+          <button class="btn-purple" onclick="setCustomInviteCode()">Set this code</button>
+          <button class="btn-sm" onclick="regenerateInviteCode()">Regenerate random code</button>
         </div>
       </div>
 
@@ -367,7 +369,7 @@
           <div class="form-group"><label class="form-label">Full name</label><input type="text" class="form-input" id="newUserName"></div>
           <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="newUserEmail"></div>
           <div class="form-group"><label class="form-label">Password</label><input type="password" class="form-input" id="newUserPassword"></div>
-          <button class="btn-purple">Create User</button>
+          <button class="btn-purple" id="createUserBtn" onclick="createNewUserFromAdmin()">Create User</button>
         </div>
       </div>
 
@@ -611,7 +613,7 @@
           <div class="chat-messages" id="adminChatMessages"></div>
           <div class="chat-input-row">
             <input type="text" class="form-input" id="adminChatInput" placeholder="Message...">
-            <button class="btn-purple">Send</button>
+            <button class="btn-purple" onclick="sendAdminChatMessage()">Send</button>
           </div>
         </div>
       </div>
@@ -678,335 +680,438 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script type="module">
-  // Firebase Auth aur Firestore imports
-  import { auth, db } from './auth.js'; 
-  import { 
-    collection, 
-    doc, 
-    getDoc, 
-    getDocs, 
-    setDoc, 
-    updateDoc, 
-    deleteDoc, 
-    onSnapshot, 
-    query, 
-    where, 
-    serverTimestamp, 
-    increment 
-  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-  import { 
-    onAuthStateChanged, 
-    sendPasswordResetEmail, 
-    createUserWithEmailAndPassword 
-  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-
-  let allUsersList = [];
-
-  // 1. AUTHENTICATION & INITIALIZATION
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      console.log("Admin Logged In:", user.uid);
-      loadAdminData(user.uid);
-      listenToAllUsers();
-      listenToTopupRequests();
-      listenToWithdrawals();
-    } else {
-      console.warn("User not logged in. Redirecting...");
-      window.location.href = "auth.html";
-    }
+  // Waits for auth.js (loaded as a module in <head>) to attach window.SogoAuth.
+  const waitForSogoAuth = new Promise((resolve) => {
+    const started = Date.now();
+    const ready = () => {
+      if (window.SogoAuth) return resolve(window.SogoAuth);
+      if (Date.now() - started > 10000) return resolve(null);
+      window.setTimeout(ready, 25);
+    };
+    ready();
   });
 
-  // 2. ADMIN PROFILE & INVITATION DATA LOAD
-  function loadAdminData(adminUid) {
-    const adminDocRef = doc(db, "users", adminUid);
-    onSnapshot(adminDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        
-        // Admin Name & Avatar
-        const adminNameElem = document.getElementById("adminName");
-        const adminAvatarElem = document.getElementById("adminAvatar");
-        if (adminNameElem) adminNameElem.textContent = data.fullName || data.name || "Admin";
-        if (adminAvatarElem) adminAvatarElem.textContent = (data.fullName || data.name || "A").charAt(0).toUpperCase();
+  let currentAdminSession = null;
+  let allUsersList = [];
+  let activeChatEmail = null;
 
-        // Invite Code & Link Setup
-        const inviteCode = data.inviteCode || "ADMIN0001";
-        const inviteLink = `https://sogoreview.online/register?ref=${inviteCode}`;
-        
-        const inviteLinkInput = document.getElementById("adminInviteLink");
-        if (inviteLinkInput) inviteLinkInput.value = inviteLink;
-
-        const inviteCodeBtn = document.getElementById("adminInviteCodeBtn");
-        if (inviteCodeBtn) {
-          inviteCodeBtn.textContent = `Copy code (${inviteCode})`;
-          inviteCodeBtn.onclick = () => {
-            navigator.clipboard.writeText(inviteCode);
-            alert("Invitation Code copied: " + inviteCode);
-          };
-        }
-      }
-    }, (err) => console.error("Admin Profile Fetch Error:", err));
+  function escapeHtml(str) {
+    return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function formatDate(v) {
+    if (!v) return '-';
+    const d = new Date(v);
+    return isNaN(d) ? '-' : d.toLocaleDateString();
   }
 
-  // 3. REALTIME USERS & DASHBOARD STATS
-  function listenToAllUsers() {
-    const usersRef = collection(db, "users");
-    onSnapshot(usersRef, (snapshot) => {
-      allUsersList = [];
-      let totalUsers = 0;
-      let activeUsers = 0;
+  // ---------------- BOOTSTRAP ----------------
+  async function bootstrapAdminDashboard() {
+    const authApi = await waitForSogoAuth;
+    if (!authApi) { console.error('SogoAuth did not load — check auth.js / supabase-config.js.'); return; }
 
-      snapshot.forEach((docSnap) => {
-        const u = { id: docSnap.id, ...docSnap.data() };
-        allUsersList.push(u);
-        totalUsers++;
-        if (u.status === "active" || u.status === "Active" || !u.status) {
-          activeUsers++;
-        }
-      });
+    currentAdminSession = await authApi.requireRole('admin'); // redirects to auth.html if not a logged-in admin
+    if (!currentAdminSession) return;
 
-      // Update Dashboard Metric Cards
-      const totalUsersElem = document.getElementById("statTotalUsers");
-      const activeUsersElem = document.getElementById("statActiveUsers");
-      const headingElem = document.getElementById("allUsersHeading");
+    await refreshUsers();
+    await Promise.all([
+      loadAdminProfile(),
+      refreshTopups(),
+      refreshWithdrawals(),
+      refreshPasswordRequests(),
+      refreshActivity(),
+      refreshInvitations(),
+      refreshChatUsersList()
+    ]);
 
-      if (totalUsersElem) totalUsersElem.textContent = totalUsers;
-      if (activeUsersElem) activeUsersElem.textContent = activeUsers;
-      if (headingElem) headingElem.textContent = `All Users (${totalUsers})`;
-
-      // Render Users Table
-      renderUsersTable(allUsersList);
-    }, (err) => {
-      console.error("Firestore Users Fetch Error:", err);
-    });
+    // Supabase JS client here doesn't use Firestore-style realtime listeners for these
+    // reads, so refresh on an interval to keep the dashboard reasonably up to date.
+    window.setInterval(() => {
+      refreshUsers();
+      refreshTopups();
+      refreshWithdrawals();
+      refreshPasswordRequests();
+      refreshActivity();
+    }, 30000);
   }
 
-  // 4. RENDER USERS TABLE
+  // ---------------- ADMIN PROFILE / INVITATION ----------------
+  async function loadAdminProfile() {
+    const authApi = await waitForSogoAuth;
+    const fresh = await authApi.getUserDoc(currentAdminSession.uid);
+    if (!fresh) return;
+
+    const name = fresh.name || 'Admin';
+    const inviteCode = fresh.my_invite_code || 'ADMIN0001';
+    const inviteLink = `https://sogoreview.online/register?ref=${inviteCode}`;
+
+    const adminNameElem = document.getElementById('adminName');
+    const adminAvatarElem = document.getElementById('adminAvatar');
+    if (adminNameElem) adminNameElem.textContent = name;
+    if (adminAvatarElem) adminAvatarElem.textContent = name.charAt(0).toUpperCase();
+
+    const inviteLinkInput = document.getElementById('adminInviteLink');
+    if (inviteLinkInput) inviteLinkInput.value = inviteLink;
+
+    const inviteCodeBtn = document.getElementById('adminInviteCodeBtn');
+    if (inviteCodeBtn) {
+      inviteCodeBtn.textContent = `Copy code (${inviteCode})`;
+      inviteCodeBtn.onclick = () => {
+        navigator.clipboard.writeText(inviteCode);
+        alert('Invitation code copied: ' + inviteCode);
+      };
+    }
+
+    const joinCountElem = document.getElementById('inviteJoinCount');
+    if (joinCountElem) {
+      const joined = allUsersList.filter(u => (u.invited_by_email || '').toLowerCase() === (fresh.email || '').toLowerCase());
+      joinCountElem.textContent = joined.length;
+    }
+  }
+
+  window.setCustomInviteCode = async function () {
+    const authApi = await waitForSogoAuth;
+    const input = document.getElementById('customInviteInput');
+    const code = input ? input.value.trim() : '';
+    const result = await authApi.setInviteCode(currentAdminSession.email, code);
+    if (!result) { alert('Could not update invite code.'); return; }
+    alert('Invite code updated: ' + result.my_invite_code);
+    if (input) input.value = '';
+    await loadAdminProfile();
+  };
+
+  window.regenerateInviteCode = async function () {
+    const authApi = await waitForSogoAuth;
+    const result = await authApi.setInviteCode(currentAdminSession.email, '');
+    if (!result) { alert('Could not regenerate invite code.'); return; }
+    alert('New invite code: ' + result.my_invite_code);
+    await loadAdminProfile();
+  };
+
+  // ---------------- USERS ----------------
+  async function refreshUsers() {
+    const authApi = await waitForSogoAuth;
+    allUsersList = await authApi.getUsers();
+
+    const totalUsers = allUsersList.length;
+    const activeUsers = allUsersList.filter(u => !u.blocked).length;
+
+    const totalUsersElem = document.getElementById('statTotalUsers');
+    const activeUsersElem = document.getElementById('statActiveUsers');
+    const headingElem = document.getElementById('allUsersHeading');
+    if (totalUsersElem) totalUsersElem.textContent = totalUsers;
+    if (activeUsersElem) activeUsersElem.textContent = activeUsers;
+    if (headingElem) headingElem.textContent = `All Users (${totalUsers})`;
+
+    try {
+      const activeChatsElem = document.getElementById('statActiveChats');
+      const unreadElem = document.getElementById('statUnreadMessages');
+      if (activeChatsElem) activeChatsElem.textContent = await authApi.getActiveChatsCount();
+      if (unreadElem) unreadElem.textContent = await authApi.getUnreadMessageCount();
+    } catch (e) { /* non-fatal */ }
+
+    renderUsersTable(allUsersList);
+  }
+
   function renderUsersTable(users) {
-    const tbody = document.getElementById("allUsersTableBody");
+    const tbody = document.getElementById('allUsersTableBody');
     if (!tbody) return;
 
-    tbody.innerHTML = "";
-
-    if (users.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px;">No users found in database.</td></tr>`;
+    if (!users.length) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px;">No users found.</td></tr>`;
       return;
     }
 
-    users.forEach((u) => {
-      const tr = document.createElement("tr");
-
-      const isBlocked = u.status === "blocked";
-      const statusBadge = isBlocked 
+    tbody.innerHTML = users.map(u => {
+      const isBlocked = !!u.blocked;
+      const statusBadge = isBlocked
         ? `<span class="badge-pending" style="background:#fee2e2; color:#dc2626;">blocked</span>`
         : `<span class="badge-active">active</span>`;
-
-      tr.innerHTML = `
-        <td>
-          <div style="font-weight:700; color:#0f172a;">${u.fullName || u.name || 'N/A'}</div>
-          <div style="font-size:0.75rem; color:#64748b;">${u.email || '-'}</div>
-        </td>
-        <td>${statusBadge}</td>
-        <td>$${Number(u.wallet || u.balance || 0).toFixed(2)}</td>
-        <td>$${Number(u.earned || 0).toFixed(2)}</td>
-        <td>${u.reviewsCount || u.reviews || 0}</td>
-        <td>${u.activeCount || 1}</td>
-        <td>${u.referredBy || u.referrer || '—'}</td>
-        <td>
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button class="btn-sm btn-adjust-bal" data-id="${u.id}">Balance</button>
-            <button class="btn-sm btn-toggle-block" data-id="${u.id}" data-status="${u.status}" style="color:${isBlocked ? '#10b981' : '#ef4444'};">${isBlocked ? 'Unblock' : 'Block'}</button>
-            <button class="btn-sm btn-reset-pwd" data-email="${u.email}">Password</button>
-            <button class="btn-sm btn-delete-user" data-id="${u.id}" style="color:#dc2626;">Delete</button>
-          </div>
-        </td>
+      return `
+        <tr>
+          <td>
+            <div style="font-weight:700; color:#0f172a;">${escapeHtml(u.name || 'N/A')}</div>
+            <div style="font-size:0.75rem; color:#64748b;">${escapeHtml(u.email || '-')}</div>
+          </td>
+          <td>${statusBadge}</td>
+          <td>$${Number(u.balance || 0).toFixed(2)}</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>${escapeHtml(u.invited_by_email || '—')}</td>
+          <td>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button class="btn-sm" onclick="adminAdjustBalance('${u.uid}')">Balance</button>
+              <button class="btn-sm" style="color:${isBlocked ? '#10b981' : '#ef4444'};" onclick="adminToggleBlock('${u.uid}', ${isBlocked})">${isBlocked ? 'Unblock' : 'Block'}</button>
+              <button class="btn-sm" onclick="adminResetPassword('${escapeHtml(u.email)}')">Password</button>
+              <button class="btn-sm" style="color:#dc2626;" onclick="adminDeleteUser('${escapeHtml(u.email)}')">Delete</button>
+            </div>
+          </td>
+        </tr>
       `;
-      tbody.appendChild(tr);
-    });
-
-    attachUserActionListeners();
+    }).join('');
   }
 
-  // 5. USER ACTION BUTTON HANDLERS
-  function attachUserActionListeners() {
-    // Balance Adjust
-    document.querySelectorAll(".btn-adjust-bal").forEach(btn => {
-      btn.onclick = async () => {
-        const uid = btn.getAttribute("data-id");
-        const val = prompt("Enter amount to add or subtract (e.g. 50 or -20):");
-        if (val !== null && !isNaN(val)) {
-          const num = parseFloat(val);
-          await updateDoc(doc(db, "users", uid), {
-            wallet: increment(num)
-          });
-          alert("Wallet updated!");
-        }
-      };
-    });
+  window.adminAdjustBalance = async function (uid) {
+    const authApi = await waitForSogoAuth;
+    const user = allUsersList.find(u => u.uid === uid);
+    const val = prompt('Enter amount to add or subtract (e.g. 50 or -20):');
+    if (val === null || val.trim() === '' || isNaN(val)) return;
+    const newBalance = Number(user ? user.balance || 0 : 0) + parseFloat(val);
+    await authApi.updateUserByUid(uid, { balance: newBalance });
+    alert('Balance updated!');
+    await refreshUsers();
+  };
 
-    // Block / Unblock User
-    document.querySelectorAll(".btn-toggle-block").forEach(btn => {
-      btn.onclick = async () => {
-        const uid = btn.getAttribute("data-id");
-        const currentStatus = btn.getAttribute("data-status");
-        const newStatus = currentStatus === "blocked" ? "active" : "blocked";
-        if (confirm(`Change user status to ${newStatus}?`)) {
-          await updateDoc(doc(db, "users", uid), { status: newStatus });
-          alert(`User status changed to ${newStatus}`);
-        }
-      };
-    });
+  window.adminToggleBlock = async function (uid, isBlocked) {
+    if (!confirm(`Change user status to ${isBlocked ? 'active' : 'blocked'}?`)) return;
+    const authApi = await waitForSogoAuth;
+    await authApi.updateUserByUid(uid, { blocked: !isBlocked });
+    await refreshUsers();
+  };
 
-    // Reset Password Email
-    document.querySelectorAll(".btn-reset-pwd").forEach(btn => {
-      btn.onclick = async () => {
-        const email = btn.getAttribute("data-email");
-        if (email && confirm(`Send password reset email to ${email}?`)) {
-          try {
-            await sendPasswordResetEmail(auth, email);
-            alert("Password reset email sent successfully!");
-          } catch (e) {
-            alert("Error sending reset email: " + e.message);
-          }
-        }
-      };
-    });
+  window.adminResetPassword = async function (email) {
+    if (!email || !confirm(`Send password reset email to ${email}?`)) return;
+    try {
+      if (!window.supabase) throw new Error('Supabase client not loaded.');
+      const { error } = await window.supabase.auth.resetPasswordForEmail(email);
+      if (error) throw error;
+      alert('Password reset email sent successfully!');
+    } catch (e) {
+      alert('Error sending reset email: ' + e.message);
+    }
+  };
 
-    // Delete User Doc
-    document.querySelectorAll(".btn-delete-user").forEach(btn => {
-      btn.onclick = async () => {
-        const uid = btn.getAttribute("data-id");
-        if (confirm("Are you sure you want to delete this user record from Firestore?")) {
-          await deleteDoc(doc(db, "users", uid));
-          alert("User record deleted!");
-        }
-      };
-    });
-  }
+  window.adminDeleteUser = async function (email) {
+    if (!email || !confirm('Are you sure you want to delete this user? This cannot be undone.')) return;
+    const authApi = await waitForSogoAuth;
+    await authApi.deleteUser(email);
+    await refreshUsers();
+  };
 
-  // 6. SEARCH USERS FILTER
-  const userSearchInput = document.getElementById("userSearchInput");
-  if (userSearchInput) {
-    userSearchInput.oninput = (e) => {
+  const userSearchInputElem = document.getElementById('userSearchInput');
+  if (userSearchInputElem) {
+    userSearchInputElem.oninput = (e) => {
       const q = e.target.value.toLowerCase();
-      const filtered = allUsersList.filter(u => 
-        (u.fullName || u.name || "").toLowerCase().includes(q) ||
-        (u.email || "").toLowerCase().includes(q) ||
-        (u.inviteCode || "").toLowerCase().includes(q)
-      );
-      renderUsersTable(filtered);
+      renderUsersTable(allUsersList.filter(u =>
+        (u.name || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q) ||
+        (u.my_invite_code || '').toLowerCase().includes(q)
+      ));
     };
   }
 
-  // 7. CREATE NEW USER FROM ADMIN
-  window.createNewUser = async function() {
-    const nameInput = document.getElementById("newUserName");
-    const emailInput = document.getElementById("newUserEmail");
-    const passInput = document.getElementById("newUserPassword");
-
+  window.createNewUserFromAdmin = async function () {
+    const nameInput = document.getElementById('newUserName');
+    const emailInput = document.getElementById('newUserEmail');
+    const passInput = document.getElementById('newUserPassword');
     if (!nameInput || !emailInput || !passInput) return;
 
     const name = nameInput.value.trim();
     const email = emailInput.value.trim();
     const pass = passInput.value.trim();
-
     if (!name || !email || !pass) {
-      alert("Please fill in Name, Email and Password fields.");
+      alert('Please fill in Name, Email and Password fields.');
       return;
     }
 
-    try {
-      // Create user record in Firestore directly
-      const newDocRef = doc(collection(db, "users"));
-      await setDoc(newDocRef, {
-        fullName: name,
-        email: email,
-        status: "active",
-        wallet: 0,
-        earned: 0,
-        reviewsCount: 0,
-        createdAt: serverTimestamp(),
-        referredBy: "Admin"
-      });
+    const authApi = await waitForSogoAuth;
+    const result = await authApi.adminCreateUser(name, email, pass);
+    if (!result.ok) { alert(result.message); return; }
 
-      alert("User record created successfully in database!");
-      nameInput.value = "";
-      emailInput.value = "";
-      passInput.value = "";
-    } catch (e) {
-      alert("Error creating user: " + e.message);
-    }
+    alert('User created successfully!');
+    nameInput.value = '';
+    emailInput.value = '';
+    passInput.value = '';
+    await refreshUsers();
   };
 
-  // Attach Create User Button event
-  const createBtn = document.querySelector("#tab-dashboard .card .btn-purple");
-  if (createBtn) {
-    createBtn.onclick = (e) => {
-      e.preventDefault();
-      window.createNewUser();
-    };
-  }
+  // ---------------- TOP-UP REQUESTS ----------------
+  async function refreshTopups() {
+    const authApi = await waitForSogoAuth;
+    const topups = await authApi.getTopups();
+    const container = document.getElementById('topupListContainer');
+    const countElem = document.getElementById('topupPendingCount');
+    if (!container) return;
 
-  // 8. TOP-UP REQUESTS LISTENER
-  function listenToTopupRequests() {
-    const topupRef = collection(db, "topups");
-    onSnapshot(topupRef, (snap) => {
-      const container = document.getElementById("topupListContainer");
-      const countElem = document.getElementById("topupPendingCount");
-      if (!container) return;
+    const pending = topups.filter(t => t.status === 'pending');
+    if (countElem) countElem.textContent = pending.length;
 
-      container.innerHTML = "";
-      let pendingCount = 0;
-
-      snap.forEach((docSnap) => {
-        const item = docSnap.data();
-        if (item.status === "pending") pendingCount++;
-
-        const div = document.createElement("div");
-        div.className = "payment-req-card";
-        div.innerHTML = `
-          <div class="payment-user-info">
-            <div class="proof-badge">Proof</div>
-            <div class="payment-details">
-              <h4>${item.userName || 'User'}</h4>
-              <p>${item.userEmail || '-'}</p>
-              <div class="payment-sub">Amount: $${item.amount || 0} · Method: ${item.method || 'Manual'}</div>
-            </div>
+    container.innerHTML = topups.length ? topups.slice().reverse().map(t => `
+      <div class="payment-req-card">
+        <div class="payment-user-info">
+          <div class="proof-badge">${escapeHtml(t.status || 'pending')}</div>
+          <div class="payment-details">
+            <h4>${escapeHtml(t.name || 'User')}</h4>
+            <p>${escapeHtml(t.email || '-')}</p>
+            <div class="payment-sub">Amount: $${Number(t.amount || 0).toFixed(2)}${t.note ? ' · ' + escapeHtml(t.note) : ''}</div>
           </div>
-          <div class="payment-actions">
-            <span class="badge-${item.status || 'pending'}">${item.status || 'pending'}</span>
-          </div>
-        `;
-        container.appendChild(div);
-      });
-
-      if (countElem) countElem.textContent = pendingCount;
-    });
+        </div>
+        <div class="payment-actions">
+          ${t.status === 'pending' ? `
+            <button class="btn-verify" onclick="adminUpdateTopup('${t.id}','approved')">Approve</button>
+            <button class="btn-reject" onclick="adminUpdateTopup('${t.id}','rejected')">Reject</button>
+          ` : `<span class="badge-${t.status}">${escapeHtml(t.status)}</span>`}
+        </div>
+      </div>
+    `).join('') : '<div class="card" style="text-align:center; color:var(--text-muted);">No top-up requests yet.</div>';
   }
 
-  // 9. WITHDRAWALS LISTENER
-  function listenToWithdrawals() {
-    const withdrawRef = collection(db, "withdrawals");
-    onSnapshot(withdrawRef, (snap) => {
-      const tbody = document.getElementById("adminWithdrawalsBody");
-      if (!tbody) return;
+  window.adminUpdateTopup = async function (id, status) {
+    const authApi = await waitForSogoAuth;
+    const result = await authApi.updateTopup(id, status);
+    if (result && result.ok === false) { alert(result.message); return; }
+    await Promise.all([refreshTopups(), refreshUsers()]);
+  };
 
-      tbody.innerHTML = "";
-      snap.forEach((docSnap) => {
-        const w = docSnap.data();
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td><strong>${w.userName || 'N/A'}</strong></td>
-          <td>$${w.amount || 0}</td>
-          <td>${w.accountDetails || '-'}</td>
-          <td>${w.requestedAt ? new Date(w.requestedAt.toDate()).toLocaleDateString() : '-'}</td>
-          <td><span class="badge-${w.status || 'pending'}">${w.status || 'pending'}</span></td>
-          <td><button class="btn-sm">Process</button></td>
-        `;
-        tbody.appendChild(tr);
-      });
-    });
+  // ---------------- WITHDRAWALS ----------------
+  async function refreshWithdrawals() {
+    const authApi = await waitForSogoAuth;
+    const list = await authApi.getWithdrawals();
+    const tbody = document.getElementById('adminWithdrawalsBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = list.length ? list.slice().reverse().map(w => `
+      <tr>
+        <td><strong>${escapeHtml(w.name || 'N/A')}</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">${escapeHtml(w.email || '')}</span></td>
+        <td>$${Number(w.amount || 0).toFixed(2)}</td>
+        <td>${escapeHtml(w.account_details || '-')}</td>
+        <td>${formatDate(w.requested_at)}</td>
+        <td><span class="badge-${w.status || 'pending'}">${escapeHtml(w.status || 'pending')}</span></td>
+        <td>
+          ${w.status === 'pending' ? `
+            <button class="btn-sm" style="color:#10b981;" onclick="adminUpdateWithdrawal('${w.id}','approved')">Approve</button>
+            <button class="btn-sm" style="color:#dc2626;" onclick="adminUpdateWithdrawal('${w.id}','rejected')">Reject</button>
+          ` : '-'}
+        </td>
+      </tr>
+    `).join('') : `<tr><td colspan="6" style="text-align:center; padding:20px;">No withdrawal requests yet.</td></tr>`;
   }
+
+  window.adminUpdateWithdrawal = async function (id, status) {
+    const authApi = await waitForSogoAuth;
+    const result = await authApi.updateWithdrawal(id, status);
+    if (result && result.ok === false) { alert(result.message); return; }
+    await Promise.all([refreshWithdrawals(), refreshUsers()]);
+  };
+
+  // ---------------- PASSWORD REQUESTS ----------------
+  async function refreshPasswordRequests() {
+    const authApi = await waitForSogoAuth;
+    const list = await authApi.getPasswordRequests();
+    const tbody = document.getElementById('pwRequestsBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = list.length ? list.slice().reverse().map(r => `
+      <tr>
+        <td>${escapeHtml(r.email || '-')}</td>
+        <td>${formatDate(r.requested_at)}</td>
+        <td><span class="badge-${r.status || 'pending'}">${escapeHtml(r.status || 'pending')}</span></td>
+        <td>
+          ${r.status === 'pending' ? `
+            <button class="btn-sm" onclick="adminFulfillPwRequest('${r.id}','${escapeHtml(r.email)}')">Mark sent</button>
+            <button class="btn-sm" onclick="adminDismissPwRequest('${r.id}')">Dismiss</button>
+          ` : '-'}
+        </td>
+      </tr>
+    `).join('') : `<tr><td colspan="4" style="text-align:center; padding:20px;">No password requests.</td></tr>`;
+  }
+
+  window.adminFulfillPwRequest = async function (id, email) {
+    const authApi = await waitForSogoAuth;
+    try {
+      if (window.supabase && email) await window.supabase.auth.resetPasswordForEmail(email);
+    } catch (e) { console.warn('Reset email failed:', e.message); }
+    await authApi.fulfillPasswordRequest(id);
+    await refreshPasswordRequests();
+  };
+
+  window.adminDismissPwRequest = async function (id) {
+    const authApi = await waitForSogoAuth;
+    await authApi.dismissPasswordRequest(id);
+    await refreshPasswordRequests();
+  };
+
+  // ---------------- ACTIVITY LOG ----------------
+  async function refreshActivity() {
+    const authApi = await waitForSogoAuth;
+    const list = await authApi.getActivity();
+    const tbody = document.getElementById('activityLogBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = list.length ? list.map(a => `
+      <tr>
+        <td>${escapeHtml(a.type || '-')}</td>
+        <td>${escapeHtml(a.message || '-')}</td>
+        <td>${formatDate(a.time)}</td>
+      </tr>
+    `).join('') : `<tr><td colspan="3" style="text-align:center; padding:20px;">No activity yet.</td></tr>`;
+  }
+
+  // ---------------- INVITATIONS ----------------
+  async function refreshInvitations() {
+    const tbody = document.getElementById('invInvitersBody');
+    if (!tbody) return;
+
+    const inviters = allUsersList.filter(u => u.my_invite_code);
+    tbody.innerHTML = inviters.length ? inviters.map(u => {
+      const signups = allUsersList.filter(x => (x.invited_by_email || '').toLowerCase() === (u.email || '').toLowerCase()).length;
+      return `
+        <tr>
+          <td>${escapeHtml(u.name || u.email)}</td>
+          <td>${escapeHtml(u.role || 'client')}</td>
+          <td>${escapeHtml(u.my_invite_code)}</td>
+          <td>${signups}</td>
+        </tr>
+      `;
+    }).join('') : `<tr><td colspan="4" style="text-align:center; padding:20px;">No inviters yet.</td></tr>`;
+  }
+
+  // ---------------- CHAT ----------------
+  async function refreshChatUsersList() {
+    const list = document.getElementById('adminChatUsersList');
+    if (!list) return;
+    const clients = allUsersList.filter(u => u.role === 'client');
+
+    list.innerHTML = clients.length ? clients.map(u => `
+      <div style="padding:12px 16px; border-bottom:1px solid var(--border-color); cursor:pointer;" onclick="openAdminChat('${escapeHtml(u.email)}', '${escapeHtml(u.name || u.email)}')">
+        <div style="font-weight:700; font-size:0.85rem;">${escapeHtml(u.name || u.email)}</div>
+        <div style="font-size:0.7rem; color:var(--text-muted);">${escapeHtml(u.email)}</div>
+      </div>
+    `).join('') : '<div style="padding:16px; color:var(--text-muted); font-size:0.8rem;">No clients yet.</div>';
+  }
+
+  window.openAdminChat = async function (email, displayName) {
+    activeChatEmail = email;
+    const headerName = document.getElementById('adminChatHeaderName');
+    if (headerName) headerName.textContent = displayName;
+
+    const authApi = await waitForSogoAuth;
+    authApi.listenChatThread(email, renderAdminChatMessages);
+    await authApi.markChatRead(email);
+  };
+
+  function renderAdminChatMessages(messages) {
+    const box = document.getElementById('adminChatMessages');
+    if (!box) return;
+    box.innerHTML = (messages || []).map(m => `
+      <div style="align-self:${m.from === 'admin' ? 'flex-end' : 'flex-start'}; background:${m.from === 'admin' ? '#6366f1' : '#fff'}; color:${m.from === 'admin' ? '#fff' : '#0f172a'}; padding:8px 12px; border-radius:10px; max-width:70%; font-size:0.8rem; border:1px solid var(--border-color);">
+        ${escapeHtml(m.text)}
+      </div>
+    `).join('');
+    box.scrollTop = box.scrollHeight;
+  }
+
+  window.sendAdminChatMessage = async function () {
+    const input = document.getElementById('adminChatInput');
+    if (!input || !activeChatEmail) return;
+    const text = input.value.trim();
+    if (!text) return;
+    const authApi = await waitForSogoAuth;
+    await authApi.sendChatMessage(activeChatEmail, 'admin', text);
+    input.value = '';
+  };
+
+  bootstrapAdminDashboard();
 </script>
 </body>
 </html>
