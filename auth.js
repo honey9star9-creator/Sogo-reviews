@@ -333,6 +333,41 @@ const SogoAuth = (() => {
       .eq('read', false);
   }
 
+  /* Uploads an image/file to the 'chat-attachments' storage bucket and sends it
+     as a chat message. The message "text" is set to the public file URL; the
+     UI layer detects image URLs (by extension) and renders them as images. */
+  async function sendChatAttachment(clientEmail, from, file) {
+    try {
+      const user = await getUserByEmail(clientEmail);
+      if (!user) return { ok: false, message: 'User not found.' };
+      if (!file) return { ok: false, message: 'No file selected.' };
+
+      const safeName = (file.name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `${user.uid}/${Date.now()}-${safeName}`;
+      const { error: uploadErr } = await supabase.storage
+        .from('chat-attachments')
+        .upload(path, file, { upsert: true });
+      if (uploadErr) throw uploadErr;
+
+      const { data: pub } = supabase.storage.from('chat-attachments').getPublicUrl(path);
+      const publicUrl = pub ? pub.publicUrl : '';
+      if (!publicUrl) throw new Error('Could not get public URL for uploaded file.');
+
+      await supabase.from(MESSAGES_COL).insert([{
+        user_id: user.uid,
+        from,
+        text: publicUrl,
+        time: new Date().toISOString(),
+        read: from === 'admin'
+      }]);
+
+      return { ok: true, url: publicUrl };
+    } catch (e) {
+      console.error('sendChatAttachment failed:', e.message);
+      return { ok: false, message: e.message || 'Upload failed.' };
+    }
+  }
+
   async function getUnreadMessageCount() {
     const users = (await getUsers()).filter(u => u.role === "client");
     let totalUnread = 0;
@@ -479,7 +514,7 @@ const SogoAuth = (() => {
     login, signup, logout, getSession, requireRole, redirectForRole, impersonate,
     getUserDoc, getUserByEmail, updateUserByUid, seedDefaultAdminOnce,
     getUsers, updateUser, deleteUser, adminCreateUser, setInviteCode,
-    getChatThread, listenChatThread, sendChatMessage, markChatRead, getUnreadMessageCount, getActiveChatsCount,
+    getChatThread, listenChatThread, sendChatMessage, sendChatAttachment, markChatRead, getUnreadMessageCount, getActiveChatsCount,
     getWithdrawals, requestWithdrawal, updateWithdrawal,
     getTopups, requestTopup, updateTopup,
     getPasswordRequests, requestPasswordReset, fulfillPasswordRequest, dismissPasswordRequest,

@@ -612,9 +612,12 @@
           <div class="chat-header"><span id="adminChatHeaderName">Select a user</span></div>
           <div class="chat-messages" id="adminChatMessages"></div>
           <div class="chat-input-row">
+            <button class="btn-sm" onclick="document.getElementById('adminChatAttachInput').click()" title="Send a photo"><i class="fa-solid fa-paperclip"></i></button>
+            <input type="file" id="adminChatAttachInput" accept="image/*" style="display:none;" onchange="sendAdminChatAttachment(this)">
             <input type="text" class="form-input" id="adminChatInput" placeholder="Message...">
             <button class="btn-purple" onclick="sendAdminChatMessage()">Send</button>
           </div>
+          <p id="adminChatAttachMsg" style="font-size: 0.7rem; padding: 0 16px; margin-top: -4px; display:none;"></p>
         </div>
       </div>
     </div>
@@ -1090,14 +1093,28 @@
     await authApi.markChatRead(email);
   };
 
+  function isImageUrl(text) {
+    return /^https?:\/\/\S+\.(png|jpe?g|gif|webp|svg)(\?\S*)?$/i.test((text || '').trim());
+  }
+
   function renderAdminChatMessages(messages) {
     const box = document.getElementById('adminChatMessages');
     if (!box) return;
-    box.innerHTML = (messages || []).map(m => `
-      <div style="align-self:${m.from === 'admin' ? 'flex-end' : 'flex-start'}; background:${m.from === 'admin' ? '#6366f1' : '#fff'}; color:${m.from === 'admin' ? '#fff' : '#0f172a'}; padding:8px 12px; border-radius:10px; max-width:70%; font-size:0.8rem; border:1px solid var(--border-color);">
-        ${escapeHtml(m.text)}
-      </div>
-    `).join('');
+    box.innerHTML = (messages || []).map(m => {
+      const fromAdmin = m.from === 'admin';
+      if (isImageUrl(m.text)) {
+        return `
+          <div style="align-self:${fromAdmin ? 'flex-end' : 'flex-start'}; max-width:70%; border-radius:10px; overflow:hidden; border:1px solid var(--border-color);">
+            <a href="${escapeHtml(m.text)}" target="_blank" rel="noopener"><img src="${escapeHtml(m.text)}" style="display:block; max-width:220px; max-height:220px; object-fit:cover;"></a>
+          </div>
+        `;
+      }
+      return `
+        <div style="align-self:${fromAdmin ? 'flex-end' : 'flex-start'}; background:${fromAdmin ? '#6366f1' : '#fff'}; color:${fromAdmin ? '#fff' : '#0f172a'}; padding:8px 12px; border-radius:10px; max-width:70%; font-size:0.8rem; border:1px solid var(--border-color);">
+          ${escapeHtml(m.text)}
+        </div>
+      `;
+    }).join('');
     box.scrollTop = box.scrollHeight;
   }
 
@@ -1109,6 +1126,22 @@
     const authApi = await waitForSogoAuth;
     await authApi.sendChatMessage(activeChatEmail, 'admin', text);
     input.value = '';
+  };
+
+  window.sendAdminChatAttachment = async function (inputEl) {
+    const msg = document.getElementById('adminChatAttachMsg');
+    const file = inputEl && inputEl.files && inputEl.files[0];
+    if (!file || !activeChatEmail) return;
+    if (msg) msg.style.display = 'none';
+    const authApi = await waitForSogoAuth;
+    try {
+      const result = await authApi.sendChatAttachment(activeChatEmail, 'admin', file);
+      if (!result.ok) throw new Error(result.message || 'Upload failed.');
+    } catch (e) {
+      if (msg) { msg.textContent = e.message || 'Could not send photo.'; msg.style.color = '#dc2626'; msg.style.display = 'block'; }
+    } finally {
+      inputEl.value = '';
+    }
   };
 
   bootstrapAdminDashboard();

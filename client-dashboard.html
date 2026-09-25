@@ -553,13 +553,119 @@
       border-bottom: 1px solid rgba(255, 255, 255, 0.03);
     }
 
+    .live-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .live-user { font-size: 13px; font-weight: 700; color: #fff; }
+    .live-date { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+    .live-amount { color: var(--accent-gold); font-weight: 800; font-size: 14px; text-shadow: 0 0 10px var(--accent-gold-glow); }
+    @keyframes autoScroll {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-50%); }
+    }
+
+    .upload-box {
+      border: 2px dashed rgba(217, 160, 91, 0.3);
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 12px;
+      padding: 30px;
+      text-align: center;
+      color: var(--text-muted);
+      cursor: pointer;
+      margin: 15px 0;
+      transition: all 0.3s ease;
+    }
+    .upload-box:hover { border-color: var(--accent-gold); background: rgba(217, 160, 91, 0.05); }
+    .upload-box input[type="file"] { display: none; }
+
+    .input-icon-wrapper { position: relative; display: flex; align-items: center; }
+    .input-icon-wrapper .input-field { padding-right: 40px; }
+    .input-icon-wrapper i { position: absolute; right: 14px; color: var(--text-muted); cursor: pointer; }
+
+    .floating-chat {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 55px;
+      height: 55px;
+      background: linear-gradient(135deg, #d9a05b, #b57a35);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #0c0b10;
+      font-size: 22px;
+      box-shadow: 0 10px 25px var(--accent-gold-glow);
+      cursor: pointer;
+      z-index: 99;
+    }
+
+    .mobile-bottom-nav {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: var(--bottom-nav-height);
+      background: rgba(10, 9, 14, 0.96);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid var(--card-border);
+      z-index: 1000;
+      justify-content: space-around;
+      align-items: center;
+      padding: 0 5px;
+      box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.8);
+    }
+    .bottom-nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      text-decoration: none;
+      flex: 1;
+      height: 100%;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .bottom-nav-item i { font-size: 18px; transition: transform 0.2s ease, color 0.2s ease; }
+    .bottom-nav-item.active { color: var(--accent-gold); }
+    .bottom-nav-item.active i { transform: translateY(-2px); text-shadow: 0 0 10px var(--accent-gold-glow); }
+
+    .package-product-card {
+      padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px; background: var(--card-gradient); border-radius: 14px;
+      border: 1px solid var(--card-border);
+    }
+    .package-product-icon {
+      width: 52px; height: 52px; border-radius: 10px; background: #16141f;
+      border: 1px solid var(--card-border); display: flex; align-items: center; justify-content: center;
+      color: var(--accent-gold); font-size: 18px; flex-shrink: 0;
+    }
+
     @media (max-width: 992px) {
       .sidebar { display: none; }
-      .main-content { margin-left: 0; padding: 16px; }
+      .main-content { margin-left: 0; padding: 16px; padding-bottom: calc(var(--bottom-nav-height) + 30px); }
       .dashboard-grid { grid-template-columns: 1fr; gap: 15px; }
       .stats-row-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
       .form-row { grid-template-columns: 1fr; }
       .reviews-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .floating-chat { bottom: calc(var(--bottom-nav-height) + 15px); right: 15px; width: 48px; height: 48px; font-size: 18px; }
+      .mobile-bottom-nav { display: flex; }
+    }
+    @media (max-width: 480px) {
+      .reviews-grid { grid-template-columns: repeat(2, 1fr); }
+      .quick-actions { gap: 8px; }
+      .action-btn { padding: 12px 6px; font-size: 11px; }
     }
   </style>
 </head>
@@ -745,6 +851,7 @@
     <!-- 4. REVIEWS VIEW -->
     <div id="tab-reviews" class="view-section">
       <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 15px;">Packages to review</h4>
+      <div id="reviewsPackageSummary"></div>
       <div class="filter-tabs">
         <button class="filter-btn active">All (0)</button>
         <button class="filter-btn">Approved (0)</button>
@@ -821,10 +928,15 @@
           </div>
           <div id="chatMessages" style="display:flex; flex-direction:column; gap:12px; max-height: 320px; overflow-y:auto; margin-bottom: 15px;"></div>
         </div>
-        <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <div style="display: flex; gap: 10px; margin-top: 15px; align-items: center;">
+          <button class="btn-dark" style="padding: 10px 14px;" onclick="document.getElementById('chatAttachInput').click()" title="Send a photo">
+            <i class="fa-solid fa-paperclip"></i>
+          </button>
+          <input type="file" id="chatAttachInput" accept="image/*" style="display:none;" onchange="sendClientChatAttachment(this)">
           <input type="text" id="chatInput" class="input-field" placeholder="Type your message...">
           <button class="btn-gold" onclick="sendClientChat()"><i class="fa-solid fa-paper-plane"></i></button>
         </div>
+        <p id="chatAttachMsg" style="font-size: 11px; margin-top: 8px; display:none;"></p>
       </div>
     </div>
 
@@ -847,9 +959,65 @@
         <button class="btn-gold" onclick="saveProfileDetails()">Save Profile</button>
         <p id="profileSavedMsg" style="font-size: 11px; color: #2ecc71; margin-top: 8px; display:none;">Profile saved.</p>
       </div>
+
+      <div class="card">
+        <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 4px;">Change password</h4>
+        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 18px;">Set a new password for your account.</p>
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label>New password</label>
+          <div class="input-icon-wrapper">
+            <input type="password" class="input-field" placeholder="At least 6 characters" id="newPass">
+            <i class="fa-regular fa-eye" onclick="togglePassword('newPass', this)"></i>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label>Confirm new password</label>
+          <div class="input-icon-wrapper">
+            <input type="password" class="input-field" id="confPass">
+            <i class="fa-regular fa-eye" onclick="togglePassword('confPass', this)"></i>
+          </div>
+        </div>
+        <p id="passChangeMsg" style="font-size: 11px; margin-bottom: 10px; display:none;"></p>
+        <button class="btn-gold" onclick="changeClientPassword()">Change password</button>
+      </div>
+
+      <div class="card">
+        <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 4px;">Log out everywhere</h4>
+        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 18px;">Sign out of this account on every device.</p>
+        <button class="btn-dark" onclick="logoutClient()">Log out all devices</button>
+      </div>
     </div>
 
   </main>
+
+  <!-- Floating Live Chat Button -->
+  <div class="floating-chat" onclick="openView('chat')">
+    <i class="fa-solid fa-message"></i>
+  </div>
+
+  <!-- Mobile Bottom Navigation Bar -->
+  <nav class="mobile-bottom-nav">
+    <div class="bottom-nav-item active" data-tab="dashboard" onclick="switchTab('dashboard', this)">
+      <i class="fa-solid fa-border-all"></i>
+      <span>Home</span>
+    </div>
+    <div class="bottom-nav-item" data-tab="packages" onclick="switchTab('packages', this)">
+      <i class="fa-solid fa-box"></i>
+      <span>Packages</span>
+    </div>
+    <div class="bottom-nav-item" data-tab="reviews" onclick="switchTab('reviews', this)">
+      <i class="fa-solid fa-star"></i>
+      <span>Reviews</span>
+    </div>
+    <div class="bottom-nav-item" data-tab="chat" onclick="switchTab('chat', this)">
+      <i class="fa-solid fa-message"></i>
+      <span>Chat</span>
+    </div>
+    <div class="bottom-nav-item" data-tab="profile" onclick="switchTab('profile', this)">
+      <i class="fa-solid fa-gear"></i>
+      <span>Profile</span>
+    </div>
+  </nav>
 
   <script>
     let currentSession = null;
@@ -871,15 +1039,60 @@
     function switchTab(tabId, el) {
       document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+      document.querySelectorAll('.bottom-nav-item').forEach(item => item.classList.remove('active'));
       const activeSec = document.getElementById('tab-' + tabId);
       if (activeSec) activeSec.classList.add('active');
       if (el) el.classList.add('active');
-      document.getElementById('pageTitle').textContent = tabId.toUpperCase();
+
+      // Keep sidebar highlight correct even when opened via mobile nav / package click (packagereviews -> packages)
+      const sidebarMap = { packagereviews: 'packages' };
+      const sidebarTarget = sidebarMap[tabId] || tabId;
+      const sidebarEl = document.querySelector(`.sidebar .nav-item[onclick*="'${sidebarTarget}'"]`);
+      if (sidebarEl) sidebarEl.classList.add('active');
+
+      // Keep mobile bottom nav highlight correct (packagereviews -> packages tab)
+      const mobileTarget = sidebarMap[tabId] || tabId;
+      const mobileEl = document.querySelector(`.bottom-nav-item[data-tab="${mobileTarget}"]`);
+      if (mobileEl) mobileEl.classList.add('active');
+
+      const titleMap = { packagereviews: 'PACKAGE REVIEWS', mypackages: 'MY PACKAGES' };
+      document.getElementById('pageTitle').textContent = titleMap[tabId] || tabId.toUpperCase();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function openView(tabId) {
       const navEl = document.querySelector(`.nav-item[onclick*="${tabId}"]`);
       switchTab(tabId, navEl);
+    }
+
+    /* ---------------- Live Earnings widget (decorative, auto-scroll) ---------------- */
+    function getRecentDate(daysAgo) {
+      const date = new Date();
+      date.setDate(date.getDate() - (daysAgo || 0));
+      return String(date.getDate()).padStart(2, '0') + '/' + String(date.getMonth() + 1).padStart(2, '0') + '/' + date.getFullYear();
+    }
+
+    function renderLiveEarnings() {
+      const liveList = document.getElementById('liveEarningsList');
+      if (!liveList) return;
+      const names = ['Mat***', 'Adi***', 'Har***', 'Rya***', 'Mad***', 'Emm***', 'Fel***', 'Div***', 'Ish***', 'Rah***', 'Chi***'];
+      const amounts = ['+$70', '+$180', '+$300', '+$120', '+$250', '+$180', '+$12', '+$120', '+$350', '+$150'];
+      let itemsHTML = '';
+      for (let i = 0; i < 20; i++) {
+        const user = names[i % names.length];
+        const amount = amounts[i % amounts.length];
+        const date = getRecentDate(i % 3);
+        itemsHTML += `
+          <div class="live-item">
+            <div>
+              <div class="live-user">${user}</div>
+              <div class="live-date">${date}</div>
+            </div>
+            <div class="live-amount">${amount}</div>
+          </div>
+        `;
+      }
+      liveList.innerHTML = itemsHTML + itemsHTML;
     }
 
     function renderPackageProducts(pkg, userPkg) {
@@ -890,15 +1103,28 @@
         container.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">No products in this package yet.</div>';
         return;
       }
-      container.innerHTML = products.map((p, idx) => `
-        <div class="card" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-          <div>
-            <div style="font-weight:700;">${idx + 1}. ${escapeHtmlC(p.name || 'Product')}</div>
-            <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Commission: ${formatMoney(p.commission)}</div>
+      const userPkg2 = userPkg;
+      const reviewedCount = userPkg2 ? safeAmount(userPkg2.reviewsCompleted) : 0;
+      container.innerHTML = products.map((p, idx) => {
+        const isReviewed = idx < reviewedCount;
+        const isNext = idx === reviewedCount && userPkg2 && userPkg2.status === 'approved';
+        return `
+        <div class="package-product-card">
+          <div style="display:flex; align-items:center; gap:16px;">
+            <div class="package-product-icon"><i class="fa-solid fa-box"></i></div>
+            <div>
+              <div style="font-size:14px; font-weight:700; color:#fff;">${idx + 1}. ${escapeHtmlC(p.name || 'Product')}</div>
+              <div style="font-size:12px; color:var(--accent-gold); font-weight:600; margin-top:4px;">Commission: ${formatMoney(p.commission)}</div>
+            </div>
           </div>
-          <button class="btn-dark">Review</button>
+          ${isReviewed
+            ? '<span style="font-size:11px;color:#2ecc71;font-weight:700;"><i class="fa-solid fa-check"></i> Reviewed</span>'
+            : isNext
+              ? '<button class="btn-gold" style="padding:8px 16px;">Review</button>'
+              : '<span style="font-size:11px;color:var(--text-muted);font-weight:600;"><i class="fa-solid fa-lock"></i> Locked</span>'}
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     function renderSelectedPackage() {
@@ -928,7 +1154,7 @@
           <div class="stat-card"><div class="stat-label">Commission</div><div class="stat-value" style="font-size:16px;">${formatMoney(pkg.totalCommission)}</div></div>
           <div class="stat-card"><div class="stat-label">Price</div><div class="stat-value" style="font-size:16px;color:var(--accent-gold);">${formatMoney(pkg.price)}</div></div>
         </div>
-        ${userPackage ? (status === 'pending_payment' ? `<h4 style="font-size:13px;font-weight:700;">Submit payment proof</h4><p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Upload a screenshot so support can verify.</p><input id="${proofInputId}" type="file" accept="image/*" style="margin:12px 0;color:var(--text-muted);"><button class="btn-gold" style="border-radius:6px;padding:10px 20px;" onclick="uploadClientPaymentProof()">Upload payment screenshot</button><div id="packageUploadMessage" style="font-size:11px;margin-top:10px;"></div>` : '') : `<button class="btn-gold" style="border-radius:6px;padding:10px 20px;" onclick="joinSelectedPackage()">Select package</button>`}
+        ${userPackage ? (status === 'pending_payment' ? `<h4 style="font-size:13px;font-weight:700;">Submit payment proof</h4><p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Pay ${formatMoney(pkg.price)} and upload a screenshot so support can verify.</p><label class="upload-box" for="${proofInputId}" style="display:block;"><i class="fa-solid fa-cloud-arrow-up" style="font-size:24px;color:var(--accent-gold);margin-bottom:8px;"></i><div style="font-size:12px;font-weight:700;color:#fff;" id="${proofInputId}Label">CHOOSE PAYMENT SCREENSHOT</div><div style="font-size:10px;color:var(--text-muted);margin-top:4px;">PNG, JPG or WEBP</div><input id="${proofInputId}" type="file" accept="image/*" onchange="document.getElementById('${proofInputId}Label').textContent = (this.files[0] ? this.files[0].name : 'CHOOSE PAYMENT SCREENSHOT')"></label><button class="btn-gold" style="border-radius:6px;padding:10px 20px;" onclick="uploadClientPaymentProof()">Upload payment screenshot</button><div id="packageUploadMessage" style="font-size:11px;margin-top:10px;"></div>` : '') : `<button class="btn-gold" style="border-radius:6px;padding:10px 20px;" onclick="joinSelectedPackage()">Select package</button>`}
       `;
       renderPackageProducts(pkg, userPackage);
     }
@@ -971,6 +1197,32 @@
       `).join('') : '<div style="color:var(--text-muted);font-size:12px;">You have not selected a package yet.</div>');
     }
 
+    function renderReviewsSummary() {
+      const box = document.getElementById('reviewsPackageSummary');
+      if (!box) return;
+      if (!clientPackages.length) { box.innerHTML = ''; return; }
+      box.innerHTML = clientPackages.map(item => {
+        const total = safeAmount(item.totalProducts);
+        const completed = safeAmount(item.reviewsCompleted);
+        const pct = total ? Math.round(completed / total * 100) : 0;
+        const statusLabel = packageStatusLabel(item.status);
+        return `
+        <div class="card" style="margin-bottom: 25px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <div>
+              <h3 style="font-size: 15px; font-weight: 700;">${escapeHtmlC(item.packageName || 'Package')}</h3>
+              <div style="font-size: 13px; font-weight: 700; color: #fff; margin-top: 4px;">${formatMoney(item.price)}</div>
+            </div>
+            <span style="font-size: 11px; background: rgba(217, 160, 91, 0.12); color: var(--accent-gold); padding: 5px 12px; border-radius: 6px; font-weight: 700; border: 1px solid rgba(217, 160, 91, 0.2); text-transform:capitalize;">${statusLabel}</span>
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 18px;">${completed}/${total} reviewed · ${pct}%</div>
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <button class="btn-gold" onclick="selectClientUserPackage('${item.id}','${item.packageId}')">Open package <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
     async function refreshClientPackages() {
       if (!currentSession || !window.SogoPackages) return;
       const result = await Promise.all([SogoPackages.getPackages({ onlyPublished: true }), SogoPackages.getUserPackages(currentSession.uid)]);
@@ -982,6 +1234,7 @@
       renderPackageCatalog();
       renderMyPackages();
       renderSelectedPackage();
+      renderReviewsSummary();
     }
 
     function selectClientPackage(packageId) {
@@ -1112,6 +1365,53 @@
       await loadUserData();
     }
 
+    function togglePassword(inputId, icon) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+      } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+      }
+    }
+
+    async function changeClientPassword() {
+      const msgEl = document.getElementById('passChangeMsg');
+      const next = document.getElementById('newPass').value;
+      const conf = document.getElementById('confPass').value;
+
+      if (!next || next.length < 6) {
+        msgEl.textContent = 'New password must be at least 6 characters.';
+        msgEl.style.color = '#e74c3c';
+        msgEl.style.display = 'block';
+        return;
+      }
+      if (next !== conf) {
+        msgEl.textContent = 'New password and confirm password do not match.';
+        msgEl.style.color = '#e74c3c';
+        msgEl.style.display = 'block';
+        return;
+      }
+      try {
+        if (!window.supabase) throw new Error('Supabase client not loaded.');
+        const { error } = await window.supabase.auth.updateUser({ password: next });
+        if (error) throw error;
+        msgEl.textContent = 'Password changed successfully.';
+        msgEl.style.color = '#2ecc71';
+        msgEl.style.display = 'block';
+        document.getElementById('newPass').value = '';
+        document.getElementById('confPass').value = '';
+      } catch (e) {
+        msgEl.textContent = 'Error: ' + e.message;
+        msgEl.style.color = '#e74c3c';
+        msgEl.style.display = 'block';
+      }
+    }
+
     async function saveProfileDetails() {
       const user = await getCurrentUser();
       if (!user) return;
@@ -1203,13 +1503,21 @@
       }
     }
 
+    function isImageUrl(text) {
+      return /^https?:\/\/\S+\.(png|jpe?g|gif|webp|svg)(\?\S*)?$/i.test((text || '').trim());
+    }
+
     function renderChatMessages(thread) {
       const box = document.getElementById('chatMessages');
       if (!box) return;
       const welcome = `<div style="margin-bottom: 15px;"><span style="font-size: 10px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 6px;">CUSTOMER SUPPORT</span><div style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--card-border); padding: 14px 20px; border-radius: 20px; display: inline-block; max-width: 80%; font-size: 13px; color: #fff;">Welcome to SOGO Reviews. How can we help?</div></div>`;
       const msgsHtml = (thread || []).map(m => {
         const mine = m.from === 'client';
-        return `<div style="align-self:${mine ? 'flex-end' : 'flex-start'};"><span style="font-size: 10px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 6px;">${mine ? 'YOU' : 'SUPPORT'}</span><div style="background:${mine ? 'var(--accent-gold)' : 'rgba(255,255,255,0.04)'}; color:${mine ? '#1a1400' : '#fff'}; border:1px solid var(--card-border); padding: 14px 20px; border-radius: 20px; display: inline-block; max-width: 80%; font-size: 13px;">${escapeHtmlC(m.text)}</div></div>`;
+        const bubbleStyle = `background:${mine ? 'var(--accent-gold)' : 'rgba(255,255,255,0.04)'}; color:${mine ? '#1a1400' : '#fff'}; border:1px solid var(--card-border); border-radius: 14px; display: inline-block; max-width: 80%; font-size: 13px; overflow:hidden;`;
+        const inner = isImageUrl(m.text)
+          ? `<a href="${escapeHtmlC(m.text)}" target="_blank" rel="noopener"><img src="${escapeHtmlC(m.text)}" style="display:block; max-width:220px; max-height:220px; border-radius:12px;"></a>`
+          : `<div style="padding: 14px 20px; border-radius: 20px;">${escapeHtmlC(m.text)}</div>`;
+        return `<div style="align-self:${mine ? 'flex-end' : 'flex-start'};"><span style="font-size: 10px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 6px;">${mine ? 'YOU' : 'SUPPORT'}</span><div style="${isImageUrl(m.text) ? 'border-radius:12px; overflow:hidden; border:1px solid var(--card-border); display:inline-block; max-width:80%;' : bubbleStyle}">${inner}</div></div>`;
       }).join('');
       box.innerHTML = welcome + msgsHtml;
       box.scrollTop = box.scrollHeight;
@@ -1242,6 +1550,22 @@
       await SogoAuth.sendChatMessage(currentSession.email, 'client', text);
       input.value = '';
       await renderChat();
+    }
+
+    async function sendClientChatAttachment(inputEl) {
+      const msg = document.getElementById('chatAttachMsg');
+      const file = inputEl && inputEl.files && inputEl.files[0];
+      if (!file || !currentSession) return;
+      if (msg) { msg.style.display = 'none'; }
+      try {
+        const result = await SogoAuth.sendChatAttachment(currentSession.email, 'client', file);
+        if (!result.ok) throw new Error(result.message || 'Upload failed.');
+        await renderChat();
+      } catch (e) {
+        if (msg) { msg.textContent = e.message || 'Could not send photo.'; msg.style.color = '#e74c3c'; msg.style.display = 'block'; }
+      } finally {
+        inputEl.value = '';
+      }
     }
 
     async function openTopupPrompt() {
@@ -1327,6 +1651,7 @@
       currentSession = await authApi.requireRole('client');
       if (!currentSession) return;
 
+      renderLiveEarnings();
       await Promise.all([
         loadUserData(),
         renderMyWithdrawals(),
