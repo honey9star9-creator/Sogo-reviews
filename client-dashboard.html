@@ -959,6 +959,20 @@
       </div>
     </div>
 
+<!-- PACKAGE REVIEWS VIEW (UPDATED UI) -->
+<div id="tab-packagereviews" class="view-section">
+  <!-- Dynamic Status & Lock Banner -->
+  <div id="packageProgressBanner"></div>
+
+  <!-- Package Details Card -->
+  <div class="card" id="packageReviewDetailCard">
+    <div style="color: var(--text-muted); font-size: 12px;">Loading package details...</div>
+  </div>
+
+  <h4 style="font-size: 14px; margin-bottom: 15px;">Products in this package</h4>
+  <div id="packageProductsList"></div>
+</div>
+
     <!-- 4. REVIEWS VIEW -->
     <div id="tab-reviews" class="view-section">
       <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 15px;">Packages to review</h4>
@@ -1414,44 +1428,164 @@ async function submitProductReview(btnEl, productIndex) {
       }
     }
 
-    async function renderSelectedPackage() {
-      const detail = document.getElementById('packageReviewDetailCard');
-      if (!detail) return;
-      const pkg = availablePackages.find(item => item.id === selectedPackageId);
-      if (!pkg) {
-        detail.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Select a package to view details.</div>';
-        return;
-      }
-      const userPackage = clientPackages.find(item => item.packageId === pkg.id);
-      await loadReviewsForSelectedUserPackage();
-      let depositBannerHtml = '';
-      if (userPackage) {
-        const myDeposits = await loadMyDepositsForPackage(userPackage.id);
-        depositBannerHtml = renderDepositBannerHtml(pkg, userPackage, myDeposits);
-      }
-      const status = userPackage ? userPackage.status : 'not_joined';
-      const completed = userPackage ? safeAmount(userPackage.reviewsCompleted) : 0;
-      const total = safeAmount(userPackage ? userPackage.totalProducts : (pkg.products || []).length);
-      const proofInputId = 'paymentProofInput';
+async function renderSelectedPackage() {
+  const detail = document.getElementById('packageReviewDetailCard');
+  const banner = document.getElementById('packageProgressBanner');
+  if (!detail) return;
 
-      detail.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
-          <div>
-            <h3 style="font-size:16px;font-weight:700;">${escapeHtmlC(pkg.name)}</h3>
-            <div style="font-size:13px;font-weight:700;color:#fff;margin-top:4px;">${formatMoney(pkg.price)}</div>
+  const pkg = availablePackages.find(item => item.id === selectedPackageId);
+  if (!pkg) {
+    detail.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Select a package to view details.</div>';
+    if (banner) banner.innerHTML = '';
+    return;
+  }
+
+  const userPackage = clientPackages.find(item => item.packageId === pkg.id);
+  await loadReviewsForSelectedUserPackage();
+
+  const totalProds = safeAmount(userPackage ? userPackage.totalProducts : (pkg.products || []).length);
+  const completedReviews = userPackage ? safeAmount(userPackage.reviewsCompleted) : 0;
+  const unlockedCount = userPackage ? safeAmount(userPackage.unlockedCount != null ? userPackage.unlockedCount : totalProds) : 0;
+  const nextLock = findNextLock(pkg, unlockedCount);
+  const lockPrice = nextLock ? nextLock.depositRequired : (pkg.deposit || 300);
+
+  // Render Top Lock Progress Banner
+  if (banner && userPackage) {
+    const isLockedState = completedReviews >= unlockedCount && unlockedCount < totalProds;
+    
+    if (isLockedState) {
+      banner.innerHTML = `
+        <div class="card" style="border-color: rgba(217, 160, 91, 0.4); background: rgba(217, 160, 91, 0.05); margin-bottom:20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span style="font-size:14px; font-weight:800; color:#fff;">Package Reviews</span>
+            <span style="font-size:11px; font-weight:700; color:#e67e22;"><i class="fa-solid fa-lock"></i> Locked at ${completedReviews}/${totalProds}</span>
           </div>
-          <span style="font-size:10px;background:rgba(255,255,255,.05);padding:4px 10px;border-radius:4px;color:${packageStatusColor(status)};text-transform:capitalize;">${packageStatusLabel(status)}</span>
+          <div style="width:100%; height:8px; background:rgba(255,255,255,0.08); border-radius:4px; overflow:hidden; margin-bottom:12px;">
+            <div style="width:${(completedReviews/totalProds)*100}%; height:100%; background:linear-gradient(135deg, #e5b373, #bd813b);"></div>
+          </div>
+          
+          <!-- Instructions Card -->
+          <div style="background:rgba(0,0,0,0.3); border:1px solid var(--card-border); border-radius:12px; padding:16px; margin-top:10px;">
+            <h4 style="font-size:14px; color:#fff; font-weight:700; margin-bottom:8px;">You're ready for the next products 🥳</h4>
+            <p style="font-size:12px; color:var(--text-muted); line-height:1.6; margin-bottom:12px;">
+              Great work — you've reviewed <strong>${completedReviews} products</strong>. To open and review the next one and keep earning commission, just one quick step:
+            </p>
+            <p style="font-size:12px; color:var(--text-muted); line-height:1.6; margin-bottom:12px;">
+              Make your next deposit of <strong style="color:var(--accent-gold);">$${lockPrice}</strong> and upload your payment screenshot below.<br>
+              Once your payment is confirmed, the next product opens up automatically.<br>
+              Open it, submit your review, and your commission is added to your balance right away.
+            </p>
+
+            <!-- Dynamic Deposit Card -->
+            <div style="background:rgba(255,255,255,0.03); border:1px solid var(--card-border); border-radius:8px; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+              <span style="font-size:12px; color:var(--text-muted);">Amount to deposit</span>
+              <span style="font-size:16px; font-weight:800; color:var(--accent-gold);">$${lockPrice}</span>
+            </div>
+
+            <!-- Upload Area -->
+            <label class="upload-box" for="lockDepositScreenshot" style="display:block; margin-bottom:12px; cursor:pointer;">
+              <i class="fa-solid fa-cloud-arrow-up" style="font-size:24px; color:var(--accent-gold); margin-bottom:6px;"></i>
+              <div style="font-size:12px; font-weight:700; color:#fff;" id="lockDepositFileLabel">Choose payment screenshot (JPG, PNG or WEBP)</div>
+              <input id="lockDepositScreenshot" type="file" accept="image/*" style="display:none;" onchange="document.getElementById('lockDepositFileLabel').textContent = (this.files[0] ? this.files[0].name : 'Choose payment screenshot')">
+            </label>
+
+            <!-- Optional Reference Input -->
+            <div class="form-group" style="margin-bottom:14px;">
+              <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">Reference Note (Optional)</label>
+              <input type="text" class="input-field" id="lockDepositRef" placeholder="e.g. Transaction ID / Bank Ref">
+            </div>
+
+            <button class="btn-gold" style="width:100%; border-radius:8px; padding:10px;" onclick="submitLockTopupRequest(${lockPrice})">Submit Top-up Request</button>
+            <p id="lockDepositMsg" style="font-size:11px; margin-top:8px; text-align:center; display:none;"></p>
+          </div>
         </div>
-        <p style="font-size:11px;color:var(--text-muted);margin-bottom:15px;">${completed} of ${total} products reviewed (${total ? Math.round(completed / total * 100) : 0}%)</p>
-        <div class="stats-row-grid" style="grid-template-columns:1fr 1fr;margin-bottom:20px;">
-          <div class="stat-card"><div class="stat-label">Commission</div><div class="stat-value" style="font-size:16px;">${formatMoney(pkg.totalCommission)}</div></div>
-          <div class="stat-card"><div class="stat-label">Price</div><div class="stat-value" style="font-size:16px;color:var(--accent-gold);">${formatMoney(pkg.price)}</div></div>
-        </div>
-        ${userPackage ? (status === 'pending_payment' ? `<h4 style="font-size:13px;font-weight:700;">Submit payment proof</h4><p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Pay ${formatMoney(pkg.price)} and upload a screenshot so support can verify.</p><label class="upload-box" for="${proofInputId}" style="display:block;"><i class="fa-solid fa-cloud-arrow-up" style="font-size:24px;color:var(--accent-gold);margin-bottom:8px;"></i><div style="font-size:12px;font-weight:700;color:#fff;" id="${proofInputId}Label">CHOOSE PAYMENT SCREENSHOT</div><div style="font-size:10px;color:var(--text-muted);margin-top:4px;">PNG, JPG or WEBP</div><input id="${proofInputId}" type="file" accept="image/*" onchange="document.getElementById('${proofInputId}Label').textContent = (this.files[0] ? this.files[0].name : 'CHOOSE PAYMENT SCREENSHOT')"></label><button class="btn-gold" style="border-radius:6px;padding:10px 20px;" onclick="uploadClientPaymentProof()">Upload payment screenshot</button><div id="packageUploadMessage" style="font-size:11px;margin-top:10px;"></div>` : '') : `<button class="btn-gold" style="border-radius:6px;padding:10px 20px;" onclick="joinSelectedPackage()">Select package</button>`}
-        ${depositBannerHtml}
       `;
-      renderPackageProducts(pkg, userPackage);
+    } else {
+      banner.innerHTML = `
+        <div class="card" style="margin-bottom:20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-size:14px; font-weight:800; color:#fff;">Package Reviews Progress</span>
+            <span style="font-size:12px; font-weight:700; color:var(--accent-gold);">${completedReviews}/${totalProds} Completed</span>
+          </div>
+          <div style="width:100%; height:8px; background:rgba(255,255,255,0.08); border-radius:4px; overflow:hidden;">
+            <div style="width:${totalProds ? (completedReviews/totalProds)*100 : 0}%; height:100%; background:linear-gradient(135deg, #e5b373, #bd813b);"></div>
+          </div>
+        </div>
+      `;
     }
+  }
+
+  // Render Inner Details Box (Commission & Price)
+  detail.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <div>
+        <h3 style="font-size:16px; font-weight:800;">${escapeHtmlC(pkg.name)}</h3>
+        <span style="font-size:11px; color:var(--text-muted);">Package ID: ${pkg.id}</span>
+      </div>
+      <span style="font-size:11px; background:rgba(255,255,255,.05); padding:4px 10px; border-radius:6px; color:${packageStatusColor(userPackage?.status)};">
+        ${packageStatusLabel(userPackage?.status)}
+      </span>
+    </div>
+    
+    <div class="stats-row-grid" style="grid-template-columns:1fr 1fr; margin-bottom:0;">
+      <div class="stat-card">
+        <div class="stat-label">Total Commission</div>
+        <div class="stat-value" style="font-size:16px; color:#2ecc71;">${formatMoney(pkg.totalCommission)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Package Price</div>
+        <div class="stat-value" style="font-size:16px; color:var(--accent-gold);">${formatMoney(pkg.price)}</div>
+      </div>
+    </div>
+  `;
+
+  renderPackageProducts(pkg, userPackage);
+}
+
+// Top-up Request Submit Handler
+async function submitLockTopupRequest(amount) {
+  const fileInput = document.getElementById('lockDepositScreenshot');
+  const refInput = document.getElementById('lockDepositRef');
+  const msgEl = document.getElementById('lockDepositMsg');
+
+  const file = fileInput && fileInput.files && fileInput.files[0];
+  const refText = refInput ? refInput.value.trim() : '';
+
+  if (!file) {
+    msgEl.textContent = 'Please choose a payment screenshot first.';
+    msgEl.style.color = '#e74c3c';
+    msgEl.style.display = 'block';
+    return;
+  }
+
+  msgEl.textContent = 'Uploading screenshot and sending top-up request...';
+  msgEl.style.color = 'var(--text-muted)';
+  msgEl.style.display = 'block';
+
+  try {
+    const fullNote = refText ? `Package Unlock Deposit: $${amount} | Ref: ${refText}` : `Package Unlock Deposit: $${amount}`;
+    const result = await SogoAuth.requestTopupWithProof(
+      currentSession.email,
+      currentSession.name,
+      amount,
+      fullNote,
+      file
+    );
+
+    if (result.ok) {
+      msgEl.textContent = 'Top-up request submitted! Waiting for Admin verification.';
+      msgEl.style.color = '#2ecc71';
+      fileInput.value = '';
+      if (refInput) refInput.value = '';
+      setTimeout(() => renderSelectedPackage(), 2000);
+    } else {
+      throw new Error(result.message || 'Submission failed.');
+    }
+  } catch (err) {
+    msgEl.textContent = err.message || 'Submission failed. Please try again.';
+    msgEl.style.color = '#e74c3c';
+  }
+}
 
     function renderPackageCatalog() {
       const catalog = document.getElementById('packageCatalogCard');
