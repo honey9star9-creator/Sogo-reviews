@@ -907,14 +907,6 @@
       </div>
     </div>
 
-    <!-- 2-ALT. PACKAGE REVIEWS VIEW -->
-    <div id="tab-packagereviews" class="view-section">
-      <div class="card" id="packageReviewDetailCard">
-        <div style="color: var(--text-muted); font-size: 12px;">Select a package to view its details.</div>
-      </div>
-      <h4 style="font-size: 14px; margin-bottom: 15px;">Products in this package</h4>
-      <div id="packageProductsList"></div>
-    </div>
 
     <!-- 3. MY PACKAGES VIEW -->
     <div id="tab-mypackages" class="view-section">
@@ -1447,8 +1439,9 @@ async function renderSelectedPackage() {
   const completedReviews = userPackage ? safeAmount(userPackage.reviewsCompleted) : 0;
   const unlockedCount = userPackage ? safeAmount(userPackage.unlockedCount != null ? userPackage.unlockedCount : totalProds) : 0;
   const nextLock = findNextLock(pkg, unlockedCount);
-  const lockPrice = nextLock ? nextLock.depositRequired : (pkg.deposit || 300);
-
+  const locks = pkg.locks || [];
+  const lockPrice = nextLock ? nextLock.depositRequired : (locks.length ? locks[locks.length - 1].depositRequired : 0);
+  
   // Render Top Lock Progress Banner
   if (banner && userPackage) {
     const isLockedState = completedReviews >= unlockedCount && unlockedCount < totalProds;
@@ -1541,49 +1534,73 @@ async function renderSelectedPackage() {
 
   renderPackageProducts(pkg, userPackage);
 }
-
-// Top-up Request Submit Handler
 async function submitLockTopupRequest(amount) {
   const fileInput = document.getElementById('lockDepositScreenshot');
   const refInput = document.getElementById('lockDepositRef');
   const msgEl = document.getElementById('lockDepositMsg');
 
-  const file = fileInput && fileInput.files && fileInput.files[0];
+  const file = fileInput && fileInput.files ? fileInput.files[0] : null;
   const refText = refInput ? refInput.value.trim() : '';
 
   if (!file) {
-    msgEl.textContent = 'Please choose a payment screenshot first.';
-    msgEl.style.color = '#e74c3c';
-    msgEl.style.display = 'block';
+    if (msgEl) {
+      msgEl.textContent = 'Please choose a payment screenshot first.';
+      msgEl.style.color = '#f74c3c';
+      msgEl.style.display = 'block';
+    } else {
+      alert('Please choose a payment screenshot first.');
+    }
     return;
   }
 
-  msgEl.textContent = 'Uploading screenshot and sending top-up request...';
-  msgEl.style.color = 'var(--text-muted)';
-  msgEl.style.display = 'block';
+  if (msgEl) {
+    msgEl.textContent = 'Uploading screenshot and sending top up request...';
+    msgEl.style.color = 'var(--text-muted)';
+    msgEl.style.display = 'block';
+  }
 
   try {
-    const fullNote = refText ? `Package Unlock Deposit: $${amount} | Ref: ${refText}` : `Package Unlock Deposit: $${amount}`;
-    const result = await SogoAuth.requestTopupWithProof(
+    if (!currentSession) {
+      alert('Please log in first.');
+      return;
+    }
+
+    const pkg = availablePackages.find(item => item.id === selectedPackageId);
+
+    const result = await SogoPackages.requestPackageDeposit(
+      currentSession.uid,
       currentSession.email,
-      currentSession.name,
+      selectedUserPackageId,
+      pkg ? pkg.id : selectedPackageId,
       amount,
-      fullNote,
       file
     );
 
-    if (result.ok) {
-      msgEl.textContent = 'Top-up request submitted! Waiting for Admin verification.';
-      msgEl.style.color = '#2ecc71';
-      fileInput.value = '';
-      if (refInput) refInput.value = '';
-      setTimeout(() => renderSelectedPackage(), 2000);
+    if (result && result.ok) {
+      if (msgEl) {
+        msgEl.textContent = 'Top-up request submitted successfully!';
+        msgEl.style.color = '#2ecc71';
+      } else {
+        alert('Top-up request submitted successfully!');
+      }
+      setTimeout(() => window.location.reload(), 1500);
     } else {
-      throw new Error(result.message || 'Submission failed.');
+      const errMsg = (result && result.message) ? result.message : 'Failed to submit top-up request.';
+      if (msgEl) {
+        msgEl.textContent = errMsg;
+        msgEl.style.color = '#f74c3c';
+      } else {
+        alert(errMsg);
+      }
     }
   } catch (err) {
-    msgEl.textContent = err.message || 'Submission failed. Please try again.';
-    msgEl.style.color = '#e74c3c';
+    console.error('Lock Top-up Error:', err);
+    if (msgEl) {
+      msgEl.textContent = 'Error: ' + err.message;
+      msgEl.style.color = '#f74c3c';
+    } else {
+      alert('Error: ' + err.message);
+    }
   }
 }
 
