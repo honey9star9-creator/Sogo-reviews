@@ -647,10 +647,11 @@
       border: 1px solid var(--card-border);
     }
     .package-product-icon {
-      width: 52px; height: 52px; border-radius: 10px; background: #16141f;
-      border: 1px solid var(--card-border); display: flex; align-items: center; justify-content: center;
-      color: var(--accent-gold); font-size: 18px; flex-shrink: 0;
-    }
+  width: 52px; height: 52px; border-radius: 10px; background: #16141f;
+  border: 1px solid var(--card-border); display: flex; align-items: center; justify-content: center;
+  color: var(--accent-gold); font-size: 18px; flex-shrink: 0;
+  overflow: hidden;
+}
 
     /* ---------------- Professional Chat UI ---------------- */
     .chat-card {
@@ -1203,37 +1204,43 @@
       liveList.innerHTML = itemsHTML + itemsHTML;
     }
 
-    function renderPackageProducts(pkg, userPkg) {
-      const container = document.getElementById('packageProductsList');
-      if (!container) return;
-      const products = pkg.products || [];
-      if (!products.length) {
-        container.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">No products in this package yet.</div>';
-        return;
-      }
-      const userPkg2 = userPkg;
-      const reviewedCount = userPkg2 ? safeAmount(userPkg2.reviewsCompleted) : 0;
-      container.innerHTML = products.map((p, idx) => {
-        const isReviewed = idx < reviewedCount;
-        const isNext = idx === reviewedCount && userPkg2 && userPkg2.status === 'approved';
-        return `
-        <div class="package-product-card">
-          <div style="display:flex; align-items:center; gap:16px;">
-            <div class="package-product-icon"><i class="fa-solid fa-box"></i></div>
-            <div>
-              <div style="font-size:14px; font-weight:700; color:#fff;">${idx + 1}. ${escapeHtmlC(p.name || 'Product')}</div>
-              <div style="font-size:12px; color:var(--accent-gold); font-weight:600; margin-top:4px;">Commission: ${formatMoney(p.commission)}</div>
-            </div>
-          </div>
-          ${isReviewed
-            ? '<span style="font-size:11px;color:#2ecc71;font-weight:700;"><i class="fa-solid fa-check"></i> Reviewed</span>'
-            : isNext
-              ? '<button class="btn-gold" style="padding:8px 16px;">Review</button>'
-              : '<span style="font-size:11px;color:var(--text-muted);font-weight:600;"><i class="fa-solid fa-lock"></i> Locked</span>'}
+function renderPackageProducts(pkg, userPkg) {
+  const container = document.getElementById('packageProductsList');
+  if (!container) return;
+  const products = pkg.products || [];
+  if (!products.length) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">No products in this package yet.</div>';
+    return;
+  }
+  const userPkg2 = userPkg;
+  const reviewedCount = userPkg2 ? safeAmount(userPkg2.reviewsCompleted) : 0;
+  container.innerHTML = products.map((p, idx) => {
+    const isReviewed = idx < reviewedCount;
+    const isNext = idx === reviewedCount && userPkg2 && userPkg2.status === 'approved';
+
+    // Show the real uploaded product image, fall back to the box icon if none exists
+    const thumb = p.image
+      ? `<img src="${escapeHtmlC(p.image)}" alt="${escapeHtmlC(p.name || 'Product')}" style="width:100%;height:100%;object-fit:cover;">`
+      : '<i class="fa-solid fa-box"></i>';
+
+    return `
+    <div class="package-product-card">
+      <div style="display:flex; align-items:center; gap:16px;">
+        <div class="package-product-icon">${thumb}</div>
+        <div>
+          <div style="font-size:14px; font-weight:700; color:#fff;">${idx + 1}. ${escapeHtmlC(p.name || 'Product')}</div>
+          <div style="font-size:12px; color:var(--accent-gold); font-weight:600; margin-top:4px;">Commission: ${formatMoney(p.commission)}</div>
         </div>
-      `;
-      }).join('');
-    }
+      </div>
+      ${isReviewed
+        ? '<span style="font-size:11px;color:#2ecc71;font-weight:700;"><i class="fa-solid fa-check"></i> Reviewed</span>'
+        : isNext
+          ? '<button class="btn-gold" style="padding:8px 16px;">Review</button>'
+          : '<span style="font-size:11px;color:var(--text-muted);font-weight:600;"><i class="fa-solid fa-lock"></i> Locked</span>'}
+    </div>
+  `;
+  }).join('');
+}
 
     function renderSelectedPackage() {
       const detail = document.getElementById('packageReviewDetailCard');
