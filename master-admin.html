@@ -468,8 +468,19 @@
 
         <div>
           <button class="btn-purple" id="createPackageBtn" onclick="createPackageNow()">Create package</button>
+          <button class="btn-sm" id="cancelEditBtn" style="display:none; margin-left:10px;" onclick="resetPackageBuilder()">Cancel edit</button>
         </div>
         <p id="createPackageMsg" style="font-size: 0.75rem; margin-top: 10px; display:none;"></p>
+      </div>
+
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <h3 style="font-size: 1rem; font-weight: 800;">Existing Packages</h3>
+          <input type="text" class="form-input" id="packageSearchInput" placeholder="Search packages" style="width: 220px;">
+        </div>
+        <div id="packagesListContainer">
+          <div style="color: var(--text-muted); font-size: 0.8rem; text-align:center; padding:20px;">Loading packages…</div>
+        </div>
       </div>
     </div>
 
@@ -723,6 +734,7 @@
   let currentAdminSession = null;
   let allUsersList = [];
   let activeChatEmail = null;
+  let allPackagesList = [];
 
   function escapeHtml(str) {
     return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -749,7 +761,8 @@
       refreshPasswordRequests(),
       refreshActivity(),
       refreshInvitations(),
-      refreshChatUsersList()
+      refreshChatUsersList(),
+      refreshPackagesList()
     ]);
 
     // Supabase JS client here doesn't use Firestore-style realtime listeners for these
@@ -761,6 +774,75 @@
       refreshPasswordRequests();
       refreshActivity();
     }, 30000);
+  }
+
+  // ---------------- PACKAGES ----------------
+  async function refreshPackagesList() {
+    const container = document.getElementById('packagesListContainer');
+    if (!container) return;
+    if (!window.getPackages) { container.innerHTML = '<div style="color:var(--text-muted); font-size:0.8rem;">Packages module not loaded.</div>'; return; }
+
+    allPackagesList = (await window.getPackages()) || [];
+    renderPackagesList(allPackagesList);
+  }
+
+  function renderPackagesList(list) {
+    const container = document.getElementById('packagesListContainer');
+    if (!container) return;
+
+    if (!list.length) {
+      container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8rem; text-align:center; padding:20px;">No packages created yet.</div>';
+      return;
+    }
+
+    container.innerHTML = `
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Package</th>
+            <th>Price</th>
+            <th>Products</th>
+            <th>Total Commission</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${list.map(p => `
+            <tr>
+              <td><strong>${escapeHtml(p.name)}</strong>${p.description ? `<div style="font-size:0.72rem; color:var(--text-muted); max-width:260px;">${escapeHtml(p.description)}</div>` : ''}</td>
+              <td>$${Number(p.price || 0).toFixed(2)}</td>
+              <td>${(p.products || []).length}</td>
+              <td>$${Number(p.totalCommission || 0).toFixed(2)}</td>
+              <td>${p.published ? '<span class="badge-active">published</span>' : '<span class="badge-pending">draft</span>'}</td>
+              <td>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                  <button class="btn-sm" onclick="editPackageById(${p.id})">Edit</button>
+                  <button class="btn-sm" onclick="togglePublishPackage(${p.id}, ${!!p.published})">${p.published ? 'Unpublish' : 'Publish'}</button>
+                  <button class="btn-sm" style="color:#dc2626;" onclick="deletePackage(${p.id})">Delete</button>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  window.refreshPackagesList = refreshPackagesList;
+
+  window.editPackageById = function (id) {
+    const pkg = allPackagesList.find(p => p.id === id);
+    if (!pkg) { alert('Package not found.'); return; }
+    window.loadPackageIntoBuilder(pkg);
+  };
+
+  const packageSearchInputElem = document.getElementById('packageSearchInput');
+  if (packageSearchInputElem) {
+    packageSearchInputElem.oninput = (e) => {
+      const q = e.target.value.toLowerCase();
+      renderPackagesList(allPackagesList.filter(p => (p.name || '').toLowerCase().includes(q)));
+    };
   }
 
   // ---------------- ADMIN PROFILE / INVITATION ----------------

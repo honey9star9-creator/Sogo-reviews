@@ -2,21 +2,37 @@
 
 import { supabase } from "./supabase-config.js";
 
-// 1. Dynamic Product Rows Generate Karein
+function escAttr(str) {
+  return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Tracks whether the builder form is creating a new package or editing one.
+window.editingPackageId = null;
+window.__prefillProducts = [];
+
+// 1. Dynamic Product Rows Generate Karein (supports prefill for edit mode)
 window.generateProductRows = function() {
   const count = parseInt(document.getElementById('pkg-count').value) || 0;
   const container = document.getElementById('builder-product-rows');
   if (!container) return;
   container.innerHTML = '';
 
+  const prefill = window.__prefillProducts || [];
+
   for (let i = 1; i <= count; i++) {
+    const existing = prefill[i - 1] || {};
     const div = document.createElement('div');
     div.className = 'product-row-builder';
+    if (existing.image) div.dataset.existingImage = existing.image;
+
     div.innerHTML = `
       <span style="font-weight: 700; color: var(--text-muted);">#${i}</span>
-      <input type="text" class="form-input pkg-prod-name" placeholder="Product Name #${i}">
-      <input type="number" class="form-input pkg-prod-comm" placeholder="Commission ($)" step="0.01">
-      <input type="file" class="pkg-prod-img" accept="image/*">
+      <input type="text" class="form-input pkg-prod-name" placeholder="Product Name #${i}" value="${escAttr(existing.name || '')}">
+      <input type="number" class="form-input pkg-prod-comm" placeholder="Commission ($)" step="0.01" value="${existing.commission != null ? existing.commission : ''}">
+      <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">
+        <input type="file" class="pkg-prod-img" accept="image/*" style="max-width:160px; font-size:0.7rem;">
+        ${existing.image ? `<img src="${escAttr(existing.image)}" alt="current" style="width:30px;height:30px;object-fit:cover;border-radius:4px;border:1px solid var(--border-color);">` : ''}
+      </div>
     `;
     container.appendChild(div);
   }
@@ -28,7 +44,7 @@ window.calculateAutoSplit = function() {
   const count = parseInt(document.getElementById('pkg-count').value) || 0;
   const totalComm = parseFloat(document.getElementById('pkg-total-comm').value) || 0;
   if (count <= 0) return;
-  
+
   const commPerItem = (totalComm / count).toFixed(2);
   const rows = document.querySelectorAll('.product-row-builder .pkg-prod-comm');
   rows.forEach(input => {
@@ -53,7 +69,85 @@ window.addLockRow = function() {
   container.appendChild(div);
 };
 
-// 4. Supabase me Package Create Karein
+// 3b. Builder ko reset karke "create mode" me wapas laayein
+window.resetPackageBuilder = function() {
+  window.editingPackageId = null;
+  window.__prefillProducts = [];
+
+  const nameEl = document.getElementById('pkg-name');
+  const priceEl = document.getElementById('pkg-price');
+  const descEl = document.getElementById('pkg-description');
+  const countEl = document.getElementById('pkg-count');
+  const totalCommEl = document.getElementById('pkg-total-comm');
+  if (nameEl) nameEl.value = '';
+  if (priceEl) priceEl.value = 100;
+  if (descEl) descEl.value = '';
+  if (countEl) countEl.value = 15;
+  if (totalCommEl) totalCommEl.value = 2400;
+
+  window.generateProductRows();
+
+  const locksContainer = document.getElementById('locks-container');
+  if (locksContainer) {
+    locksContainer.innerHTML = `
+      <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 10px;">
+        <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">#1 After review</span>
+        <input type="number" class="form-input pkg-lock-after" value="5" style="width: 100px;">
+        <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">— deposit $</span>
+        <input type="number" class="form-input pkg-lock-deposit" id="pkg-deposit" value="400" style="width: 140px;">
+      </div>
+    `;
+  }
+
+  const btn = document.getElementById('createPackageBtn');
+  if (btn) btn.textContent = 'Create package';
+  const cancelBtn = document.getElementById('cancelEditBtn');
+  if (cancelBtn) cancelBtn.style.display = 'none';
+  const msg = document.getElementById('createPackageMsg');
+  if (msg) msg.style.display = 'none';
+};
+
+// 3c. Kisi maujooda package ko builder me load karein (edit mode)
+window.loadPackageIntoBuilder = function(pkg) {
+  if (!pkg) return;
+  window.editingPackageId = pkg.id;
+  window.__prefillProducts = pkg.products || [];
+
+  document.getElementById('pkg-name').value = pkg.name || '';
+  document.getElementById('pkg-price').value = pkg.price || 0;
+  document.getElementById('pkg-description').value = pkg.description || '';
+  document.getElementById('pkg-count').value = (pkg.products || []).length || 1;
+  document.getElementById('pkg-total-comm').value = pkg.totalCommission || 0;
+
+  window.generateProductRows();
+
+  const locksContainer = document.getElementById('locks-container');
+  const locks = (pkg.locks && pkg.locks.length) ? pkg.locks : [{ afterReview: 5, depositRequired: 400 }];
+  locksContainer.innerHTML = '';
+  locks.forEach((lock, idx) => {
+    const div = document.createElement('div');
+    div.style.cssText = "display: flex; gap: 12px; align-items: center; margin-bottom: 10px;";
+    div.innerHTML = `
+      <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">#${idx + 1} After review</span>
+      <input type="number" class="form-input pkg-lock-after" value="${lock.afterReview}" style="width: 100px;">
+      <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">— deposit $</span>
+      <input type="number" class="form-input pkg-lock-deposit" value="${lock.depositRequired}" style="width: 140px;">
+      ${idx > 0 ? '<button class="btn-sm btn-sm-danger" onclick="this.parentElement.remove()">Remove</button>' : ''}
+    `;
+    locksContainer.appendChild(div);
+  });
+
+  const btn = document.getElementById('createPackageBtn');
+  if (btn) btn.textContent = 'Update package';
+  const cancelBtn = document.getElementById('cancelEditBtn');
+  if (cancelBtn) cancelBtn.style.display = 'inline-block';
+  const msg = document.getElementById('createPackageMsg');
+  if (msg) msg.style.display = 'none';
+
+  document.getElementById('pkg-name').scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+// 4. Supabase me Package Create/Update Karein (with real image upload)
 window.createPackageNow = async function() {
   const btn = document.getElementById('createPackageBtn');
   const msg = document.getElementById('createPackageMsg');
@@ -63,6 +157,7 @@ window.createPackageNow = async function() {
   const price = parseFloat(document.getElementById('pkg-price').value) || 0;
   const description = document.getElementById('pkg-description').value.trim();
   const totalComm = parseFloat(document.getElementById('pkg-total-comm').value) || 0;
+  const isEditing = !!window.editingPackageId;
 
   if (!name) {
     if (msg) { msg.style.display = 'block'; msg.style.color = '#dc2626'; msg.textContent = 'Package name is required.'; }
@@ -70,65 +165,89 @@ window.createPackageNow = async function() {
   }
 
   btn.disabled = true;
-  btn.textContent = 'Creating...';
+  btn.textContent = isEditing ? 'Updating...' : 'Creating...';
 
   try {
-    const prodRows = document.querySelectorAll('.product-row-builder');
+    const prodRows = Array.from(document.querySelectorAll('.product-row-builder'));
     const products = [];
-    prodRows.forEach((row, idx) => {
+
+    // for...of so we can safely await each image upload in order
+    let idx = 0;
+    for (const row of prodRows) {
       const pName = row.querySelector('.pkg-prod-name').value.trim() || `Product #${idx + 1}`;
       const pComm = parseFloat(row.querySelector('.pkg-prod-comm').value) || 0;
-      products.push({ id: idx + 1, name: pName, commission: pComm });
-    });
+      const fileInput = row.querySelector('.pkg-prod-img');
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      let imageUrl = row.dataset.existingImage || '';
+
+      if (file) {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `${Date.now()}-${idx}-${safeName}`;
+        const { error: uploadErr } = await supabase.storage
+          .from('package-images')
+          .upload(path, file, { upsert: true });
+        if (uploadErr) {
+          console.error('Image upload failed for product', idx + 1, uploadErr.message);
+        } else {
+          const { data: pub } = supabase.storage.from('package-images').getPublicUrl(path);
+          if (pub && pub.publicUrl) imageUrl = pub.publicUrl;
+        }
+      }
+
+      products.push({ id: idx + 1, name: pName, commission: pComm, image: imageUrl });
+      idx++;
+    }
 
     const lockAfters = document.querySelectorAll('.pkg-lock-after');
     const lockDeposits = document.querySelectorAll('.pkg-lock-deposit');
     const locks = [];
-    lockAfters.forEach((input, idx) => {
+    lockAfters.forEach((input, i) => {
       const after = parseInt(input.value) || 0;
-      const deposit = parseFloat(lockDeposits[idx].value) || 0;
+      const deposit = parseFloat(lockDeposits[i].value) || 0;
       if (after > 0) locks.push({ afterReview: after, depositRequired: deposit });
     });
+    locks.sort((a, b) => a.afterReview - b.afterReview);
 
-    // Supabase Insert
-    const { error } = await supabase.from('packages').insert([
-      {
-        name,
-        price,
-        description,
-        totalCommission: totalComm,
-        productCount: products.length,
-        products,
-        locks,
-        published: true
-      }
-    ]);
+    const payload = {
+      name,
+      price,
+      description,
+      totalCommission: totalComm,
+      productCount: products.length,
+      products,
+      locks,
+      published: true
+    };
 
-    if (error) throw error;
-
-    if (msg) {
-      msg.style.display = 'block';
-      msg.style.color = '#10b981';
-      msg.textContent = 'Package created successfully!';
+    if (isEditing) {
+      const { error } = await supabase.from('packages').update(payload).eq('id', window.editingPackageId);
+      if (error) throw error;
+      if (msg) { msg.style.display = 'block'; msg.style.color = '#10b981'; msg.textContent = 'Package updated successfully!'; }
+    } else {
+      const { error } = await supabase.from('packages').insert([payload]);
+      if (error) throw error;
+      if (msg) { msg.style.display = 'block'; msg.style.color = '#10b981'; msg.textContent = 'Package created successfully!'; }
     }
-    if (window.renderPackagesTab) window.renderPackagesTab();
+
+    window.resetPackageBuilder();
+    if (window.refreshPackagesList) await window.refreshPackagesList();
   } catch (e) {
-    console.error("Error creating package:", e);
+    console.error("Error saving package:", e);
     if (msg) {
       msg.style.display = 'block';
       msg.style.color = '#dc2626';
-      msg.textContent = 'Failed to create package: ' + e.message;
+      msg.textContent = 'Failed to save package: ' + e.message;
     }
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Create package';
+    btn.textContent = window.editingPackageId ? 'Update package' : 'Create package';
   }
 };
 
 // 5. Supabase se Packages Fetch Karein
 window.getPackages = async function(options) {
   const opts = options || {};
-  let query = supabase.from('packages').select('*');
+  let query = supabase.from('packages').select('*').order('id', { ascending: false });
   if (opts.onlyPublished) query = query.eq('published', true);
 
   const { data, error } = await query;
@@ -142,13 +261,24 @@ window.getPackages = async function(options) {
 // 6. Supabase se Package Delete Karein
 window.deletePackage = async function(pkgId) {
   if (!confirm("Are you sure you want to delete this package?")) return;
-  
+
   const { error } = await supabase.from('packages').delete().eq('id', pkgId);
   if (error) {
     alert("Error deleting package: " + error.message);
   } else {
-    if (window.renderPackagesTab) window.renderPackagesTab();
+    if (window.editingPackageId === pkgId) window.resetPackageBuilder();
+    if (window.refreshPackagesList) await window.refreshPackagesList();
   }
+};
+
+// 6b. Package Publish/Unpublish Toggle Karein
+window.togglePublishPackage = async function(pkgId, currentlyPublished) {
+  const { error } = await supabase.from('packages').update({ published: !currentlyPublished }).eq('id', pkgId);
+  if (error) {
+    alert("Error updating package: " + error.message);
+    return;
+  }
+  if (window.refreshPackagesList) await window.refreshPackagesList();
 };
 
 // ============================================================
@@ -177,6 +307,7 @@ async function getUserPackages(uid) {
     status: row.status,
     reviewsCompleted: row.reviewsCompleted || 0,
     totalProducts: row.totalProducts || 0,
+    unlockedCount: row.unlockedCount || 0,
     paymentProofUrl: row.paymentProofUrl || '',
     note: row.note || '',
     joinedAt: row.joinedAt
@@ -204,6 +335,10 @@ async function joinPackage(uid, email, packageId, note) {
       return { ok: false, message: 'You have already joined this package.' };
     }
 
+    const locks = pkg.locks || [];
+    const totalProducts = (pkg.products || []).length;
+    const initialUnlocked = locks.length ? locks[0].afterReview : totalProducts;
+
     const record = {
       userId: uid,
       userEmail: email,
@@ -212,7 +347,8 @@ async function joinPackage(uid, email, packageId, note) {
       price: pkg.price,
       status: 'pending_payment',
       reviewsCompleted: 0,
-      totalProducts: (pkg.products || []).length,
+      totalProducts,
+      unlockedCount: initialUnlocked,
       note: note || '',
       joinedAt: new Date().toISOString()
     };
