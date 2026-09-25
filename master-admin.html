@@ -284,6 +284,60 @@
     .msg-time-admin { font-size: 0.65rem; color: #94a3b8; margin-top: 3px; padding: 0 4px; }
     .msg-image-wrap-admin { display: block; border-radius: 12px; overflow: hidden; cursor: pointer; max-width: 220px; border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
     .msg-image-wrap-admin img { display: block; width: 100%; max-height: 240px; object-fit: cover; }
+    /* Mobile Toggle Button Style */
+.menu-toggle-btn {
+  display: none;
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--text-main);
+  cursor: pointer;
+  margin-right: 12px;
+}
+
+/* Responsive Styles for Mobile */
+@media (max-width: 768px) {
+  .menu-toggle-btn {
+    display: inline-block;
+  }
+
+  aside {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+    box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+    z-index: 1000;
+  }
+
+  aside.open {
+    transform: translateX(0);
+  }
+
+  main {
+    margin-left: 0 !important;
+    padding: 16px !important;
+    width: 100% !important;
+  }
+
+  .stats-grid-4, 
+  .charts-grid-3, 
+  .form-grid-3, 
+  .product-row-builder {
+    grid-template-columns: 1fr !important;
+  }
+
+  .card {
+    padding: 16px;
+    overflow-x: auto;
+  }
+
+  .data-table {
+    min-width: 600px;
+  }
+}
   </style>
 </head>
 <body>
@@ -340,6 +394,7 @@
 
   <main>
     <div class="header-top">
+      <button class="menu-toggle-btn" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
       <div class="page-title" id="current-page-title">Admin Dashboard</div>
       <div class="header-actions">
         <button class="icon-btn"><i class="fa-regular fa-bell"></i></button>
@@ -1666,7 +1721,9 @@
     }
   };
 
-  bootstrapAdminDashboard();
+window.toggleSidebar = function() {
+  document.querySelector('aside').classList.toggle('open');
+};
 </script>
 </body>
 </html>
