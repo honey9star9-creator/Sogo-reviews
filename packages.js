@@ -409,12 +409,283 @@ async function uploadPaymentProof(uid, userPackageId, file) {
   }
 }
 
+// ============================================================
+// ADMIN: SUBSCRIPTIONS MANAGEMENT (user_packages table, admin-wide)
+// ============================================================
+
+// 10. Admin ke liye TAMAM users ke packages laayein (har user ka nahi, sab ka)
+async function getAllUserPackages() {
+  const { data, error } = await supabase
+    .from('user_packages')
+    .select('*')
+    .order('joinedAt', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching all user packages:', error);
+    return [];
+  }
+  return data || [];
+}
+
+// 11. Kisi subscription ka status seedha set karein (deactivate / reactivate / activate)
+async function adminSetUserPackageStatus(userPackageId, status) {
+  try {
+    await supabase.from('user_packages').update({ status }).eq('id', userPackageId);
+    try {
+      const { data: up } = await supabase.from('user_packages').select('userEmail,packageName').eq('id', userPackageId).maybeSingle();
+      if (up) {
+        await supabase.from('activity').insert([{
+          type: 'subscription_status_changed',
+          message: `${up.userEmail}'s subscription "${up.packageName}" set to ${status}`,
+          meta: { email: up.userEmail, status },
+          time: new Date().toISOString()
+        }]);
+      }
+    } catch (e) { /* non-fatal */ }
+    return { ok: true };
+  } catch (e) {
+    console.error('adminSetUserPackageStatus failed:', e);
+    return { ok: false, message: e.message || 'Could not update subscription.' };
+  }
+}
+
+// 12. Payment verify karke subscription active karein (pending_payment / pending_verification -> active)
+async function adminVerifyUserPackage(userPackageId) {
+  return adminSetUserPackageStatus(userPackageId, 'active');
+}
+
+// 13. Cap bypass karein — user ab package ke sab products review kar sakta hai, bina deposit ke lock ke
+async function adminBypassCap(userPackageId) {
+  try {
+    const { data: up, error } = await supabase.from('user_packages').select('*').eq('id', userPackageId).maybeSingle();
+    if (error || !up) return { ok: false, message: 'Subscription not found.' };
+    const total = up.totalProducts || 0;
+    await supabase.from('user_packages').update({ unlockedCount: total, capBypassed: true }).eq('id', userPackageId);
+    try {
+      await supabase.from('activity').insert([{
+        type: 'subscription_cap_bypassed',
+        message: `Admin bypassed the review cap for ${up.userEmail} on "${up.packageName}"`,
+        meta: { email: up.userEmail },
+        time: new Date().toISOString()
+      }]);
+    } catch (e) { /* non-fatal */ }
+    return { ok: true, unlockedCount: total };
+  } catch (e) {
+    console.error('adminBypassCap failed:', e);
+    return { ok: false, message: e.message || 'Could not bypass cap.' };
+  }
+}
+
+// 14. Agla lock tier unlock karein (deposit "top-up" ke baad agla batch of products unlock)
+async function adminGrantTopup(userPackageId) {
+  try {
+    const { data: up, error } = await supabase.from('user_packages').select('*').eq('id', userPackageId).maybeSingle();
+    if (error || !up) return { ok: false, message: 'Subscription not found.' };
+
+    const { data: pkg } = await supabase.from('packages').select('locks,products').eq('id', up.packageId).maybeSingle();
+    const locks = (pkg && pkg.locks) || [];
+    const totalProducts = up.totalProducts || (pkg && (pkg.products || []).length) || 0;
+    const currentUnlocked = up.unlockedCount || 0;
+
+    const nextLock = locks
+      .filter(l => l.afterReview > currentUnlocked)
+      .sort((a, b) => a.afterReview - b.afterReview)[0];
+    const newUnlocked = nextLock ? Math.min(nextLock.afterReview, totalProducts) : totalProducts;
+
+    await supabase.from('user_packages').update({ unlockedCount: newUnlocked }).eq('id', userPackageId);
+    try {
+      await supabase.from('activity').insert([{
+        type: 'subscription_topup_granted',
+        message: `Admin granted a top-up unlock for ${up.userEmail} on "${up.packageName}" (now ${newUnlocked} unlocked)`,
+        meta: { email: up.userEmail },
+        time: new Date().toISOString()
+      }]);
+    } catch (e) { /* non-fatal */ }
+    return { ok: true, unlockedCount: newUnlocked };
+  } catch (e) {
+    console.error('adminGrantTopup failed:', e);
+    return { ok: false, message: e.message || 'Could not grant top-up.' };
+  }
+}
+
+// ============================================================
+// REVIEWS (reviews table) — client submits, admin approves/rejects/asks rewrite
+// ============================================================
+
+// Recompute a user_package's reviewsCompleted (submitted, not counting ones sent back
+// for rewrite) and flip it to "completed" once every product has an approved review.
+async function recalcUserPackageProgress(userPackageId) {
+  try {
+    const { data: reviews } = await supabase.from('reviews').select('status').eq('userPackageId', userPackageId);
+    const list = reviews || [];
+    const reviewsCompleted = list.filter(r => r.status !== 'rewrite').length;
+    const approvedCount = list.filter(r => r.status === 'approved').length;
+
+    const { data: up } = await supabase.from('user_packages').select('totalProducts,status').eq('id', userPackageId).maybeSingle();
+    const updates = { reviewsCompleted };
+    if (up && up.totalProducts && approvedCount >= up.totalProducts && up.status !== 'deactivated') {
+      updates.status = 'completed';
+    }
+    await supabase.from('user_packages').update(updates).eq('id', userPackageId);
+  } catch (e) {
+    console.error('recalcUserPackageProgress failed:', e);
+  }
+}
+
+// 15. Client ek product ke liye review submit (ya rewrite ke baad resubmit) karta hai
+async function submitReview(payload) {
+  try {
+    const {
+      uid, userEmail, userName, userPackageId, packageId, packageName,
+      productIndex, productName, productImage, commission, rating, reviewText
+    } = payload;
+
+    if (!rating || rating < 1 || rating > 5) return { ok: false, message: 'Please choose a star rating.' };
+
+    const { data: existing } = await supabase
+      .from('reviews')
+      .select('id,status')
+      .eq('userPackageId', userPackageId)
+      .eq('productIndex', productIndex)
+      .maybeSingle();
+
+    if (existing && (existing.status === 'pending' || existing.status === 'approved')) {
+      return { ok: false, message: 'This product already has a review submitted.' };
+    }
+
+    const record = {
+      userId: uid,
+      userEmail,
+      userName,
+      userPackageId,
+      packageId,
+      packageName,
+      productIndex,
+      productName,
+      productImage: productImage || '',
+      commission: commission || 0,
+      rating,
+      reviewText: reviewText || '',
+      status: 'pending',
+      submittedAt: new Date().toISOString()
+    };
+
+    if (existing && existing.id) {
+      await supabase.from('reviews').update(record).eq('id', existing.id);
+    } else {
+      await supabase.from('reviews').insert([record]);
+    }
+
+    await recalcUserPackageProgress(userPackageId);
+
+    try {
+      await supabase.from('activity').insert([{
+        type: 'review_submitted',
+        message: `${userName} submitted a review for "${productName}"`,
+        meta: { email: userEmail, packageId },
+        time: new Date().toISOString()
+      }]);
+    } catch (e) { /* non-fatal */ }
+
+    return { ok: true };
+  } catch (e) {
+    console.error('submitReview failed:', e);
+    return { ok: false, message: e.message || 'Could not submit review.' };
+  }
+}
+
+// 16. Ek specific user_package ke sab reviews laayein (client-side product list ke liye)
+async function getReviewsForUserPackage(userPackageId) {
+  const { data } = await supabase.from('reviews').select('*').eq('userPackageId', userPackageId);
+  return data || [];
+}
+
+// 17. Login client ke apne sab reviews (har package milaakar) — Reviews tab ke liye
+async function getMyReviews(uid) {
+  const { data } = await supabase.from('reviews').select('*').eq('userId', uid).order('submittedAt', { ascending: false });
+  return data || [];
+}
+
+// 18. Admin ke liye TAMAM reviews (Received Reviews tab)
+async function getAllReviews() {
+  const { data } = await supabase.from('reviews').select('*').order('submittedAt', { ascending: false });
+  return data || [];
+}
+
+// 19. Admin: approve / reject / rewrite — commission sirf approve par credit hota hai
+async function adminDecideReview(reviewId, decision) {
+  try {
+    const { data: review, error } = await supabase.from('reviews').select('*').eq('id', reviewId).maybeSingle();
+    if (error || !review) return { ok: false, message: 'Review not found.' };
+    if (review.status === decision) return { ok: true, alreadyDone: true };
+
+    await supabase.from('reviews').update({ status: decision, decidedAt: new Date().toISOString() }).eq('id', reviewId);
+
+    if (decision === 'approved') {
+      const { data: userData } = await supabase.from('users').select('balance').eq('id', review.userId).maybeSingle();
+      const newBalance = (userData ? (userData.balance || 0) : 0) + Number(review.commission || 0);
+      await supabase.from('users').update({ balance: newBalance }).eq('id', review.userId);
+
+      try {
+        await supabase.from('activity').insert([{
+          type: 'review_approved',
+          message: `Review for "${review.productName}" approved — $${Number(review.commission || 0).toFixed(2)} credited to ${review.userEmail}`,
+          meta: { email: review.userEmail },
+          time: new Date().toISOString()
+        }]);
+      } catch (e) { /* non-fatal */ }
+    } else if (decision === 'rejected') {
+      try {
+        await supabase.from('activity').insert([{
+          type: 'review_rejected',
+          message: `Review for "${review.productName}" rejected for ${review.userEmail}`,
+          meta: { email: review.userEmail },
+          time: new Date().toISOString()
+        }]);
+      } catch (e) { /* non-fatal */ }
+    } else if (decision === 'rewrite') {
+      try {
+        await supabase.from('activity').insert([{
+          type: 'review_rewrite_requested',
+          message: `Rewrite requested for "${review.productName}" from ${review.userEmail}`,
+          meta: { email: review.userEmail },
+          time: new Date().toISOString()
+        }]);
+      } catch (e) { /* non-fatal */ }
+    }
+
+    await recalcUserPackageProgress(review.userPackageId);
+    return { ok: true };
+  } catch (e) {
+    console.error('adminDecideReview failed:', e);
+    return { ok: false, message: e.message || 'Could not update review.' };
+  }
+}
+
+// 20. Bulk approve/reject/rewrite — admin selects multiple rows and applies one action
+async function adminBulkDecideReviews(reviewIds, decision) {
+  const results = await Promise.all((reviewIds || []).map(id => adminDecideReview(id, decision)));
+  const failed = results.filter(r => !r.ok);
+  return { ok: failed.length === 0, failedCount: failed.length };
+}
+
 // Client Dashboard helpers
 export const SogoPackages = {
   getPackages: window.getPackages,
   deletePackage: window.deletePackage,
   getUserPackages,
   joinPackage,
-  uploadPaymentProof
+  uploadPaymentProof,
+  getAllUserPackages,
+  adminSetUserPackageStatus,
+  adminVerifyUserPackage,
+  adminBypassCap,
+  adminGrantTopup,
+  submitReview,
+  getReviewsForUserPackage,
+  getMyReviews,
+  getAllReviews,
+  adminDecideReview,
+  adminBulkDecideReviews
 };
 window.SogoPackages = SogoPackages;

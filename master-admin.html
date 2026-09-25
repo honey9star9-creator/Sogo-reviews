@@ -509,8 +509,17 @@
 
     <!-- 4. SUBSCRIPTIONS VIEW -->
     <div id="tab-subscriptions" class="tab-content">
+      <div class="stats-grid-4" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="stat-card"><div class="stat-label">Total Subscriptions</div><div class="stat-value" id="subStatTotal">0</div></div>
+        <div class="stat-card"><div class="stat-label">Active Packages</div><div class="stat-value" style="color:#10b981;" id="subStatActive">0</div></div>
+        <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value" style="color:#d97706;" id="subStatPending">0</div></div>
+      </div>
+
       <div class="card">
-        <h3 style="font-size: 0.95rem; font-weight: 800; margin-bottom: 16px;">All Subscriptions</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <h3 style="font-size: 0.95rem; font-weight: 800;" id="subListHeading">All Subscriptions (0)</h3>
+          <input type="text" class="form-input" id="subSearchInput" placeholder="Search by name, email, package" style="width: 260px;">
+        </div>
         <table class="data-table">
           <thead>
             <tr>
@@ -522,15 +531,8 @@
               <th>ACTION</th>
             </tr>
           </thead>
-          <tbody>
-            <tr>
-              <td><strong>Shiz</strong><br><span style="font-size: 0.75rem; color: var(--text-muted);">shiz1198@gmail.com</span></td>
-              <td>Jo Malone London Timeless British Fragrance</td>
-              <td>$100</td>
-              <td>0/20 reviewed</td>
-              <td><span class="badge-pending">pending payment</span></td>
-              <td><button class="btn-green" style="padding: 4px 10px; font-size: 0.7rem;">Verify & Activate</button></td>
-            </tr>
+          <tbody id="subscriptionsTableBody">
+            <tr><td colspan="6" style="text-align:center; padding:20px;">Loading subscriptions…</td></tr>
           </tbody>
         </table>
       </div>
@@ -538,30 +540,48 @@
 
     <!-- 5. RECEIVED REVIEWS VIEW -->
     <div id="tab-received-reviews" class="tab-content">
-      <div class="card">
-        <h4 style="font-size: 0.9rem; font-weight: 800; margin-bottom: 16px;">Received reviews</h4>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>USER</th>
-              <th>PACKAGE</th>
-              <th>PRODUCT</th>
-              <th>RATING</th>
-              <th>STATUS</th>
-              <th>ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>Chris</strong></td>
-              <td>Jo Malone London Timeless British Fragrance</td>
-              <td>#20</td>
-              <td style="color: #f59e0b;">★★★★★</td>
-              <td><span class="badge-approved">Approved</span></td>
-              <td><a href="#" style="color: #6366f1;">Approved</a></td>
-            </tr>
-          </tbody>
-        </table>
+      <div style="background:#6366f1; color:#fff; border-radius:12px; padding:14px 20px; margin-bottom:20px; font-size:0.8rem; font-weight:600;">
+        Approve, reject, or ask users to rewrite. Commission is created only when a review is approved.
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+        <div class="filter-tabs" id="reviewsFilterTabsAdmin" style="margin-bottom:0;">
+          <button class="filter-tab active" data-filter="all" onclick="setAdminReviewsFilter('all', this)">All (0)</button>
+          <button class="filter-tab" data-filter="pending" onclick="setAdminReviewsFilter('pending', this)">Pending (0)</button>
+          <button class="filter-tab" data-filter="approved" onclick="setAdminReviewsFilter('approved', this)">Approved (0)</button>
+          <button class="filter-tab" data-filter="rejected" onclick="setAdminReviewsFilter('rejected', this)">Rejected (0)</button>
+          <button class="filter-tab" data-filter="rewrite" onclick="setAdminReviewsFilter('rewrite', this)">Rewrite (0)</button>
+        </div>
+        <input type="text" class="form-input" id="reviewsSearchInput" placeholder="Search user, package, product" style="width: 260px;">
+      </div>
+
+      <div style="display:flex; gap:10px; margin-bottom:16px;">
+        <button class="btn-green" style="padding:8px 16px; font-size:0.75rem;" onclick="adminBulkAction('approved')">Approve selected</button>
+        <button class="btn-purple" style="padding:8px 16px; font-size:0.75rem; background:#f59e0b;" onclick="adminBulkAction('rewrite')">Rewrite selected</button>
+        <button class="btn-red" style="padding:8px 16px; font-size:0.75rem;" onclick="adminBulkAction('rejected')">Reject selected</button>
+      </div>
+
+      <div class="card" style="padding: 0;">
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width:30px;"><input type="checkbox" id="reviewsSelectAll" onchange="toggleAllReviewCheckboxes(this)"></th>
+                <th>USER</th>
+                <th>PACKAGE</th>
+                <th>PRODUCT</th>
+                <th>RATING</th>
+                <th>REVIEW</th>
+                <th>STATUS</th>
+                <th>SUBMITTED</th>
+                <th>ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody id="reviewsTableBodyAdmin">
+              <tr><td colspan="9" style="text-align:center; padding:20px;">Loading reviews…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -762,7 +782,9 @@
       refreshActivity(),
       refreshInvitations(),
       refreshChatUsersList(),
-      refreshPackagesList()
+      refreshPackagesList(),
+      refreshSubscriptions(),
+      refreshReviewsAdmin()
     ]);
 
     // Supabase JS client here doesn't use Firestore-style realtime listeners for these
@@ -773,6 +795,8 @@
       refreshWithdrawals();
       refreshPasswordRequests();
       refreshActivity();
+      refreshSubscriptions();
+      refreshReviewsAdmin();
     }, 30000);
   }
 
@@ -843,6 +867,232 @@
       const q = e.target.value.toLowerCase();
       renderPackagesList(allPackagesList.filter(p => (p.name || '').toLowerCase().includes(q)));
     };
+  }
+
+  // ---------------- SUBSCRIPTIONS ----------------
+  let allSubscriptionsList = [];
+
+  function subStatusBadge(status) {
+    const map = {
+      active: '<span class="badge-active">active</span>',
+      completed: '<span class="badge-approved">completed</span>',
+      pending_payment: '<span class="badge-pending">pending payment</span>',
+      pending_verification: '<span class="badge-pending">pending payment</span>',
+      deactivated: '<span class="badge-pending" style="background:#fee2e2; color:#dc2626;">deactivated</span>'
+    };
+    return map[status] || `<span class="badge-pending">${escapeHtml(status || 'unknown')}</span>`;
+  }
+
+  function subActionsHtml(sub) {
+    if (sub.status === 'pending_payment' || sub.status === 'pending_verification') {
+      return `<button class="btn-green" style="padding:4px 10px; font-size:0.7rem;" onclick="adminVerifySubscription('${sub.id}')">Verify & Activate</button> <a href="#" style="color:#6366f1; font-size:0.75rem;" onclick="event.preventDefault(); adminVerifySubscription('${sub.id}')">Activate</a>`;
+    }
+    if (sub.status === 'active') {
+      return `<a href="#" style="color:#dc2626; font-size:0.75rem;" onclick="event.preventDefault(); adminDeactivateSubscription('${sub.id}')">Deactivate</a> · <a href="#" style="color:#6366f1; font-size:0.75rem;" onclick="event.preventDefault(); adminBypassCapForSub('${sub.id}')">Bypass cap</a> <button class="btn-purple" style="padding:4px 10px; font-size:0.7rem;" onclick="adminGrantTopupForSub('${sub.id}')">Grant top-up</button>`;
+    }
+    if (sub.status === 'deactivated') {
+      return `<a href="#" style="color:#10b981; font-size:0.75rem;" onclick="event.preventDefault(); adminReactivateSubscription('${sub.id}')">Reactivate</a>`;
+    }
+    return '-';
+  }
+
+  async function refreshSubscriptions() {
+    if (!window.SogoPackages || !window.SogoPackages.getAllUserPackages) return;
+    allSubscriptionsList = await SogoPackages.getAllUserPackages();
+    renderSubscriptionsTable(allSubscriptionsList);
+  }
+
+  function renderSubscriptionsTable(list) {
+    const tbody = document.getElementById('subscriptionsTableBody');
+    if (!tbody) return;
+
+    const totalElem = document.getElementById('subStatTotal');
+    const activeElem = document.getElementById('subStatActive');
+    const pendingElem = document.getElementById('subStatPending');
+    const headingElem = document.getElementById('subListHeading');
+    const all = allSubscriptionsList;
+    if (totalElem) totalElem.textContent = all.length;
+    if (activeElem) activeElem.textContent = all.filter(s => s.status === 'active').length;
+    if (pendingElem) pendingElem.textContent = all.filter(s => s.status === 'pending_payment' || s.status === 'pending_verification').length;
+    if (headingElem) headingElem.textContent = `All Subscriptions (${list.length})`;
+
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">No subscriptions yet.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = list.map(sub => {
+      const userName = (allUsersList.find(u => u.uid === sub.userId) || {}).name || (sub.userEmail || '').split('@')[0];
+      const reviewed = Number(sub.reviewsCompleted || 0);
+      const total = Number(sub.totalProducts || 0);
+      const unlocked = sub.unlockedCount != null ? sub.unlockedCount : total;
+      return `
+        <tr>
+          <td><strong>${escapeHtml(userName)}</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">${escapeHtml(sub.userEmail || '')}</span></td>
+          <td>${escapeHtml(sub.packageName || '-')}</td>
+          <td>$${Number(sub.price || 0).toFixed(0)}</td>
+          <td>${reviewed}/${total} reviewed<br><span style="font-size:0.7rem; color:var(--text-muted);">unlocked ${unlocked}</span></td>
+          <td>${subStatusBadge(sub.status)}</td>
+          <td style="white-space:nowrap;">${subActionsHtml(sub)}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  window.adminVerifySubscription = async function (id) {
+    const result = await SogoPackages.adminVerifyUserPackage(id);
+    if (!result.ok) { alert(result.message); return; }
+    await refreshSubscriptions();
+  };
+  window.adminDeactivateSubscription = async function (id) {
+    if (!confirm('Deactivate this subscription?')) return;
+    const result = await SogoPackages.adminSetUserPackageStatus(id, 'deactivated');
+    if (!result.ok) { alert(result.message); return; }
+    await refreshSubscriptions();
+  };
+  window.adminReactivateSubscription = async function (id) {
+    const result = await SogoPackages.adminSetUserPackageStatus(id, 'active');
+    if (!result.ok) { alert(result.message); return; }
+    await refreshSubscriptions();
+  };
+  window.adminBypassCapForSub = async function (id) {
+    if (!confirm('Bypass the review cap? This unlocks every product in the package immediately.')) return;
+    const result = await SogoPackages.adminBypassCap(id);
+    if (!result.ok) { alert(result.message); return; }
+    await refreshSubscriptions();
+  };
+  window.adminGrantTopupForSub = async function (id) {
+    const result = await SogoPackages.adminGrantTopup(id);
+    if (!result.ok) { alert(result.message); return; }
+    await refreshSubscriptions();
+  };
+
+  const subSearchInputElem = document.getElementById('subSearchInput');
+  if (subSearchInputElem) {
+    subSearchInputElem.oninput = (e) => {
+      const q = e.target.value.toLowerCase();
+      renderSubscriptionsTable(allSubscriptionsList.filter(s =>
+        (s.userEmail || '').toLowerCase().includes(q) ||
+        (s.packageName || '').toLowerCase().includes(q)
+      ));
+    };
+  }
+
+  // ---------------- RECEIVED REVIEWS ----------------
+  let allReviewsList = [];
+  let adminReviewsFilter = 'all';
+
+  window.setAdminReviewsFilter = function (filter, el) {
+    adminReviewsFilter = filter;
+    document.querySelectorAll('#reviewsFilterTabsAdmin .filter-tab').forEach(b => b.classList.remove('active'));
+    if (el) el.classList.add('active');
+    renderReviewsTableAdmin();
+  };
+
+  async function refreshReviewsAdmin() {
+    if (!window.SogoPackages || !window.SogoPackages.getAllReviews) return;
+    allReviewsList = await SogoPackages.getAllReviews();
+    renderReviewsFilterCountsAdmin();
+    renderReviewsTableAdmin();
+  }
+
+  function renderReviewsFilterCountsAdmin() {
+    const counts = { all: allReviewsList.length, pending: 0, approved: 0, rejected: 0, rewrite: 0 };
+    allReviewsList.forEach(r => { if (counts[r.status] != null) counts[r.status]++; });
+    document.querySelectorAll('#reviewsFilterTabsAdmin .filter-tab').forEach(btn => {
+      const key = btn.getAttribute('data-filter');
+      const label = key.charAt(0).toUpperCase() + key.slice(1);
+      btn.textContent = `${label} (${counts[key] || 0})`;
+    });
+  }
+
+  function reviewStatusBadgeAdmin(status) {
+    const map = {
+      pending: '<span class="badge-pending">pending</span>',
+      approved: '<span class="badge-approved">approved</span>',
+      rejected: '<span class="badge-pending" style="background:#fee2e2; color:#dc2626;">rejected</span>',
+      rewrite: '<span class="badge-pending" style="background:#fef3c7; color:#b45309;">rewrite</span>'
+    };
+    return map[status] || escapeHtml(status || '-');
+  }
+
+  function reviewActionsHtmlAdmin(r) {
+    if (r.status === 'pending' || r.status === 'rewrite') {
+      return `
+        <button class="btn-sm" style="background:#10b981; color:#fff; border-color:#10b981;" onclick="adminDecideReviewRow('${r.id}','approved')">approve</button>
+        <button class="btn-sm" style="background:#f59e0b; color:#fff; border-color:#f59e0b;" onclick="adminDecideReviewRow('${r.id}','rewrite')">rewrite</button>
+        <button class="btn-sm" style="background:#ef4444; color:#fff; border-color:#ef4444;" onclick="adminDecideReviewRow('${r.id}','rejected')">reject</button>
+      `;
+    }
+    return `<span style="color:var(--text-muted); font-size:0.75rem; text-transform:capitalize;">${escapeHtml(r.status)}</span>`;
+  }
+
+  function renderReviewsTableAdmin() {
+    const tbody = document.getElementById('reviewsTableBodyAdmin');
+    if (!tbody) return;
+
+    const searchVal = (document.getElementById('reviewsSearchInput') || {}).value || '';
+    const q = searchVal.toLowerCase();
+
+    let list = allReviewsList.slice();
+    if (adminReviewsFilter !== 'all') list = list.filter(r => r.status === adminReviewsFilter);
+    if (q) {
+      list = list.filter(r =>
+        (r.userEmail || '').toLowerCase().includes(q) ||
+        (r.userName || '').toLowerCase().includes(q) ||
+        (r.packageName || '').toLowerCase().includes(q) ||
+        (r.productName || '').toLowerCase().includes(q)
+      );
+    }
+
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;">No reviews found.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = list.map(r => {
+      const stars = '★'.repeat(Math.max(0, Math.min(5, Math.round(Number(r.rating || 0)))));
+      const thumb = r.productImage
+        ? `<img src="${escapeHtml(r.productImage)}" style="width:30px;height:30px;object-fit:cover;border-radius:4px;border:1px solid var(--border-color);">`
+        : '<div style="width:30px;height:30px;border-radius:4px;background:#f1f5f9;"></div>';
+      return `
+        <tr>
+          <td><input type="checkbox" class="review-row-checkbox" value="${r.id}"></td>
+          <td><strong>${escapeHtml(r.userName || '')}</strong><br><span style="font-size:0.72rem; color:var(--text-muted);">${escapeHtml(r.userEmail || '')}</span></td>
+          <td>${escapeHtml(r.packageName || '-')}</td>
+          <td style="display:flex; align-items:center; gap:8px;">${thumb}<span>#${r.productIndex + 1}</span></td>
+          <td style="color:#f59e0b;">${stars}</td>
+          <td style="max-width:180px; font-size:0.75rem; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(r.reviewText || '—')}</td>
+          <td>${reviewStatusBadgeAdmin(r.status)}</td>
+          <td style="font-size:0.72rem; color:var(--text-muted);">${r.submittedAt ? new Date(r.submittedAt).toLocaleString() : '-'}</td>
+          <td style="white-space:nowrap;">${reviewActionsHtmlAdmin(r)}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  window.adminDecideReviewRow = async function (id, decision) {
+    const result = await SogoPackages.adminDecideReview(id, decision);
+    if (!result.ok) { alert(result.message); return; }
+    await Promise.all([refreshReviewsAdmin(), refreshUsers(), refreshSubscriptions()]);
+  };
+
+  window.toggleAllReviewCheckboxes = function (source) {
+    document.querySelectorAll('.review-row-checkbox').forEach(cb => { cb.checked = source.checked; });
+  };
+
+  window.adminBulkAction = async function (decision) {
+    const ids = Array.from(document.querySelectorAll('.review-row-checkbox:checked')).map(cb => cb.value);
+    if (!ids.length) { alert('Select at least one review first.'); return; }
+    if (!confirm(`Apply "${decision}" to ${ids.length} selected review(s)?`)) return;
+    const result = await SogoPackages.adminBulkDecideReviews(ids, decision);
+    if (!result.ok) alert(`${result.failedCount} review(s) could not be updated.`);
+    await Promise.all([refreshReviewsAdmin(), refreshUsers(), refreshSubscriptions()]);
+  };
+
+  const reviewsSearchInputElem = document.getElementById('reviewsSearchInput');
+  if (reviewsSearchInputElem) {
+    reviewsSearchInputElem.oninput = () => renderReviewsTableAdmin();
   }
 
   // ---------------- ADMIN PROFILE / INVITATION ----------------

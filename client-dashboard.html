@@ -963,11 +963,12 @@
     <div id="tab-reviews" class="view-section">
       <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 15px;">Packages to review</h4>
       <div id="reviewsPackageSummary"></div>
-      <div class="filter-tabs">
-        <button class="filter-btn active">All (0)</button>
-        <button class="filter-btn">Approved (0)</button>
-        <button class="filter-btn">Pending (0)</button>
-        <button class="filter-btn">Rejected (0)</button>
+      <div class="filter-tabs" id="reviewsFilterTabs">
+        <button class="filter-btn active" data-filter="all" onclick="setReviewsFilter('all', this)">All (0)</button>
+        <button class="filter-btn" data-filter="approved" onclick="setReviewsFilter('approved', this)">Approved (0)</button>
+        <button class="filter-btn" data-filter="pending" onclick="setReviewsFilter('pending', this)">Pending (0)</button>
+        <button class="filter-btn" data-filter="rejected" onclick="setReviewsFilter('rejected', this)">Rejected (0)</button>
+        <button class="filter-btn" data-filter="rewrite" onclick="setReviewsFilter('rewrite', this)">Rewrite (0)</button>
       </div>
       <div class="card" style="padding: 0; overflow: hidden;">
         <div style="overflow-x: auto;">
@@ -975,7 +976,7 @@
             <thead>
               <tr><th>PRODUCT</th><th>PACKAGE</th><th>RATING</th><th>STATUS</th><th>COMMISSION</th><th>SUBMITTED</th></tr>
             </thead>
-            <tbody>
+            <tbody id="reviewsTableBody">
               <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 45px;">No reviews found.</td></tr>
             </tbody>
           </table>
@@ -1204,6 +1205,18 @@
       liveList.innerHTML = itemsHTML + itemsHTML;
     }
 
+let currentPackageReviews = [];
+
+async function loadReviewsForSelectedUserPackage() {
+  if (!selectedUserPackageId || !window.SogoPackages) { currentPackageReviews = []; return; }
+  currentPackageReviews = await SogoPackages.getReviewsForUserPackage(selectedUserPackageId);
+}
+
+function starsHtml(rating, color) {
+  const n = Math.max(0, Math.min(5, Math.round(safeAmount(rating))));
+  return `<span style="color:${color || '#e5b373'};letter-spacing:1px;">${'★'.repeat(n)}${'☆'.repeat(5 - n)}</span>`;
+}
+
 function renderPackageProducts(pkg, userPkg) {
   const container = document.getElementById('packageProductsList');
   if (!container) return;
@@ -1212,19 +1225,50 @@ function renderPackageProducts(pkg, userPkg) {
     container.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">No products in this package yet.</div>';
     return;
   }
-  const userPkg2 = userPkg;
-  const reviewedCount = userPkg2 ? safeAmount(userPkg2.reviewsCompleted) : 0;
-  container.innerHTML = products.map((p, idx) => {
-    const isReviewed = idx < reviewedCount;
-    const isNext = idx === reviewedCount && userPkg2 && userPkg2.status === 'approved';
 
-    // Show the real uploaded product image, fall back to the box icon if none exists
+  const unlockedCount = userPkg ? safeAmount(userPkg.unlockedCount != null ? userPkg.unlockedCount : products.length) : 0;
+  const canReview = userPkg && (userPkg.status === 'active' || userPkg.status === 'completed');
+
+  container.innerHTML = products.map((p, idx) => {
     const thumb = p.image
       ? `<img src="${escapeHtmlC(p.image)}" alt="${escapeHtmlC(p.name || 'Product')}" style="width:100%;height:100%;object-fit:cover;">`
       : '<i class="fa-solid fa-box"></i>';
 
+    const review = userPkg ? currentPackageReviews.find(r => r.productIndex === idx) : null;
+    const isLocked = !userPkg || idx >= unlockedCount || !canReview;
+
+    let rightHtml = '';
+    if (isLocked) {
+      rightHtml = '<span style="font-size:11px;color:var(--text-muted);font-weight:600;white-space:nowrap;"><i class="fa-solid fa-lock"></i> Locked</span>';
+    } else if (review && review.status === 'approved') {
+      rightHtml = `<div style="text-align:right;">${starsHtml(review.rating, '#2ecc71')}<div style="font-size:10px;color:#2ecc71;font-weight:700;margin-top:2px;">Approved</div></div>`;
+    } else if (review && review.status === 'pending') {
+      rightHtml = `<div style="text-align:right;">${starsHtml(review.rating)}<div style="font-size:10px;color:#e67e22;font-weight:700;margin-top:2px;">Pending review</div></div>`;
+    } else {
+      // No review yet, or it was rejected / sent back for rewrite -> show the submit form
+      const noteHtml = review && review.status === 'rejected'
+        ? '<div style="font-size:10px;color:#e74c3c;font-weight:700;margin-bottom:6px;">Rejected — you may resubmit</div>'
+        : review && review.status === 'rewrite'
+          ? '<div style="font-size:10px;color:#f39c12;font-weight:700;margin-bottom:6px;">Rewrite requested — please resubmit</div>'
+          : '';
+      rightHtml = `
+        <div class="review-submit-box" style="min-width:220px;">
+          ${noteHtml}
+          <select class="input-field review-rating-select" style="padding:8px 10px;font-size:12px;margin-bottom:6px;">
+            <option value="5">5 stars</option>
+            <option value="4">4 stars</option>
+            <option value="3">3 stars</option>
+            <option value="2">2 stars</option>
+            <option value="1">1 star</option>
+          </select>
+          <textarea class="input-field review-text-input" placeholder="Write a review (optional)" style="font-size:12px;min-height:54px;resize:vertical;margin-bottom:6px;"></textarea>
+          <button class="btn-gold" style="padding:8px 16px;font-size:11px;width:100%;" onclick="submitProductReview(this, ${idx})">Submit review</button>
+        </div>
+      `;
+    }
+
     return `
-    <div class="package-product-card">
+    <div class="package-product-card" data-product-index="${idx}">
       <div style="display:flex; align-items:center; gap:16px;">
         <div class="package-product-icon">${thumb}</div>
         <div>
@@ -1232,17 +1276,56 @@ function renderPackageProducts(pkg, userPkg) {
           <div style="font-size:12px; color:var(--accent-gold); font-weight:600; margin-top:4px;">Commission: ${formatMoney(p.commission)}</div>
         </div>
       </div>
-      ${isReviewed
-        ? '<span style="font-size:11px;color:#2ecc71;font-weight:700;"><i class="fa-solid fa-check"></i> Reviewed</span>'
-        : isNext
-          ? '<button class="btn-gold" style="padding:8px 16px;">Review</button>'
-          : '<span style="font-size:11px;color:var(--text-muted);font-weight:600;"><i class="fa-solid fa-lock"></i> Locked</span>'}
+      ${rightHtml}
     </div>
   `;
   }).join('');
 }
 
-    function renderSelectedPackage() {
+async function submitProductReview(btnEl, productIndex) {
+  const card = btnEl.closest('.package-product-card');
+  if (!card || !selectedUserPackageId || !currentSession) return;
+  const pkg = availablePackages.find(item => item.id === selectedPackageId);
+  const userPkg = clientPackages.find(item => item.id === selectedUserPackageId);
+  if (!pkg || !userPkg) return;
+  const product = (pkg.products || [])[productIndex];
+  if (!product) return;
+
+  const ratingSelect = card.querySelector('.review-rating-select');
+  const textInput = card.querySelector('.review-text-input');
+  const rating = parseInt(ratingSelect.value, 10) || 5;
+  const reviewText = textInput.value.trim();
+
+  btnEl.disabled = true;
+  btnEl.textContent = 'Submitting...';
+
+  const result = await SogoPackages.submitReview({
+    uid: currentSession.uid,
+    userEmail: currentSession.email,
+    userName: currentSession.name,
+    userPackageId: selectedUserPackageId,
+    packageId: pkg.id,
+    packageName: pkg.name,
+    productIndex,
+    productName: product.name,
+    productImage: product.image || '',
+    commission: product.commission || 0,
+    rating,
+    reviewText
+  });
+
+  if (!result.ok) {
+    alert(result.message || 'Could not submit review.');
+    btnEl.disabled = false;
+    btnEl.textContent = 'Submit review';
+    return;
+  }
+
+  await refreshClientPackages();
+  await renderReviewsTab();
+}
+
+    async function renderSelectedPackage() {
       const detail = document.getElementById('packageReviewDetailCard');
       if (!detail) return;
       const pkg = availablePackages.find(item => item.id === selectedPackageId);
@@ -1251,6 +1334,7 @@ function renderPackageProducts(pkg, userPkg) {
         return;
       }
       const userPackage = clientPackages.find(item => item.packageId === pkg.id);
+      await loadReviewsForSelectedUserPackage();
       const status = userPackage ? userPackage.status : 'not_joined';
       const completed = userPackage ? safeAmount(userPackage.reviewsCompleted) : 0;
       const total = safeAmount(userPackage ? userPackage.totalProducts : (pkg.products || []).length);
@@ -1315,27 +1399,104 @@ function renderPackageProducts(pkg, userPkg) {
     function renderReviewsSummary() {
       const box = document.getElementById('reviewsPackageSummary');
       if (!box) return;
-      if (!clientPackages.length) { box.innerHTML = ''; return; }
+      if (!clientPackages.length) {
+        box.innerHTML = '<div class="card" style="color:var(--text-muted); font-size:12px;">You have not joined a package yet.</div>';
+        return;
+      }
       box.innerHTML = clientPackages.map(item => {
         const total = safeAmount(item.totalProducts);
         const completed = safeAmount(item.reviewsCompleted);
         const pct = total ? Math.round(completed / total * 100) : 0;
         const statusLabel = packageStatusLabel(item.status);
         return `
-        <div class="card" style="margin-bottom: 25px;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+        <div class="card" style="margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
             <div>
               <h3 style="font-size: 15px; font-weight: 700;">${escapeHtmlC(item.packageName || 'Package')}</h3>
               <div style="font-size: 13px; font-weight: 700; color: #fff; margin-top: 4px;">${formatMoney(item.price)}</div>
             </div>
             <span style="font-size: 11px; background: rgba(217, 160, 91, 0.12); color: var(--accent-gold); padding: 5px 12px; border-radius: 6px; font-weight: 700; border: 1px solid rgba(217, 160, 91, 0.2); text-transform:capitalize;">${statusLabel}</span>
           </div>
+          <div style="width:100%; height:6px; background:rgba(255,255,255,0.06); border-radius:4px; overflow:hidden; margin-bottom:8px;">
+            <div style="width:${pct}%; height:100%; background: linear-gradient(135deg, #e5b373, #bd813b);"></div>
+          </div>
           <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 18px;">${completed}/${total} reviewed · ${pct}%</div>
-          <div style="display: flex; gap: 12px; align-items: center;">
+          <div style="display: flex; gap: 16px; align-items: center;">
             <button class="btn-gold" onclick="selectClientUserPackage('${item.id}','${item.packageId}')">Open package <i class="fa-solid fa-arrow-right"></i></button>
+            <a href="#" style="font-size:12px; font-weight:700; color: var(--accent-gold);" onclick="event.preventDefault(); viewPackageReviews('${item.id}')">View its reviews</a>
           </div>
         </div>`;
       }).join('');
+    }
+
+    /* ---------------- Reviews tab (real data from the reviews table) ---------------- */
+    let myReviews = [];
+    let reviewsFilter = 'all';
+    let reviewsFilterUserPackageId = null;
+
+    function viewPackageReviews(userPackageId) {
+      reviewsFilterUserPackageId = userPackageId;
+      renderReviewsTable();
+      const tableCard = document.querySelector('#tab-reviews .card');
+      if (tableCard) tableCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function setReviewsFilter(filter, el) {
+      reviewsFilter = filter;
+      document.querySelectorAll('#reviewsFilterTabs .filter-btn').forEach(b => b.classList.remove('active'));
+      if (el) el.classList.add('active');
+      renderReviewsTable();
+    }
+
+    function reviewStatusColor(status) {
+      return { approved: '#2ecc71', pending: '#e67e22', rejected: '#e74c3c', rewrite: '#f39c12' }[status] || 'var(--text-muted)';
+    }
+
+    function renderReviewsFilterCounts() {
+      const counts = { all: myReviews.length, approved: 0, pending: 0, rejected: 0, rewrite: 0 };
+      myReviews.forEach(r => { if (counts[r.status] != null) counts[r.status]++; });
+      const tabs = document.querySelectorAll('#reviewsFilterTabs .filter-btn');
+      tabs.forEach(btn => {
+        const key = btn.getAttribute('data-filter');
+        const label = key.charAt(0).toUpperCase() + key.slice(1);
+        btn.textContent = `${label} (${counts[key] || 0})`;
+      });
+    }
+
+    function renderReviewsTable() {
+      const tbody = document.getElementById('reviewsTableBody');
+      if (!tbody) return;
+
+      let list = myReviews.slice();
+      if (reviewsFilterUserPackageId) list = list.filter(r => r.userPackageId === reviewsFilterUserPackageId);
+      if (reviewsFilter !== 'all') list = list.filter(r => r.status === reviewsFilter);
+
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 45px;">No reviews found.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(r => {
+        const commissionCell = r.status === 'approved'
+          ? `<span style="color:#2ecc71; font-weight:700;">+${formatMoney(r.commission)}</span>`
+          : `<span style="color:var(--text-muted);">${formatMoney(r.commission)} pending</span>`;
+        return `
+        <tr>
+          <td style="color:#fff; font-weight:600;">${r.productIndex + 1}. ${escapeHtmlC(r.productName || 'Product')}</td>
+          <td style="color:var(--text-muted);">${escapeHtmlC(r.packageName || '-')}</td>
+          <td>${starsHtml(r.rating)}</td>
+          <td><span style="color:${reviewStatusColor(r.status)}; font-weight:700; text-transform:capitalize; font-size:11px;">${escapeHtmlC(r.status)}</span></td>
+          <td>${commissionCell}</td>
+          <td style="color:var(--text-muted); font-size:11px;">${r.submittedAt ? new Date(r.submittedAt).toLocaleString() : '-'}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function renderReviewsTab() {
+      if (!currentSession || !window.SogoPackages) return;
+      myReviews = await SogoPackages.getMyReviews(currentSession.uid);
+      renderReviewsFilterCounts();
+      renderReviewsTable();
     }
 
     async function refreshClientPackages() {
@@ -1348,22 +1509,22 @@ function renderPackageProducts(pkg, userPkg) {
       renderMembershipPreview();
       renderPackageCatalog();
       renderMyPackages();
-      renderSelectedPackage();
+      await renderSelectedPackage();
       renderReviewsSummary();
     }
 
-    function selectClientPackage(packageId) {
+    async function selectClientPackage(packageId) {
       selectedPackageId = packageId;
       selectedUserPackageId = (clientPackages.find(item => item.packageId === packageId) || {}).id || null;
       openView('packagereviews');
-      renderSelectedPackage();
+      await renderSelectedPackage();
     }
 
-    function selectClientUserPackage(userPackageId, packageId) {
+    async function selectClientUserPackage(userPackageId, packageId) {
       selectedUserPackageId = userPackageId;
       selectedPackageId = packageId;
       openView('packagereviews');
-      renderSelectedPackage();
+      await renderSelectedPackage();
     }
 
     async function joinSelectedPackage() {
@@ -1800,7 +1961,8 @@ function renderPackageProducts(pkg, userPkg) {
         loadUserData(),
         renderMyWithdrawals(),
         renderMyTopups(),
-        refreshClientPackages()
+        refreshClientPackages(),
+        renderReviewsTab()
       ]);
       await startChatListener(authApi);
 
@@ -1810,6 +1972,7 @@ function renderPackageProducts(pkg, userPkg) {
         renderMyWithdrawals();
         renderMyTopups();
         refreshClientPackages();
+        renderReviewsTab();
       }, 30000);
     }
 
