@@ -251,16 +251,39 @@
     .btn-reject { background-color: #ffffff; color: #ef4444; border: 1px solid #fca5a5; padding: 8px 16px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; }
     .verified-label { color: #10b981; font-size: 0.75rem; font-weight: 700; background: #dcfce7; padding: 4px 10px; border-radius: 6px; }
 
-    .chat-layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; min-height: 520px; border: 1px solid var(--border-color); border-radius: 12px; background: #fff; overflow: hidden; }
-    .chat-sidebar { border-right: 1px solid var(--border-color); display: flex; flex-direction: column; }
+    .chat-layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; height: 640px; border: 1px solid var(--border-color); border-radius: 12px; background: #fff; overflow: hidden; }
+    .chat-sidebar { border-right: 1px solid var(--border-color); display: flex; flex-direction: column; overflow: hidden; }
     .chat-subtabs { display: flex; padding: 12px; gap: 8px; border-bottom: 1px solid var(--border-color); }
     .chat-subtab { padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; border: none; cursor: pointer; background: #f1f5f9; color: #64748b; }
     .chat-subtab.active { background: #6366f1; color: #fff; }
     .chat-users-list { overflow-y: auto; flex: 1; }
-    .chat-main-area { display: flex; flex-direction: column; justify-content: space-between; background: #f8fafc; }
-    .chat-header { padding: 12px 20px; background: #fff; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 0.9rem; }
-    .chat-messages { padding: 20px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-    .chat-input-row { padding: 12px 16px; background: #fff; border-top: 1px solid var(--border-color); display: flex; gap: 10px; align-items: center; }
+    .chat-user-item { padding: 12px 16px; border-bottom: 1px solid var(--border-color); cursor: pointer; display: flex; gap: 10px; align-items: center; transition: background 0.15s; }
+    .chat-user-item:hover, .chat-user-item.active { background: #f8fafc; }
+    .chat-user-avatar { width: 34px; height: 34px; border-radius: 50%; background: #e0e7ff; color: #4f46e5; font-weight: 800; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .chat-user-meta { min-width: 0; flex: 1; }
+    .chat-user-name-row { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+    .chat-user-name { font-size: 0.82rem; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chat-user-time { font-size: 0.65rem; color: #94a3b8; flex-shrink: 0; }
+    .chat-user-preview { font-size: 0.72rem; color: #64748b; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chat-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; flex-shrink: 0; }
+    .chat-main-area { display: flex; flex-direction: column; background: #f8fafc; overflow: hidden; }
+    .chat-header { padding: 12px 20px; background: #fff; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 0.9rem; flex-shrink: 0; }
+    .chat-messages { padding: 18px 20px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+    .chat-input-row { padding: 12px 16px; background: #fff; border-top: 1px solid var(--border-color); display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+    .chat-attach-btn-admin { width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--border-color); background: #fff; color: #64748b; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+    .chat-attach-btn-admin:hover { background: #eef2ff; color: #6366f1; border-color: #c7d2fe; }
+    .chat-attach-btn-admin:disabled { opacity: 0.5; cursor: not-allowed; }
+    .chat-status-line-admin { font-size: 0.7rem; color: #64748b; padding: 0 20px 6px; flex-shrink: 0; }
+
+    .msg-row-admin { display: flex; flex-direction: column; max-width: 68%; margin-bottom: 12px; }
+    .msg-row-admin.mine { align-self: flex-end; align-items: flex-end; }
+    .msg-row-admin.theirs { align-self: flex-start; align-items: flex-start; }
+    .msg-bubble-admin { padding: 10px 14px; border-radius: 14px; font-size: 0.82rem; line-height: 1.45; word-break: break-word; white-space: pre-wrap; }
+    .msg-row-admin.mine .msg-bubble-admin { background: #6366f1; color: #fff; border-bottom-right-radius: 4px; }
+    .msg-row-admin.theirs .msg-bubble-admin { background: #fff; color: #0f172a; border: 1px solid var(--border-color); border-bottom-left-radius: 4px; }
+    .msg-time-admin { font-size: 0.65rem; color: #94a3b8; margin-top: 3px; padding: 0 4px; }
+    .msg-image-wrap-admin { display: block; border-radius: 12px; overflow: hidden; cursor: pointer; max-width: 220px; border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+    .msg-image-wrap-admin img { display: block; width: 100%; max-height: 240px; object-fit: cover; }
   </style>
 </head>
 <body>
@@ -609,15 +632,18 @@
           <div class="chat-users-list" id="adminChatUsersList"></div>
         </div>
         <div class="chat-main-area">
-          <div class="chat-header"><span id="adminChatHeaderName">Select a user</span></div>
+          <div class="chat-header">
+            <div class="chat-user-avatar" id="adminChatHeaderAvatar">?</div>
+            <span id="adminChatHeaderName">Select a user</span>
+          </div>
           <div class="chat-messages" id="adminChatMessages"></div>
+          <p id="adminChatAttachMsg" class="chat-status-line-admin" style="display:none;"></p>
           <div class="chat-input-row">
-            <button class="btn-sm" onclick="document.getElementById('adminChatAttachInput').click()" title="Send a photo"><i class="fa-solid fa-paperclip"></i></button>
+            <button class="chat-attach-btn-admin" id="adminChatAttachBtn" onclick="document.getElementById('adminChatAttachInput').click()" title="Send a photo"><i class="fa-solid fa-paperclip"></i></button>
             <input type="file" id="adminChatAttachInput" accept="image/*" style="display:none;" onchange="sendAdminChatAttachment(this)">
-            <input type="text" class="form-input" id="adminChatInput" placeholder="Message...">
+            <input type="text" class="form-input" id="adminChatInput" placeholder="Message..." onkeydown="if(event.key==='Enter'){sendAdminChatMessage();}">
             <button class="btn-purple" onclick="sendAdminChatMessage()">Send</button>
           </div>
-          <p id="adminChatAttachMsg" style="font-size: 0.7rem; padding: 0 16px; margin-top: -4px; display:none;"></p>
         </div>
       </div>
     </div>
@@ -1070,52 +1096,103 @@
   }
 
   // ---------------- CHAT ----------------
+  function formatChatTimeAdmin(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    return sameDay ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
+
+  function isImageUrl(text) {
+    const t = (text || '').trim();
+    if (!/^https?:\/\//i.test(t)) return false;
+    if (/\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(t)) return true;
+    return /\/chat-attachments\//i.test(t);
+  }
+
   async function refreshChatUsersList() {
     const list = document.getElementById('adminChatUsersList');
     if (!list) return;
     const clients = allUsersList.filter(u => u.role === 'client');
+    if (!clients.length) {
+      list.innerHTML = '<div style="padding:16px; color:var(--text-muted); font-size:0.8rem;">No clients yet.</div>';
+      return;
+    }
 
-    list.innerHTML = clients.length ? clients.map(u => `
-      <div style="padding:12px 16px; border-bottom:1px solid var(--border-color); cursor:pointer;" onclick="openAdminChat('${escapeHtml(u.email)}', '${escapeHtml(u.name || u.email)}')">
-        <div style="font-weight:700; font-size:0.85rem;">${escapeHtml(u.name || u.email)}</div>
-        <div style="font-size:0.7rem; color:var(--text-muted);">${escapeHtml(u.email)}</div>
-      </div>
-    `).join('') : '<div style="padding:16px; color:var(--text-muted); font-size:0.8rem;">No clients yet.</div>';
+    const authApi = await waitForSogoAuth;
+    const previews = await Promise.all(clients.map(async (u) => {
+      try {
+        const thread = await authApi.getChatThread(u.email);
+        const last = thread && thread.length ? thread[thread.length - 1] : null;
+        const unread = (thread || []).some(m => m.from === 'client' && !m.read);
+        return { email: u.email, name: u.name || u.email, last, unread };
+      } catch (e) {
+        return { email: u.email, name: u.name || u.email, last: null, unread: false };
+      }
+    }));
+
+    list.innerHTML = previews.map(p => {
+      const initial = (p.name || '?').charAt(0).toUpperCase();
+      const isActive = p.email === activeChatEmail;
+      const previewText = p.last ? (isImageUrl(p.last.text) ? '📷 Photo' : p.last.text) : 'No messages yet';
+      const time = p.last ? formatChatTimeAdmin(p.last.time) : '';
+      return `
+        <div class="chat-user-item ${isActive ? 'active' : ''}" onclick="openAdminChat('${escapeHtml(p.email)}', '${escapeHtml(p.name)}')">
+          <div class="chat-user-avatar">${escapeHtml(initial)}</div>
+          <div class="chat-user-meta">
+            <div class="chat-user-name-row">
+              <span class="chat-user-name">${escapeHtml(p.name)}</span>
+              <span class="chat-user-time">${time}</span>
+            </div>
+            <div class="chat-user-preview">${escapeHtml(previewText)}</div>
+          </div>
+          ${p.unread ? '<div class="chat-unread-dot"></div>' : ''}
+        </div>
+      `;
+    }).join('');
   }
 
   window.openAdminChat = async function (email, displayName) {
     activeChatEmail = email;
     const headerName = document.getElementById('adminChatHeaderName');
+    const headerAvatar = document.getElementById('adminChatHeaderAvatar');
     if (headerName) headerName.textContent = displayName;
+    if (headerAvatar) headerAvatar.textContent = (displayName || '?').charAt(0).toUpperCase();
 
     const authApi = await waitForSogoAuth;
     authApi.listenChatThread(email, renderAdminChatMessages);
     await authApi.markChatRead(email);
+    await refreshChatUsersList();
   };
-
-  function isImageUrl(text) {
-    return /^https?:\/\/\S+\.(png|jpe?g|gif|webp|svg)(\?\S*)?$/i.test((text || '').trim());
-  }
 
   function renderAdminChatMessages(messages) {
     const box = document.getElementById('adminChatMessages');
     if (!box) return;
     box.innerHTML = (messages || []).map(m => {
       const fromAdmin = m.from === 'admin';
+      const rowClass = fromAdmin ? 'mine' : 'theirs';
+      const time = formatChatTimeAdmin(m.time);
       if (isImageUrl(m.text)) {
         return `
-          <div style="align-self:${fromAdmin ? 'flex-end' : 'flex-start'}; max-width:70%; border-radius:10px; overflow:hidden; border:1px solid var(--border-color);">
-            <a href="${escapeHtml(m.text)}" target="_blank" rel="noopener"><img src="${escapeHtml(m.text)}" style="display:block; max-width:220px; max-height:220px; object-fit:cover;"></a>
+          <div class="msg-row-admin ${rowClass}">
+            <a href="${escapeHtml(m.text)}" target="_blank" rel="noopener" class="msg-image-wrap-admin">
+              <img src="${escapeHtml(m.text)}" loading="lazy" alt="Photo">
+            </a>
+            ${time ? `<div class="msg-time-admin">${time}</div>` : ''}
           </div>
         `;
       }
       return `
-        <div style="align-self:${fromAdmin ? 'flex-end' : 'flex-start'}; background:${fromAdmin ? '#6366f1' : '#fff'}; color:${fromAdmin ? '#fff' : '#0f172a'}; padding:8px 12px; border-radius:10px; max-width:70%; font-size:0.8rem; border:1px solid var(--border-color);">
-          ${escapeHtml(m.text)}
+        <div class="msg-row-admin ${rowClass}">
+          <div class="msg-bubble-admin">${escapeHtml(m.text)}</div>
+          ${time ? `<div class="msg-time-admin">${time}</div>` : ''}
         </div>
       `;
     }).join('');
     box.scrollTop = box.scrollHeight;
+    refreshChatUsersList();
   }
 
   window.sendAdminChatMessage = async function () {
@@ -1123,23 +1200,29 @@
     if (!input || !activeChatEmail) return;
     const text = input.value.trim();
     if (!text) return;
+    input.value = '';
     const authApi = await waitForSogoAuth;
     await authApi.sendChatMessage(activeChatEmail, 'admin', text);
-    input.value = '';
   };
 
   window.sendAdminChatAttachment = async function (inputEl) {
     const msg = document.getElementById('adminChatAttachMsg');
+    const attachBtn = document.getElementById('adminChatAttachBtn');
     const file = inputEl && inputEl.files && inputEl.files[0];
     if (!file || !activeChatEmail) return;
-    if (msg) msg.style.display = 'none';
+
+    if (attachBtn) attachBtn.disabled = true;
+    if (msg) { msg.style.display = 'block'; msg.style.color = '#64748b'; msg.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Sending photo…'; }
+
     const authApi = await waitForSogoAuth;
     try {
       const result = await authApi.sendChatAttachment(activeChatEmail, 'admin', file);
       if (!result.ok) throw new Error(result.message || 'Upload failed.');
+      if (msg) msg.style.display = 'none';
     } catch (e) {
       if (msg) { msg.textContent = e.message || 'Could not send photo.'; msg.style.color = '#dc2626'; msg.style.display = 'block'; }
     } finally {
+      if (attachBtn) attachBtn.disabled = false;
       inputEl.value = '';
     }
   };

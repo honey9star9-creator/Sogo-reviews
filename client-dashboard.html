@@ -652,7 +652,117 @@
       color: var(--accent-gold); font-size: 18px; flex-shrink: 0;
     }
 
+    /* ---------------- Professional Chat UI ---------------- */
+    .chat-card {
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      overflow: hidden;
+      height: 620px;
+    }
+    .chat-header-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--card-border);
+      flex-shrink: 0;
+      background: rgba(255,255,255,0.015);
+    }
+    .chat-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .chat-status-line {
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 0 20px 8px;
+      flex-shrink: 0;
+    }
+    .chat-footer {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 12px 16px;
+      border-top: 1px solid var(--card-border);
+      flex-shrink: 0;
+      background: rgba(255,255,255,0.015);
+    }
+    .chat-footer .input-field { flex: 1; }
+    .chat-attach-btn, .chat-send-btn {
+      flex-shrink: 0;
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+    .chat-attach-btn {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--card-border);
+      color: #fff;
+    }
+    .chat-attach-btn:hover { background: rgba(217,160,91,0.15); border-color: var(--accent-gold); color: var(--accent-gold); }
+    .chat-attach-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .chat-send-btn {
+      background: linear-gradient(135deg, #e5b373, #bd813b);
+      color: #0c0b10;
+      box-shadow: 0 4px 12px var(--accent-gold-glow);
+    }
+    .chat-send-btn:hover { transform: translateY(-1px); }
+
+    .msg-row { display: flex; flex-direction: column; max-width: 78%; margin-bottom: 12px; }
+    .msg-row.mine { align-self: flex-end; align-items: flex-end; }
+    .msg-row.theirs { align-self: flex-start; align-items: flex-start; }
+    .msg-bubble {
+      padding: 11px 15px;
+      border-radius: 16px;
+      font-size: 13px;
+      line-height: 1.45;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+    .msg-row.mine .msg-bubble {
+      background: linear-gradient(135deg, #e5b373, #bd813b);
+      color: #1a1400;
+      border-bottom-right-radius: 4px;
+    }
+    .msg-row.theirs .msg-bubble {
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      border: 1px solid var(--card-border);
+      border-bottom-left-radius: 4px;
+    }
+    .msg-time { font-size: 10px; color: var(--text-muted); margin-top: 4px; padding: 0 4px; }
+    .msg-image-wrap {
+      display: block;
+      border-radius: 14px;
+      overflow: hidden;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+      max-width: 220px;
+      border: 1px solid var(--card-border);
+      background: rgba(0,0,0,0.3);
+    }
+    .msg-image-wrap img { display: block; width: 100%; max-height: 260px; object-fit: cover; }
+    .msg-image-wrap.uploading { opacity: 0.55; }
+    .msg-image-wrap .img-spinner {
+      display: flex; align-items: center; justify-content: center; height: 140px; width: 220px;
+      color: var(--accent-gold); font-size: 20px;
+    }
+
     @media (max-width: 992px) {
+      .chat-card { height: calc(100vh - 250px); }
       .sidebar { display: none; }
       .main-content { margin-left: 0; padding: 16px; padding-bottom: calc(var(--bottom-nav-height) + 30px); }
       .dashboard-grid { grid-template-columns: 1fr; gap: 15px; }
@@ -917,26 +1027,24 @@
 
     <!-- 6. CHAT VIEW -->
     <div id="tab-chat" class="view-section">
-      <div class="card" style="min-height: 520px; display: flex; flex-direction: column; justify-content: space-between;">
-        <div>
-          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid var(--card-border);">
-            <div class="avatar" style="width: 36px; height: 36px; font-size: 14px;">O</div>
-            <div>
-              <div style="font-size: 13px; font-weight: 800; color: #fff;">LIVE SUPPORT</div>
-              <div style="font-size: 10px; color: #2ecc71; font-weight: 700;">● ONLINE · 24/7</div>
-            </div>
+      <div class="card chat-card">
+        <div class="chat-header-row">
+          <div class="avatar" style="width: 36px; height: 36px; font-size: 14px;">O</div>
+          <div>
+            <div style="font-size: 13px; font-weight: 800; color: #fff;">LIVE SUPPORT</div>
+            <div style="font-size: 10px; color: #2ecc71; font-weight: 700;">● ONLINE · 24/7</div>
           </div>
-          <div id="chatMessages" style="display:flex; flex-direction:column; gap:12px; max-height: 320px; overflow-y:auto; margin-bottom: 15px;"></div>
         </div>
-        <div style="display: flex; gap: 10px; margin-top: 15px; align-items: center;">
-          <button class="btn-dark" style="padding: 10px 14px;" onclick="document.getElementById('chatAttachInput').click()" title="Send a photo">
+        <div id="chatMessages" class="chat-body"></div>
+        <p id="chatAttachMsg" class="chat-status-line" style="display:none;"></p>
+        <div class="chat-footer">
+          <button class="chat-attach-btn" id="chatAttachBtn" onclick="document.getElementById('chatAttachInput').click()" title="Send a photo">
             <i class="fa-solid fa-paperclip"></i>
           </button>
           <input type="file" id="chatAttachInput" accept="image/*" style="display:none;" onchange="sendClientChatAttachment(this)">
-          <input type="text" id="chatInput" class="input-field" placeholder="Type your message...">
-          <button class="btn-gold" onclick="sendClientChat()"><i class="fa-solid fa-paper-plane"></i></button>
+          <input type="text" id="chatInput" class="input-field" placeholder="Type your message..." onkeydown="if(event.key==='Enter'){sendClientChat();}">
+          <button class="chat-send-btn" onclick="sendClientChat()"><i class="fa-solid fa-paper-plane"></i></button>
         </div>
-        <p id="chatAttachMsg" style="font-size: 11px; margin-top: 8px; display:none;"></p>
       </div>
     </div>
 
@@ -1504,20 +1612,43 @@
     }
 
     function isImageUrl(text) {
-      return /^https?:\/\/\S+\.(png|jpe?g|gif|webp|svg)(\?\S*)?$/i.test((text || '').trim());
+      const t = (text || '').trim();
+      if (!/^https?:\/\//i.test(t)) return false;
+      if (/\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(t)) return true;
+      return /\/chat-attachments\//i.test(t);
+    }
+
+    function formatChatTime(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (isNaN(d)) return '';
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
     function renderChatMessages(thread) {
       const box = document.getElementById('chatMessages');
       if (!box) return;
-      const welcome = `<div style="margin-bottom: 15px;"><span style="font-size: 10px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 6px;">CUSTOMER SUPPORT</span><div style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--card-border); padding: 14px 20px; border-radius: 20px; display: inline-block; max-width: 80%; font-size: 13px; color: #fff;">Welcome to SOGO Reviews. How can we help?</div></div>`;
+      const welcome = `<div class="msg-row theirs"><div class="msg-bubble">Welcome to SOGO Reviews. How can we help?</div></div>`;
       const msgsHtml = (thread || []).map(m => {
         const mine = m.from === 'client';
-        const bubbleStyle = `background:${mine ? 'var(--accent-gold)' : 'rgba(255,255,255,0.04)'}; color:${mine ? '#1a1400' : '#fff'}; border:1px solid var(--card-border); border-radius: 14px; display: inline-block; max-width: 80%; font-size: 13px; overflow:hidden;`;
-        const inner = isImageUrl(m.text)
-          ? `<a href="${escapeHtmlC(m.text)}" target="_blank" rel="noopener"><img src="${escapeHtmlC(m.text)}" style="display:block; max-width:220px; max-height:220px; border-radius:12px;"></a>`
-          : `<div style="padding: 14px 20px; border-radius: 20px;">${escapeHtmlC(m.text)}</div>`;
-        return `<div style="align-self:${mine ? 'flex-end' : 'flex-start'};"><span style="font-size: 10px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 6px;">${mine ? 'YOU' : 'SUPPORT'}</span><div style="${isImageUrl(m.text) ? 'border-radius:12px; overflow:hidden; border:1px solid var(--card-border); display:inline-block; max-width:80%;' : bubbleStyle}">${inner}</div></div>`;
+        const rowClass = mine ? 'mine' : 'theirs';
+        const time = formatChatTime(m.time);
+        if (isImageUrl(m.text)) {
+          return `
+            <div class="msg-row ${rowClass}">
+              <a href="${escapeHtmlC(m.text)}" target="_blank" rel="noopener" class="msg-image-wrap">
+                <img src="${escapeHtmlC(m.text)}" loading="lazy" alt="Photo">
+              </a>
+              ${time ? `<div class="msg-time">${time}</div>` : ''}
+            </div>
+          `;
+        }
+        return `
+          <div class="msg-row ${rowClass}">
+            <div class="msg-bubble">${escapeHtmlC(m.text)}</div>
+            ${time ? `<div class="msg-time">${time}</div>` : ''}
+          </div>
+        `;
       }).join('');
       box.innerHTML = welcome + msgsHtml;
       box.scrollTop = box.scrollHeight;
@@ -1547,23 +1678,29 @@
       const input = document.getElementById('chatInput');
       const text = input.value.trim();
       if (!text || !currentSession) return;
-      await SogoAuth.sendChatMessage(currentSession.email, 'client', text);
       input.value = '';
+      await SogoAuth.sendChatMessage(currentSession.email, 'client', text);
       await renderChat();
     }
 
     async function sendClientChatAttachment(inputEl) {
       const msg = document.getElementById('chatAttachMsg');
+      const attachBtn = document.getElementById('chatAttachBtn');
       const file = inputEl && inputEl.files && inputEl.files[0];
       if (!file || !currentSession) return;
-      if (msg) { msg.style.display = 'none'; }
+
+      if (attachBtn) attachBtn.disabled = true;
+      if (msg) { msg.style.display = 'block'; msg.style.color = 'var(--text-muted)'; msg.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Sending photo…'; }
+
       try {
         const result = await SogoAuth.sendChatAttachment(currentSession.email, 'client', file);
         if (!result.ok) throw new Error(result.message || 'Upload failed.');
+        if (msg) msg.style.display = 'none';
         await renderChat();
       } catch (e) {
         if (msg) { msg.textContent = e.message || 'Could not send photo.'; msg.style.color = '#e74c3c'; msg.style.display = 'block'; }
       } finally {
+        if (attachBtn) attachBtn.disabled = false;
         inputEl.value = '';
       }
     }
