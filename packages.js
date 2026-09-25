@@ -5,7 +5,12 @@ import { supabase } from "./supabase-config.js";
 function escAttr(str) {
   return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
-
+// Lock array me se next lock requirement fetch karne ke liye helper
+function findNextLock(pkg, unlockedCount) {
+  if (!pkg || !pkg.locks || !Array.isArray(pkg.locks)) return null;
+  const sortedLocks = [...pkg.locks].sort((a, b) => a.afterIndex - b.afterIndex);
+  return sortedLocks.find(l => l.afterIndex >= unlockedCount) || null;
+}
 // Tracks whether the builder form is creating a new package or editing one.
 window.editingPackageId = null;
 window.__prefillProducts = [];
@@ -325,15 +330,17 @@ async function joinPackage(uid, email, packageId, note) {
     if (pkgErr || !pkg) return { ok: false, message: 'Package not found.' };
 
     // Agar pehle se ek active/pending record hai to dobara join na hone dein
-    const { data: existing } = await supabase
-      .from('user_packages')
-      .select('id, status')
-      .eq('userId', uid)
-      .eq('packageId', packageId)
-      .maybeSingle();
-    if (existing && existing.status !== 'rejected') {
-      return { ok: false, message: 'You have already joined this package.' };
-    }
+   const { data: existingRows } = await supabase
+  .from('user_packages')
+  .select('id, status')
+  .eq('userId', uid)
+  .eq('packageId', packageId)
+  .order('joinedAt', { ascending: false })
+  .limit(1);
+const existing = existingRows && existingRows[0];
+if (existing && existing.status !== 'rejected') {
+  return { ok: false, message: 'You have already joined this package.' };
+}
 
     const locks = pkg.locks || [];
     const totalProducts = (pkg.products || []).length;
@@ -476,38 +483,49 @@ async function adminBypassCap(userPackageId) {
   }
 }
 
-// 14. Agla lock tier unlock karein (deposit "top-up" ke baad agla batch of products unlock)
 async function adminGrantTopup(userPackageId) {
   try {
-    const { data: up, error } = await supabase.from('user_packages').select('*').eq('id', userPackageId).maybeSingle();
-    if (error || !up) return { ok: false, message: 'Subscription not found.' };
+    const { data: up, error: fetchErr } = await supabase
+      .from('user_packages')
+      .select('*, packages(*)')
+      .eq('id', userPackageId)
+      .single();
 
-    const { data: pkg } = await supabase.from('packages').select('locks,products').eq('id', up.packageId).maybeSingle();
-    const locks = (pkg && pkg.locks) || [];
-    const totalProducts = up.totalProducts || (pkg && (pkg.products || []).length) || 0;
-    const currentUnlocked = up.unlockedCount || 0;
+    if (fetchErr || !up) throw new Error('User package not found');
 
-    const nextLock = locks
-      .filter(l => l.afterReview > currentUnlocked)
-      .sort((a, b) => a.afterReview - b.afterReview)[0];
-    const newUnlocked = nextLock ? Math.min(nextLock.afterReview, totalProducts) : totalProducts;
+    const pkg = up.packages;
+    const currentUnlocked = Number(up.unlockedCount || 0);
+    const totalProducts = Number(up.totalProducts || (pkg?.products?.length || 0));
 
-    await supabase.from('user_packages').update({ unlockedCount: newUnlocked }).eq('id', userPackageId);
-    try {
-      await supabase.from('activity').insert([{
-        type: 'subscription_topup_granted',
-        message: `Admin granted a top-up unlock for ${up.userEmail} on "${up.packageName}" (now ${newUnlocked} unlocked)`,
-        meta: { email: up.userEmail },
-        time: new Date().toISOString()
-      }]);
-    } catch (e) { /* non-fatal */ }
-    return { ok: true, unlockedCount: newUnlocked };
-  } catch (e) {
-    console.error('adminGrantTopup failed:', e);
-    return { ok: false, message: e.message || 'Could not grant top-up.' };
+    const nextLock = findNextLock(pkg, currentUnlocked);
+    
+    let newUnlockedCount = totalProducts;
+    if (nextLock && nextLock.afterIndex > currentUnlocked) {
+      newUnlockedCount = nextLock.afterIndex;
+    } else {
+      const sorted = (pkg?.locks || []).sort((a, b) => a.afterIndex - b.afterIndex);
+      const nextInLine = sorted.find(l => l.afterIndex > currentUnlocked);
+      if (nextInLine) {
+        newUnlockedCount = nextInLine.afterIndex;
+      }
+    }
+
+    const { error: updateErr } = await supabase
+      .from('user_packages')
+      .update({
+        unlockedCount: newUnlockedCount,
+        status: 'active'
+      })
+      .eq('id', userPackageId);
+
+    if (updateErr) throw updateErr;
+
+    return { ok: true, newUnlockedCount };
+  } catch (err) {
+    console.error('adminGrantTopup error:', err);
+    return { ok: false, message: err.message };
   }
 }
-
 // ============================================================
 // PACKAGE DEPOSITS ("next tier unlock" flow — NEW)
 // Client deposits money for the next lock tier + uploads proof.
@@ -680,11 +698,13 @@ async function submitReview(payload) {
       submittedAt: new Date().toISOString()
     };
 
-    if (existing && existing.id) {
-      await supabase.from('reviews').update(record).eq('id', existing.id);
-    } else {
-      await supabase.from('reviews').insert([record]);
-    }
+  if (existing && existing.id) {
+  const { error: updateErr } = await supabase.from('reviews').update(record).eq('id', existing.id);
+  if (updateErr) throw updateErr;
+} else {
+  const { error: insertErr } = await supabase.from('reviews').insert([record]);
+  if (insertErr) throw insertErr;
+}
 
     await recalcUserPackageProgress(userPackageId);
 

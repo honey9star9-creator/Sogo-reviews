@@ -58,4 +58,7 @@ Aap apne Supabase SQL Editor me ye RLS Policies apply kar sakte hain:
 
 5. WITHDRAWALS & TOPUPS TABLES:
    - Read/Insert Policy: CREATE POLICY "User view and create withdrawal" ON withdrawals FOR ALL USING (auth.uid() = user_id OR (SELECT role FROM users WHERE id = auth.uid()) = 'admin');
+   6. REVIEWS TABLE:
+   - Enable RLS: ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
+   - Policy: CREATE POLICY "Users manage own reviews" ON reviews FOR ALL USING (auth.uid() = "userId" OR (SELECT role FROM users WHERE id = auth.uid()) = 'admin') WITH CHECK (auth.uid() = "userId" OR (SELECT role FROM users WHERE id = auth.uid()) = 'admin');
 */

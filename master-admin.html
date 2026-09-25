@@ -929,6 +929,7 @@
       pending_payment: '<span class="badge-pending">pending payment</span>',
       pending_verification: '<span class="badge-pending">pending payment</span>',
       deactivated: '<span class="badge-pending" style="background:#fee2e2; color:#dc2626;">deactivated</span>'
+      rejected: '<span class="badge-pending" style="background:#fee2e2; color:#dc2626;">rejected</span>',
     };
     return map[status] || `<span class="badge-pending">${escapeHtml(status || 'unknown')}</span>`;
   }
@@ -1125,7 +1126,7 @@
 
   window.adminRejectJoin = async function (id) {
     if (!confirm('Reject this payment / package join request?')) return;
-    await SogoPackages.adminSetUserPackageStatus(id, 'deactivated');
+    await SogoPackages.adminSetUserPackageStatus(id, 'rejected');
     await Promise.all([refreshPayments(), refreshSubscriptions()]);
   };
 
