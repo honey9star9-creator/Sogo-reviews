@@ -509,6 +509,116 @@ async function adminGrantTopup(userPackageId) {
 }
 
 // ============================================================
+// PACKAGE DEPOSITS ("next tier unlock" flow — NEW)
+// Client deposits money for the next lock tier + uploads proof.
+// Admin approves it in the Payments tab -> next products unlock.
+// ============================================================
+
+// 15. Client submits a deposit + payment screenshot to unlock the next lock tier
+async function requestPackageDeposit(uid, email, userPackageId, packageId, amount, file) {
+  try {
+    if (!file) return { ok: false, message: 'No file selected.' };
+    if (!amount || amount <= 0) return { ok: false, message: 'Invalid deposit amount.' };
+
+    const safeName = (file.name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path = `${uid}/${userPackageId}-deposit-${Date.now()}-${safeName}`;
+    const { error: uploadErr } = await supabase.storage
+      .from('payment-proofs')
+      .upload(path, file, { upsert: true });
+    if (uploadErr) throw uploadErr;
+
+    const { data: pub } = supabase.storage.from('payment-proofs').getPublicUrl(path);
+    const publicUrl = pub ? pub.publicUrl : '';
+
+    const record = {
+      user_package_id: userPackageId,
+      user_id: uid,
+      user_email: email,
+      package_id: packageId,
+      amount,
+      proof_url: publicUrl,
+      status: 'pending',
+      requested_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase.from('package_deposits').insert([record]).select().single();
+    if (error) throw error;
+
+    try {
+      await supabase.from('activity').insert([{
+        type: 'deposit_requested',
+        message: `${email} requested a deposit of $${Number(amount).toFixed(2)} to unlock the next products`,
+        meta: { email, userPackageId },
+        time: new Date().toISOString()
+      }]);
+    } catch (e) { /* non-fatal */ }
+
+    return { ok: true, id: data.id, message: 'Deposit submitted. Waiting for admin verification.' };
+  } catch (e) {
+    console.error('requestPackageDeposit failed:', e);
+    return { ok: false, message: e.message || 'Could not submit deposit.' };
+  }
+}
+
+// 16. Logged-in client's own deposit requests (used to show "pending verification" state)
+async function getMyPackageDeposits(uid) {
+  const { data } = await supabase
+    .from('package_deposits')
+    .select('*')
+    .eq('user_id', uid)
+    .order('requested_at', { ascending: false });
+  return data || [];
+}
+
+// 17. Admin: every deposit request across all users (for the Payments tab)
+async function getAllPackageDeposits() {
+  const { data } = await supabase
+    .from('package_deposits')
+    .select('*')
+    .order('requested_at', { ascending: false });
+  return data || [];
+}
+
+// 18. Admin approves/rejects a deposit. Approve => actually unlock next tier via adminGrantTopup.
+async function adminDecidePackageDeposit(depositId, decision) {
+  try {
+    const { data: dep, error } = await supabase.from('package_deposits').select('*').eq('id', depositId).maybeSingle();
+    if (error || !dep) return { ok: false, message: 'Deposit request not found.' };
+    if (dep.status !== 'pending') return { ok: true, alreadyDone: true };
+
+    await supabase.from('package_deposits')
+      .update({ status: decision, decided_at: new Date().toISOString() })
+      .eq('id', depositId);
+
+    if (decision === 'approved') {
+      const unlockResult = await adminGrantTopup(dep.user_package_id);
+      try {
+        await supabase.from('activity').insert([{
+          type: 'deposit_approved',
+          message: `Deposit of $${Number(dep.amount || 0).toFixed(2)} approved for ${dep.user_email} — next products unlocked`,
+          meta: { email: dep.user_email },
+          time: new Date().toISOString()
+        }]);
+      } catch (e) { /* non-fatal */ }
+      return unlockResult && unlockResult.ok === false ? unlockResult : { ok: true };
+    }
+
+    try {
+      await supabase.from('activity').insert([{
+        type: 'deposit_rejected',
+        message: `Deposit request of $${Number(dep.amount || 0).toFixed(2)} rejected for ${dep.user_email}`,
+        meta: { email: dep.user_email },
+        time: new Date().toISOString()
+      }]);
+    } catch (e) { /* non-fatal */ }
+    return { ok: true };
+  } catch (e) {
+    console.error('adminDecidePackageDeposit failed:', e);
+    return { ok: false, message: e.message || 'Could not update deposit request.' };
+  }
+}
+
+// ============================================================
 // REVIEWS (reviews table) — client submits, admin approves/rejects/asks rewrite
 // ============================================================
 
@@ -681,6 +791,10 @@ export const SogoPackages = {
   adminVerifyUserPackage,
   adminBypassCap,
   adminGrantTopup,
+  requestPackageDeposit,
+  getMyPackageDeposits,
+  getAllPackageDeposits,
+  adminDecidePackageDeposit,
   submitReview,
   getReviewsForUserPackage,
   getMyReviews,

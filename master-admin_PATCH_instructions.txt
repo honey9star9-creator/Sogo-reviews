@@ -1,0 +1,238 @@
+============================================================
+PATCH 1 of 2 — master-admin.html
+============================================================
+
+--------------------------------------------------------------
+STEP A — Replace the whole <div id="tab-payments"> block
+--------------------------------------------------------------
+FIND (this is the current static/dummy block):
+
+    <!-- 3. PAYMENTS VIEW -->
+    <div id="tab-payments" class="tab-content">
+      <div style="margin-bottom: 20px;">
+        <input type="text" class="form-input" placeholder="Search by name, email, package...">
+      </div>
+
+      <div class="payment-req-card">
+        <div class="payment-user-info">
+          <div class="proof-badge">No<br>proof</div>
+          <div class="payment-details">
+            <h4>Shiz</h4>
+            <p>shiz1198@gmail.com</p>
+            <div class="payment-sub">Jo Malone London Timeless British Fragrance - $100 · via Manual activation</div>
+            <p style="margin-top: 2px;">9/20/2026, 12:38:20 AM</p>
+          </div>
+        </div>
+        <div class="payment-actions">
+          <button class="btn-verify">Verify & Activate</button>
+          <button class="btn-reject">Reject</button>
+        </div>
+      </div>
+    </div>
+
+REPLACE WITH:
+
+    <!-- 3. PAYMENTS VIEW -->
+    <div id="tab-payments" class="tab-content">
+      <div class="filter-tabs" id="paymentsFilterTabs">
+        <button class="filter-tab active" data-filter="all" onclick="setPaymentsFilter('all', this)">All</button>
+        <button class="filter-tab" data-filter="join" onclick="setPaymentsFilter('join', this)">Package Joins</button>
+        <button class="filter-tab" data-filter="deposit" onclick="setPaymentsFilter('deposit', this)">Deposits</button>
+      </div>
+      <div style="margin-bottom: 20px;">
+        <input type="text" class="form-input" id="paymentsSearchInput" placeholder="Search by name, email, package...">
+      </div>
+
+      <div id="paymentsListContainer">
+        <div style="color: var(--text-muted); font-size: 0.8rem; text-align:center; padding:20px;">Loading payments…</div>
+      </div>
+    </div>
+
+
+--------------------------------------------------------------
+STEP B — Add JS logic
+--------------------------------------------------------------
+Inside the <script type="module"> block (the big one that already has
+refreshPackagesList, refreshSubscriptions, etc.), add this whole block
+right AFTER the "refreshSubscriptions" section (after the
+`adminGrantTopupForSub` function and before "RECEIVED REVIEWS" section
+is a good spot):
+
+  // ---------------- PAYMENTS ----------------
+  let allPaymentJoins = [];
+  let allPaymentDeposits = [];
+  let paymentsFilter = 'all';
+
+  window.setPaymentsFilter = function (filter, el) {
+    paymentsFilter = filter;
+    document.querySelectorAll('#paymentsFilterTabs .filter-tab').forEach(b => b.classList.remove('active'));
+    if (el) el.classList.add('active');
+    renderPaymentsList();
+  };
+
+  async function refreshPayments() {
+    if (!window.SogoPackages) return;
+    const [subs, deposits] = await Promise.all([
+      SogoPackages.getAllUserPackages(),
+      SogoPackages.getAllPackageDeposits ? SogoPackages.getAllPackageDeposits() : Promise.resolve([])
+    ]);
+    allPaymentJoins = (subs || []).filter(s => s.status === 'pending_payment' || s.status === 'pending_verification');
+    allPaymentDeposits = (deposits || []).filter(d => d.status === 'pending');
+    renderPaymentsList();
+  }
+
+  function renderPaymentsList() {
+    const container = document.getElementById('paymentsListContainer');
+    if (!container) return;
+
+    const q = ((document.getElementById('paymentsSearchInput') || {}).value || '').toLowerCase();
+
+    let joins = paymentsFilter === 'deposit' ? [] : allPaymentJoins;
+    let deposits = paymentsFilter === 'join' ? [] : allPaymentDeposits;
+
+    if (q) {
+      joins = joins.filter(s => (s.userEmail || '').toLowerCase().includes(q) || (s.packageName || '').toLowerCase().includes(q));
+      deposits = deposits.filter(d => (d.user_email || '').toLowerCase().includes(q));
+    }
+
+    if (!joins.length && !deposits.length) {
+      container.innerHTML = '<div class="card" style="text-align:center; color:var(--text-muted); padding:40px;">No pending payments.</div>';
+      return;
+    }
+
+    let html = '';
+
+    joins.forEach(s => {
+      const userName = (allUsersList.find(u => u.uid === s.userId) || {}).name || (s.userEmail || '').split('@')[0];
+      const proofCell = s.paymentProofUrl
+        ? `<a href="${escapeHtml(s.paymentProofUrl)}" target="_blank" style="color:inherit; text-decoration:underline;">View<br>proof</a>`
+        : 'No<br>proof';
+      html += `
+        <div class="payment-req-card">
+          <div class="payment-user-info">
+            <div class="proof-badge">${proofCell}</div>
+            <div class="payment-details">
+              <h4>${escapeHtml(userName)}</h4>
+              <p>${escapeHtml(s.userEmail || '')}</p>
+              <div class="payment-sub">${escapeHtml(s.packageName || '')} - $${Number(s.price || 0).toFixed(2)} · Package join payment</div>
+              <p style="margin-top: 2px;">${formatDate(s.joinedAt)}</p>
+            </div>
+          </div>
+          <div class="payment-actions">
+            <button class="btn-verify" onclick="adminVerifySubscription('${s.id}')">Verify & Activate</button>
+            <button class="btn-reject" onclick="adminRejectJoin('${s.id}')">Reject</button>
+          </div>
+        </div>
+      `;
+    });
+
+    deposits.forEach(d => {
+      const userName = (allUsersList.find(u => u.uid === d.user_id) || {}).name || (d.user_email || '').split('@')[0];
+      const proofCell = d.proof_url
+        ? `<a href="${escapeHtml(d.proof_url)}" target="_blank" style="color:inherit; text-decoration:underline;">View<br>proof</a>`
+        : 'No<br>proof';
+      html += `
+        <div class="payment-req-card">
+          <div class="payment-user-info">
+            <div class="proof-badge">${proofCell}</div>
+            <div class="payment-details">
+              <h4>${escapeHtml(userName)}</h4>
+              <p>${escapeHtml(d.user_email || '')}</p>
+              <div class="payment-sub">$${Number(d.amount || 0).toFixed(2)} · Next-tier unlock deposit</div>
+              <p style="margin-top: 2px;">${formatDate(d.requested_at)}</p>
+            </div>
+          </div>
+          <div class="payment-actions">
+            <button class="btn-verify" onclick="adminDecideDeposit('${d.id}','approved')">Approve & Unlock</button>
+            <button class="btn-reject" onclick="adminDecideDeposit('${d.id}','rejected')">Reject</button>
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+  }
+
+  window.adminRejectJoin = async function (id) {
+    if (!confirm('Reject this payment / package join request?')) return;
+    await SogoPackages.adminSetUserPackageStatus(id, 'deactivated');
+    await Promise.all([refreshPayments(), refreshSubscriptions()]);
+  };
+
+  window.adminDecideDeposit = async function (id, decision) {
+    const result = await SogoPackages.adminDecidePackageDeposit(id, decision);
+    if (!result.ok) { alert(result.message); return; }
+    await Promise.all([refreshPayments(), refreshSubscriptions()]);
+  };
+
+  const paymentsSearchInputElem = document.getElementById('paymentsSearchInput');
+  if (paymentsSearchInputElem) {
+    paymentsSearchInputElem.oninput = () => renderPaymentsList();
+  }
+
+
+--------------------------------------------------------------
+STEP C — Wire it into bootstrap + auto-refresh
+--------------------------------------------------------------
+FIND (inside `bootstrapAdminDashboard`):
+
+    await refreshUsers();
+    await Promise.all([
+      loadAdminProfile(),
+      refreshTopups(),
+      refreshWithdrawals(),
+      refreshPasswordRequests(),
+      refreshActivity(),
+      refreshInvitations(),
+      refreshChatUsersList(),
+      refreshPackagesList(),
+      refreshSubscriptions(),
+      refreshReviewsAdmin()
+    ]);
+
+REPLACE WITH (added refreshPayments):
+
+    await refreshUsers();
+    await Promise.all([
+      loadAdminProfile(),
+      refreshTopups(),
+      refreshWithdrawals(),
+      refreshPasswordRequests(),
+      refreshActivity(),
+      refreshInvitations(),
+      refreshChatUsersList(),
+      refreshPackagesList(),
+      refreshSubscriptions(),
+      refreshReviewsAdmin(),
+      refreshPayments()
+    ]);
+
+--------------------------------------------------------------
+Also FIND the setInterval block right after it:
+
+    window.setInterval(() => {
+      refreshUsers();
+      refreshTopups();
+      refreshWithdrawals();
+      refreshPasswordRequests();
+      refreshActivity();
+      refreshSubscriptions();
+      refreshReviewsAdmin();
+    }, 30000);
+
+REPLACE WITH:
+
+    window.setInterval(() => {
+      refreshUsers();
+      refreshTopups();
+      refreshWithdrawals();
+      refreshPasswordRequests();
+      refreshActivity();
+      refreshSubscriptions();
+      refreshReviewsAdmin();
+      refreshPayments();
+    }, 30000);
+
+============================================================
+That's it for master-admin.html.
+============================================================
