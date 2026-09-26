@@ -1,6 +1,9 @@
-/* SOGO REVIEWS — Packages Management Logic (Supabase Version) */
+/* SOGO REVIEWS — Packages Management Logic (Supabase Version)
+   (Adds: notification hooks on join/proof-upload/deposit/review/admin actions) */
 
 import { supabase } from "./supabase-config.js";
+
+const NOTIFICATIONS_COL = "notifications";
 
 function escAttr(str) {
   return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -11,6 +14,29 @@ function findNextLock(pkg, unlockedCount) {
   const sortedLocks = [...pkg.locks].sort((a, b) => a.afterIndex - b.afterIndex);
   return sortedLocks.find(l => l.afterIndex >= unlockedCount) || null;
 }
+
+/* ---------------- notifications (local helpers) ---------------- */
+async function notifyUserPkg(userId, type, title, message, meta) {
+  if (!userId) return;
+  try {
+    await supabase.from(NOTIFICATIONS_COL).insert([{
+      user_id: userId, type, title, message, meta: meta || {}
+    }]);
+  } catch (e) { /* non-fatal */ }
+}
+
+async function getAdminUserIdsPkg() {
+  try {
+    const { data } = await supabase.from('users').select('id').eq('role', 'admin');
+    return (data || []).map(u => u.id);
+  } catch (e) { return []; }
+}
+
+async function notifyAllAdminsPkg(type, title, message, meta) {
+  const adminIds = await getAdminUserIdsPkg();
+  await Promise.all(adminIds.map(id => notifyUserPkg(id, type, title, message, meta)));
+}
+
 // Tracks whether the builder form is creating a new package or editing one.
 window.editingPackageId = null;
 window.__prefillProducts = [];
@@ -372,6 +398,8 @@ if (existing && existing.status !== 'rejected') {
       }]);
     } catch (e) { /* non-fatal */ }
 
+    notifyAllAdminsPkg('package_joined', 'New package join', `${email} joined package "${pkg.name}" — awaiting payment.`, { email, packageId: pkg.id });
+
     return { ok: true, id: data.id };
   } catch (e) {
     console.error("Error joining package:", e);
@@ -409,6 +437,8 @@ async function uploadPaymentProof(uid, userPackageId, file) {
       }]);
     } catch (e) { /* non-fatal */ }
 
+    notifyAllAdminsPkg('payment_proof_uploaded', 'Payment proof uploaded', `A client uploaded payment proof for package #${userPackageId}. Please verify.`, { userId: uid, userPackageId });
+
     return { ok: true, message: 'Payment proof uploaded. Waiting for admin verification.' };
   } catch (e) {
     console.error("Error uploading payment proof:", e);
@@ -439,7 +469,7 @@ async function adminSetUserPackageStatus(userPackageId, status) {
   try {
     await supabase.from('user_packages').update({ status }).eq('id', userPackageId);
     try {
-      const { data: up } = await supabase.from('user_packages').select('userEmail,packageName').eq('id', userPackageId).maybeSingle();
+      const { data: up } = await supabase.from('user_packages').select('userId,userEmail,packageName').eq('id', userPackageId).maybeSingle();
       if (up) {
         await supabase.from('activity').insert([{
           type: 'subscription_status_changed',
@@ -447,6 +477,14 @@ async function adminSetUserPackageStatus(userPackageId, status) {
           meta: { email: up.userEmail, status },
           time: new Date().toISOString()
         }]);
+
+        if (status === 'active') {
+          notifyUserPkg(up.userId, 'package_activated', 'Package activated', `Your package "${up.packageName}" has been activated. You can start reviewing!`);
+        } else if (status === 'deactivated') {
+          notifyUserPkg(up.userId, 'package_deactivated', 'Package deactivated', `Your package "${up.packageName}" has been deactivated by support.`);
+        } else if (status === 'rejected') {
+          notifyUserPkg(up.userId, 'package_rejected', 'Package join rejected', `Your request to join "${up.packageName}" was rejected. Please contact support.`);
+        }
       }
     } catch (e) { /* non-fatal */ }
     return { ok: true };
@@ -476,6 +514,7 @@ async function adminBypassCap(userPackageId) {
         time: new Date().toISOString()
       }]);
     } catch (e) { /* non-fatal */ }
+    notifyUserPkg(up.userId, 'products_unlocked', 'All products unlocked', `Admin has unlocked all remaining products in "${up.packageName}" for you.`);
     return { ok: true, unlockedCount: total };
   } catch (e) {
     console.error('adminBypassCap failed:', e);
@@ -483,7 +522,8 @@ async function adminBypassCap(userPackageId) {
   }
 }
 
-async function adminGrantTopup(userPackageId) {
+async function adminGrantTopup(userPackageId, opts) {
+  const options = opts || {};
   try {
     const { data: up, error: fetchErr } = await supabase
       .from('user_packages')
@@ -519,6 +559,12 @@ async function adminGrantTopup(userPackageId) {
       .eq('id', userPackageId);
 
     if (updateErr) throw updateErr;
+
+    // "silent" is passed when this is called as part of a deposit-approval flow,
+    // which sends its own more specific "Top-up approved" notification instead.
+    if (!options.silent) {
+      notifyUserPkg(up.userId, 'products_unlocked', 'More products unlocked', 'Admin granted your top-up. You can continue reviewing.');
+    }
 
     return { ok: true, newUnlockedCount };
   } catch (err) {
@@ -571,6 +617,8 @@ async function requestPackageDeposit(uid, email, userPackageId, packageId, amoun
       }]);
     } catch (e) { /* non-fatal */ }
 
+    notifyAllAdminsPkg('deposit_requested', 'New deposit request', `${email} requested a deposit of $${Number(amount).toFixed(2)} to unlock the next products.`, { email, userPackageId });
+
     return { ok: true, id: data.id, message: 'Deposit submitted. Waiting for admin verification.' };
   } catch (e) {
     console.error('requestPackageDeposit failed:', e);
@@ -609,7 +657,8 @@ async function adminDecidePackageDeposit(depositId, decision) {
       .eq('id', depositId);
 
     if (decision === 'approved') {
-      const unlockResult = await adminGrantTopup(dep.user_package_id);
+      const unlockResult = await adminGrantTopup(dep.user_package_id, { silent: true });
+      notifyUserPkg(dep.user_id, 'topup_approved', 'Top-up approved', `$${Number(dep.amount || 0).toFixed(2)} top-up approved. More products unlocked.`);
       try {
         await supabase.from('activity').insert([{
           type: 'deposit_approved',
@@ -621,6 +670,7 @@ async function adminDecidePackageDeposit(depositId, decision) {
       return unlockResult && unlockResult.ok === false ? unlockResult : { ok: true };
     }
 
+    notifyUserPkg(dep.user_id, 'deposit_rejected', 'Deposit rejected', `Your deposit request of $${Number(dep.amount || 0).toFixed(2)} was rejected. Please contact support.`);
     try {
       await supabase.from('activity').insert([{
         type: 'deposit_rejected',
@@ -717,6 +767,8 @@ async function submitReview(payload) {
       }]);
     } catch (e) { /* non-fatal */ }
 
+    notifyAllAdminsPkg('review_submitted', 'New review submitted', `${userName} submitted a review for "${productName}".`, { email: userEmail, packageId });
+
     return { ok: true };
   } catch (e) {
     console.error('submitReview failed:', e);
@@ -764,6 +816,8 @@ async function adminDecideReview(reviewId, decision) {
           time: new Date().toISOString()
         }]);
       } catch (e) { /* non-fatal */ }
+
+      notifyUserPkg(review.userId, 'review_approved', 'Review approved', `Your review for product #${review.productIndex + 1} was approved. $${Number(review.commission || 0).toFixed(2)} commission has been credited.`);
     } else if (decision === 'rejected') {
       try {
         await supabase.from('activity').insert([{
@@ -773,6 +827,7 @@ async function adminDecideReview(reviewId, decision) {
           time: new Date().toISOString()
         }]);
       } catch (e) { /* non-fatal */ }
+      notifyUserPkg(review.userId, 'review_rejected', 'Review rejected', `Your review for product #${review.productIndex + 1} was rejected. You may resubmit.`);
     } else if (decision === 'rewrite') {
       try {
         await supabase.from('activity').insert([{
@@ -782,6 +837,7 @@ async function adminDecideReview(reviewId, decision) {
           time: new Date().toISOString()
         }]);
       } catch (e) { /* non-fatal */ }
+      notifyUserPkg(review.userId, 'review_rewrite', 'Rewrite requested', `Please rewrite your review for product #${review.productIndex + 1} and resubmit.`);
     }
 
     await recalcUserPackageProgress(review.userPackageId);

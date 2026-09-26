@@ -1,6 +1,8 @@
 /* SOGO REVIEWS — Shared Auth + Data Logic (Supabase version)
     ------------------------------------------------------------------
     FULL UPDATED VERSION - ZERO CODE OMITTED
+    (Adds: notifications system — read/mark-read/manual-send helpers,
+    plus notify hooks on withdrawal/topup/password-reset flows)
 */
 
 import { supabase } from "./supabase-config.js";
@@ -12,6 +14,7 @@ const WITHDRAWALS_COL = "withdrawals";
 const TOPUPS_COL = "topups";
 const PW_REQUESTS_COL = "password_requests";
 const ACTIVITY_COL = "activity";
+const NOTIFICATIONS_COL = "notifications";
 
 const SogoAuth = (() => {
 
@@ -25,6 +28,66 @@ const SogoAuth = (() => {
         type, message, meta: meta || {}, time: new Date().toISOString()
       }]);
     } catch (e) { /* non-fatal */ }
+  }
+
+  /* ---------------- notifications ---------------- */
+  async function notifyUser(userId, type, title, message, meta) {
+    if (!userId) return;
+    try {
+      await supabase.from(NOTIFICATIONS_COL).insert([{
+        user_id: userId, type, title, message, meta: meta || {}
+      }]);
+    } catch (e) { /* non-fatal */ }
+  }
+
+  async function getAdminUserIds() {
+    try {
+      const { data } = await supabase.from(USERS_COL).select('id').eq('role', 'admin');
+      return (data || []).map(u => u.id);
+    } catch (e) { return []; }
+  }
+
+  async function notifyAllAdmins(type, title, message, meta) {
+    const adminIds = await getAdminUserIds();
+    await Promise.all(adminIds.map(id => notifyUser(id, type, title, message, meta)));
+  }
+
+  async function getMyNotifications(uid) {
+    if (!uid) return [];
+    const { data } = await supabase
+      .from(NOTIFICATIONS_COL)
+      .select('*')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    return data || [];
+  }
+
+  async function getUnreadNotificationCount(uid) {
+    if (!uid) return 0;
+    const { count } = await supabase
+      .from(NOTIFICATIONS_COL)
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', uid)
+      .eq('read', false);
+    return count || 0;
+  }
+
+  async function markAllNotificationsRead(uid) {
+    if (!uid) return;
+    await supabase.from(NOTIFICATIONS_COL).update({ read: true }).eq('user_id', uid).eq('read', false);
+  }
+
+  async function sendManualNotification(uid, title, message) {
+    if (!uid) return { ok: false, message: 'No user selected.' };
+    if (!title || !title.trim()) return { ok: false, message: 'Please enter a title.' };
+    if (!message || !message.trim()) return { ok: false, message: 'Please enter a message.' };
+    try {
+      await notifyUser(uid, 'manual', title.trim(), message.trim());
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, message: e.message || 'Could not send notification.' };
+    }
   }
 
   async function getUserDoc(uid) {
@@ -184,6 +247,7 @@ const SogoAuth = (() => {
       email: cleanEmail, name: cleanEmail, status: "pending", requested_at: new Date().toISOString()
     }]);
     logActivity("password_reset_requested", `${cleanEmail} requested a password reset`, { email: cleanEmail });
+    notifyAllAdmins("password_reset_requested", "Password reset requested", `${cleanEmail} requested a password reset.`, { email: cleanEmail });
     return { ok: true };
   }
 
@@ -412,6 +476,7 @@ const SogoAuth = (() => {
     };
     const { data } = await supabase.from(WITHDRAWALS_COL).insert([record]).select().single();
     logActivity("withdrawal_requested", `${name} requested a withdrawal of $${Number(amount).toFixed(2)}`, { email });
+    notifyAllAdmins("withdrawal_requested", "New withdrawal request", `${name} requested a withdrawal of $${Number(amount).toFixed(2)}.`, { email });
     return data ? { id: data.id, ...record } : record;
   }
 
@@ -422,6 +487,9 @@ const SogoAuth = (() => {
       if (w.status === "approved") return w;
       await supabase.from(WITHDRAWALS_COL).update({ status }).eq('id', id);
       logActivity("withdrawal_rejected", `Withdrawal of $${Number(w.amount || 0).toFixed(2)} rejected for ${w.name}`, { email: w.email });
+      if (status === "rejected") {
+        notifyUser(w.user_id, "withdrawal_rejected", "Withdrawal rejected", `Your withdrawal request of $${Number(w.amount || 0).toFixed(2)} was rejected.`);
+      }
       return { ...w, status };
     }
 
@@ -446,6 +514,7 @@ const SogoAuth = (() => {
       await supabase.from(WITHDRAWALS_COL).update({ status: "approved" }).eq('id', id);
 
       logActivity("withdrawal_approved", `Withdrawal of $${Number(w.amount || 0).toFixed(2)} approved for ${w.name}`, { email: w.email });
+      notifyUser(user.uid, "withdrawal_approved", "Withdrawal approved", `Your withdrawal of $${Number(w.amount || 0).toFixed(2)} was approved.`);
       return { ...w, status: "approved" };
     } catch (e) {
       return { ok: false, message: e.message || "Could not approve withdrawal." };
@@ -468,6 +537,7 @@ const SogoAuth = (() => {
     };
     const { data } = await supabase.from(TOPUPS_COL).insert([record]).select().single();
     logActivity("topup_requested", `${name} requested a top-up of $${Number(amount).toFixed(2)}`, { email });
+    notifyAllAdmins("topup_requested", "New top-up request", `${name} requested a top-up of $${Number(amount).toFixed(2)}.`, { email });
     return data ? { id: data.id, ...record } : record;
   }
 
@@ -478,6 +548,9 @@ const SogoAuth = (() => {
       if (t.status === "approved") return t;
       await supabase.from(TOPUPS_COL).update({ status }).eq('id', id);
       logActivity("topup_rejected", `Top-up of $${Number(t.amount || 0).toFixed(2)} rejected for ${t.name}`, { email: t.email });
+      if (status === "rejected") {
+        notifyUser(t.user_id, "topup_rejected", "Top-up rejected", `Your top-up request of $${Number(t.amount || 0).toFixed(2)} was rejected.`);
+      }
       return { ...t, status };
     }
 
@@ -498,6 +571,7 @@ const SogoAuth = (() => {
       await supabase.from(TOPUPS_COL).update({ status: "approved" }).eq('id', id);
 
       logActivity("topup_approved", `Top-up of $${Number(t.amount || 0).toFixed(2)} approved for ${t.name}`, { email: t.email });
+      notifyUser(user.uid, "topup_approved", "Top-up approved", `Your top-up of $${Number(t.amount || 0).toFixed(2)} was approved and added to your balance.`);
       return { ...t, status: "approved" };
     } catch (e) {
       return { ok: false, message: e.message || "Could not approve top-up." };
@@ -518,7 +592,8 @@ const SogoAuth = (() => {
     getWithdrawals, requestWithdrawal, updateWithdrawal,
     getTopups, requestTopup, updateTopup,
     getPasswordRequests, requestPasswordReset, fulfillPasswordRequest, dismissPasswordRequest,
-    getActivity, logActivity
+    getActivity, logActivity,
+    getMyNotifications, getUnreadNotificationCount, markAllNotificationsRead, sendManualNotification, notifyUser, notifyAllAdmins
   };
 })();
 
