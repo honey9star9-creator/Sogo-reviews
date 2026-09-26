@@ -373,9 +373,49 @@
 }
 .admin-modal-close:hover { color: #0f172a; }
 
+/* Toast notification (success/error popup) */
+.admin-toast-wrap {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 5000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.admin-toast {
+  min-width: 260px;
+  max-width: 360px;
+  background: #ffffff;
+  border-left: 4px solid #10b981;
+  border-radius: 10px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+  padding: 14px 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: toastIn 0.25s ease forwards;
+}
+.admin-toast.error { border-left-color: #ef4444; }
+.admin-toast i { font-size: 1rem; }
+.admin-toast.success i { color: #10b981; }
+.admin-toast.error i { color: #ef4444; }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(20px); }
+}
+.admin-toast.hide { animation: toastOut 0.25s ease forwards; }
     </style>
 </head>
 <body class="auth-checking">
+<div class="admin-toast-wrap" id="adminToastWrap"></div>
 <div id="authGateOverlay" style="position:fixed;inset:0;background:#f8f9fa;z-index:99999;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;color:#6366f1;font-size:0.9rem;">
   <div style="width:34px;height:34px;border:3px solid #e0e7ff;border-top-color:#6366f1;border-radius:50%;animation:authSpin 0.7s linear infinite;"></div>
   <span>Loading your dashboard…</span>
@@ -860,8 +900,22 @@
 
   const MASTER_ADMIN_EMAIL = 'honey9star9@gmail.com';
 
-  function escapeHtml(str) {
+function escapeHtml(str) {
     return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function showAdminToast(message, type) {
+    const wrap = document.getElementById('adminToastWrap');
+    if (!wrap) { alert(message); return; }
+    const icon = type === 'error' ? 'fa-circle-xmark' : 'fa-circle-check';
+    const toast = document.createElement('div');
+    toast.className = `admin-toast ${type === 'error' ? 'error' : 'success'}`;
+    toast.innerHTML = `<i class="fa-solid ${icon}"></i><span>${escapeHtml(message)}</span>`;
+    wrap.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add('hide');
+      setTimeout(() => toast.remove(), 250);
+    }, 3000);
   }
   function formatDate(v) {
     if (!v) return '-';
@@ -1027,11 +1081,7 @@ function subStatusBadge(status) {
       return `<button class="btn-green" style="padding:4px 10px; font-size:0.7rem;" onclick="adminVerifySubscription('${sub.id}')">Verify & Activate</button> <a href="#" style="color:#6366f1; font-size:0.75rem;" onclick="event.preventDefault(); adminVerifySubscription('${sub.id}')">Activate</a>`;
     }
     if (sub.status === 'active') {
-      const pendingDeposit = (allPaymentDeposits || []).find(d => d.user_package_id === sub.id);
-      const topupHtml = pendingDeposit
-        ? `<button class="btn-purple" style="padding:4px 10px; font-size:0.7rem;" onclick="adminGrantTopupForSub('${pendingDeposit.id}', this)">Grant top-up</button>`
-        : '';
-      return `<a href="#" style="color:#dc2626; font-size:0.75rem;" onclick="event.preventDefault(); adminDeactivateSubscription('${sub.id}')">Deactivate</a> · <a href="#" style="color:#6366f1; font-size:0.75rem;" onclick="event.preventDefault(); adminBypassCapForSub('${sub.id}')">Bypass cap</a> ${topupHtml}`;
+      return `<a href="#" style="color:#dc2626; font-size:0.75rem;" onclick="event.preventDefault(); adminDeactivateSubscription('${sub.id}')">Deactivate</a> · <a href="#" style="color:#6366f1; font-size:0.75rem;" onclick="event.preventDefault(); adminBypassCapForSub('${sub.id}')">Bypass cap</a> <button class="btn-purple" style="padding:4px 10px; font-size:0.7rem;" onclick="adminGrantTopupForSub('${sub.id}', this)">Grant top-up</button>`;
     }
     if (sub.status === 'deactivated') {
       return `<a href="#" style="color:#10b981; font-size:0.75rem;" onclick="event.preventDefault(); adminReactivateSubscription('${sub.id}')">Reactivate</a>`;
@@ -1112,26 +1162,28 @@ function subStatusBadge(status) {
 window.adminGrantTopupForSub = async function (depositId, btnEl) {
   if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Granting...'; }
 
+window.adminGrantTopupForSub = async function (userPackageId, btnEl) {
+  if (btnEl) {
+    btnEl.disabled = true;
+    btnEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Granting...';
+  }
+
   try {
-    // Chota sa buffer taake "Granting..." state nazar aa sake — button
-    // apni jagah static rehta hai, sirf label change hota hai.
-    await new Promise(resolve => setTimeout(resolve, 900));
-    // CHANGED: ab ye seedha unlockedCount badalne ki bajaye, us client ki
-    // ASAL pending deposit ko approve karta hai (bilkul waisa hi jaisa
-    // Payments tab ka "Approve & Unlock" karta hai). Isse deposit ka status
-    // 'approved' ho jata hai, wo pending list se hat jata hai, aur agli
-    // baar table refresh hone pe ye button khud gayab ho jata hai.
-    const result = await SogoPackages.adminDecidePackageDeposit(depositId, 'approved');
+    const result = await SogoPackages.adminGrantTopup(userPackageId);
 
     if (!result.ok) {
-      alert(result.message);
+      showAdminToast(result.message || 'Could not grant top-up.', 'error');
       return;
     }
+    if (result.alreadyFullyUnlocked) {
+      showAdminToast('This subscription is already fully unlocked.', 'success');
+    } else {
+      showAdminToast('Granted! Unlocked up to product #' + result.newUnlockedCount + '.', 'success');
+    }
     await Promise.all([refreshPayments(), refreshSubscriptions()]);
-    alert('Granted successfully!');
   } catch (err) {
     console.error('adminGrantTopupForSub failed:', err);
-    alert('Something went wrong: ' + (err && err.message ? err.message : 'unknown error'));
+    showAdminToast('Something went wrong: ' + (err && err.message ? err.message : 'unknown error'), 'error');
   } finally {
     if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Grant top-up'; }
   }
