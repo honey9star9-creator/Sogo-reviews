@@ -1081,17 +1081,26 @@ function subStatusBadge(status) {
 window.adminGrantTopupForSub = async function (id, btnEl) {
   if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Granting...'; }
 
-  const result = await SogoPackages.adminGrantTopup(id);
+  try {
+    const result = await SogoPackages.adminGrantTopup(id);
 
-  if (!result.ok) {
-    alert(result.message);
+    if (!result.ok) {
+      alert(result.message);
+      return;
+    }
+    if (result.alreadyFullyUnlocked) {
+      alert('This subscription is already fully unlocked — there is no next lock to grant.');
+    }
+    await refreshSubscriptions();
+  } catch (err) {
+    console.error('adminGrantTopupForSub failed:', err);
+    alert('Something went wrong: ' + (err && err.message ? err.message : 'unknown error'));
+  } finally {
+    // Button ko HAMESHA wapas normal karo — chahe success ho, error ho, ya
+    // beech mein kuch aur toot jaye. Ye "finally" block guarantee karta hai
+    // ke button kabhi permanently "Granting..." pe atka nahi rahega.
     if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Grant top-up'; }
-    return;
   }
-  if (result.alreadyFullyUnlocked) {
-    alert('This subscription is already fully unlocked — there is no next lock to grant.');
-  }
-  await refreshSubscriptions();
 };
 
   const subSearchInputElem = document.getElementById('subSearchInput');
