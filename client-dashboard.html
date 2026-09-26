@@ -1185,6 +1185,7 @@
     let availablePackages = [];
     let clientPackages = [];
     let chatUnsubscribe = null;
+    let notifUnsubscribe = null;
     let dashboardRefreshTimer = null;
 
     // Essential Helper Functions
@@ -2223,8 +2224,10 @@ async function submitLockTopupRequest(amount) {
       const text = input.value.trim();
       if (!text || !currentSession) return;
       input.value = '';
+      // CHANGED: yahan se explicit renderChat() hata diya — active realtime
+      // listener khud hi naya message turant chat mein add kar dega, dobara
+      // fetch karne se ulta flicker/delay hota tha.
       await SogoAuth.sendChatMessage(currentSession.email, 'client', text);
-      await renderChat();
     }
 
     async function sendClientChatAttachment(inputEl) {
@@ -2240,7 +2243,8 @@ async function submitLockTopupRequest(amount) {
         const result = await SogoAuth.sendChatAttachment(currentSession.email, 'client', file);
         if (!result.ok) throw new Error(result.message || 'Upload failed.');
         if (msg) msg.style.display = 'none';
-        await renderChat();
+        // CHANGED: same reasoning as sendClientChat() — realtime listener
+        // khud photo add kar dega, dobara fetch ki zaroorat nahi.
       } catch (e) {
         if (msg) { msg.textContent = e.message || 'Could not send photo.'; msg.style.color = '#e74c3c'; msg.style.display = 'block'; }
       } finally {
@@ -2317,6 +2321,7 @@ async function submitLockTopupRequest(amount) {
       const authApi = await waitForSogoAuth;
       if (!authApi) return;
       stopChatListener();
+      if (typeof notifUnsubscribe === 'function') { notifUnsubscribe(); notifUnsubscribe = null; }
       if (dashboardRefreshTimer) window.clearInterval(dashboardRefreshTimer);
       dashboardRefreshTimer = null;
       return authApi.logout();
@@ -2343,6 +2348,12 @@ async function submitLockTopupRequest(amount) {
       ]);
       await startChatListener(authApi);
 
+      // CHANGED: notifications ab realtime hain — 30s wait nahi karna
+      // padega, foran update aa jayega jaise hi koi notification row change ho.
+      if (typeof authApi.listenMyNotifications === 'function') {
+        notifUnsubscribe = await authApi.listenMyNotifications(currentSession.uid, refreshNotifications);
+      }
+
   if (dashboardRefreshTimer) window.clearInterval(dashboardRefreshTimer);
       dashboardRefreshTimer = window.setInterval(() => {
         loadUserData();
@@ -2355,12 +2366,12 @@ async function submitLockTopupRequest(amount) {
           refreshClientPackages();
         }
         renderReviewsTab();
-        refreshNotifications();
       }, 30000);
     }
 
     window.addEventListener('pagehide', () => {
       stopChatListener();
+      if (typeof notifUnsubscribe === 'function') { notifUnsubscribe(); notifUnsubscribe = null; }
       if (dashboardRefreshTimer) window.clearInterval(dashboardRefreshTimer);
       dashboardRefreshTimer = null;
     }, { once: true });

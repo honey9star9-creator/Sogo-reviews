@@ -99,6 +99,24 @@ const SogoAuth = (() => {
     await supabase.from(NOTIFICATIONS_COL).update({ read: true }).eq('user_id', uid).eq('read', false);
   }
 
+  // NEW: notifications ko 30-second polling ki jagah realtime banaya.
+  // Jab bhi is user ki koi notification row change ho (naya insert, ya
+  // dusri tab se "read" mark ho), Supabase turant yahan push kar deta hai
+  // aur onChange() foran chal jata hai.
+  async function listenMyNotifications(uid, onChange) {
+    if (!uid || typeof onChange !== 'function') return () => {};
+    const channel = supabase
+      .channel(`notifications-${uid}-${Date.now()}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: NOTIFICATIONS_COL,
+        filter: `user_id=eq.${uid}`
+      }, () => { onChange(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }
+
   async function sendManualNotification(uid, title, message) {
     if (!uid) return { ok: false, message: 'No user selected.' };
     if (!title || !title.trim()) return { ok: false, message: 'Please enter a title.' };
@@ -471,19 +489,34 @@ const SogoAuth = (() => {
       return () => {}; // no-op unsubscribe so callers can always call it safely
     }
 
-    await getChatThread(clientEmail).then(callback);
+    // CHANGED: ab poora thread har message pe dobara fetch nahi karte —
+    // realtime payload mein khud naya/updated row already mojood hota hai,
+    // usay seedha local list mein patch kar dete hain. Yehi extra DB
+    // round-trip WhatsApp jaisi speed na milne ki wajah thi.
+    let thread = await getChatThread(clientEmail);
+    callback(thread);
 
     // Unique channel name (per call) so opening the same user's chat twice
     // (e.g. admin clicking around) never collides with a still-open channel.
     const channel = supabase
       .channel(`messages-${user.uid}-${Date.now()}`)
       .on('postgres_changes', {
-        event: '*',
+        event: 'INSERT',
         schema: 'public',
         table: MESSAGES_COL,
         filter: `user_id=eq.${user.uid}`
-      }, () => {
-        getChatThread(clientEmail).then(callback);
+      }, (payload) => {
+        thread = [...thread, payload.new];
+        callback(thread);
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: MESSAGES_COL,
+        filter: `user_id=eq.${user.uid}`
+      }, (payload) => {
+        thread = thread.map(m => m.id === payload.new.id ? payload.new : m);
+        callback(thread);
       })
       .subscribe();
 
@@ -718,7 +751,7 @@ const SogoAuth = (() => {
     getTopups, requestTopup, updateTopup,
     getPasswordRequests, requestPasswordReset, fulfillPasswordRequest, dismissPasswordRequest,
     getActivity, logActivity,
-    getMyNotifications, getUnreadNotificationCount, markAllNotificationsRead, sendManualNotification, notifyUser, notifyAllAdmins
+     getMyNotifications, getUnreadNotificationCount, markAllNotificationsRead, sendManualNotification, notifyUser, notifyAllAdmins, listenMyNotifications
   };
 })();
 
