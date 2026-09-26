@@ -1543,18 +1543,41 @@ async function renderSelectedPackage() {
   const totalProds = safeAmount(userPackage ? userPackage.totalProducts : (pkg.products || []).length);
   const completedReviews = userPackage ? safeAmount(userPackage.reviewsCompleted) : 0;
   const unlockedCount = userPackage ? safeAmount(userPackage.unlockedCount != null ? userPackage.unlockedCount : totalProds) : 0;
-  const locks = pkg.locks || [];
-  // Client jis milestone pe locked hai, usi tier ka deposit amount dikhao
-  // (admin ne us review-number ke saamne jo amount likha, wahi yahan dikhna chahiye —
-  // agla tier nahi).
-  const currentLock = locks.find(l => l.afterReview === unlockedCount);
-  const lockPrice = currentLock ? currentLock.depositRequired : (locks.length ? locks[locks.length - 1].depositRequired : 0);
+      const locks = pkg.locks || [];
+    // Client jis milestone pe locked hai, usi tier ka deposit amount dikhao
+    // (admin ne us review-number ke saamne jo amount likha, wahi yahan dikhna chahiye —
+    // agla tier nahi).
+    const currentLock = locks.find(l => l.afterReview === unlockedCount);
+    const lockPrice = currentLock ? currentLock.depositRequired : (locks.length ? locks[locks.length - 1].depositRequired : 0);
 
-  // Render Top Lock Progress Banner
-  if (banner && userPackage) {
-    const isLockedState = completedReviews >= unlockedCount && unlockedCount < totalProds;
-    
-    if (isLockedState) {
+    // Render Top Lock Progress Banner
+    if (banner && userPackage) {
+      const isLockedState = completedReviews >= unlockedCount && unlockedCount < totalProds;
+
+      // NEW: check karo agar deposit pehle se pending hai
+      const myDeposits = isLockedState ? await loadMyDepositsForPackage(userPackage.id) : [];
+      const pendingDeposit = myDeposits.find(d => d.status === 'pending');
+
+      if (isLockedState && pendingDeposit) {
+        banner.innerHTML = `
+        <div class="card" style="border-color: rgba(217, 160, 91, 0.4); background: rgba(217, 160, 91, 0.05); margin-bottom:20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span style="font-size:14px; font-weight:800; color:#fff;">Package Reviews</span>
+            <span style="font-size:11px; font-weight:700; color:#e67e22;"><i class="fa-solid fa-lock"></i> Locked at ${completedReviews}/${totalProds}</span>
+          </div>
+          <div style="width:100%; height:8px; background:rgba(255,255,255,0.08); border-radius:4px; overflow:hidden; margin-bottom:12px;">
+            <div style="width:${(completedReviews/totalProds)*100}%; height:100%; background:linear-gradient(135deg, #e5b373, #bd813b);"></div>
+          </div>
+          <div style="background:rgba(0,0,0,0.3); border:1px solid var(--card-border); border-radius:12px; padding:16px; margin-top:10px;">
+            <h4 style="font-size:14px; color:#fff; font-weight:700; margin-bottom:8px;"><i class="fa-solid fa-clock" style="color:var(--accent-gold);"></i> Deposit under review</h4>
+            <p style="font-size:12px; color:var(--text-muted); line-height:1.6;">
+              Your deposit of $${safeAmount(pendingDeposit.amount).toFixed(2)} is awaiting admin verification.
+              The next products will unlock automatically once it's approved — no need to submit again.
+            </p>
+          </div>
+        </div>
+      `;
+    } else if (isLockedState) {
       banner.innerHTML = `
         <div class="card" style="border-color: rgba(217, 160, 91, 0.4); background: rgba(217, 160, 91, 0.05); margin-bottom:20px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">

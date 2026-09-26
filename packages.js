@@ -600,6 +600,19 @@ async function requestPackageDeposit(uid, email, userPackageId, packageId, amoun
     if (!file) return { ok: false, message: 'No file selected.' };
     if (!amount || amount <= 0) return { ok: false, message: 'Invalid deposit amount.' };
 
+    // NEW: agar isi package ke liye pehle se koi deposit "pending" hai to
+    // dobara insert mat hone do — is se double-submit / double-approve
+    // (aur galti se do tier unlock hona) rukk jayega.
+    const { data: existingPending } = await supabase
+      .from('package_deposits')
+      .select('id')
+      .eq('user_package_id', userPackageId)
+      .eq('status', 'pending')
+      .limit(1);
+    if (existingPending && existingPending.length) {
+      return { ok: false, message: 'You already have a deposit awaiting admin verification for this package.' };
+    }
+
     const safeName = (file.name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_');
     const path = `${uid}/${userPackageId}-deposit-${Date.now()}-${safeName}`;
     const { error: uploadErr } = await supabase.storage
