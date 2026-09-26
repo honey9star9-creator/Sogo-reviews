@@ -21,26 +21,6 @@ const SogoAuth = (() => {
   /* ---------------- helpers ---------------- */
   function normalizeEmail(email) { return (email || "").trim().toLowerCase(); }
   function generateInviteCode() { return Math.random().toString(36).substring(2, 10).toUpperCase(); }
-  function wait(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
-
-  // CHANGED: signup()/adminCreateUser() both do auth.signUp() then insert a
-  // profile row right after. If that insert fails (transient network blip, RLS
-  // hiccup, etc.) the person is left with a login that has no profile — and since
-  // the auth account can't be deleted from client code, they'd also be blocked
-  // from signing up again. This retries the insert a couple of times before
-  // giving up, so a one-off glitch doesn't create that state. (login() also
-  // self-heals this case if it still happens — see the login() changes.)
-  async function upsertProfileWithRetry(profile, attempts) {
-    const maxAttempts = attempts || 3;
-    let lastError = null;
-    for (let i = 0; i < maxAttempts; i++) {
-      const { error } = await supabase.from(USERS_COL).upsert(profile);
-      if (!error) return { ok: true };
-      lastError = error;
-      if (i < maxAttempts - 1) await wait(400 * (i + 1));
-    }
-    return { ok: false, message: lastError ? lastError.message : "Unknown error" };
-  }
 
   async function logActivity(type, message, meta) {
     try {
@@ -171,37 +151,10 @@ const SogoAuth = (() => {
       });
       if (error) throw error;
 
-      let profile = await getUserDoc(data.user.id);
+      const profile = await getUserDoc(data.user.id);
       if (!profile) {
-        // CHANGED: this used to sign the person out with "Account profile not
-        // found" and no way to ever fix it — if their signup's auth.signUp()
-        // succeeded but the profiles-table insert failed (network blip, RLS
-        // hiccup, etc.), they were left with a login that could never work AND
-        // could never sign up again ("email already registered"). Since
-        // deleteUser() no longer removes profile rows either (see Fix #4), a
-        // missing profile at this point can only mean that exact orphan case, so
-        // it's safe to self-heal by creating a minimal profile here rather than
-        // leaving them stuck.
-        const recoveredCode = generateInviteCode();
-        const recoveredProfile = {
-          id: data.user.id,
-          name: (data.user.email || email || "New User").split("@")[0],
-          email: normalizeEmail(data.user.email || email),
-          role: "client",
-          invitation_code: "",
-          my_invite_code: recoveredCode,
-          balance: 0,
-          created_at: new Date().toISOString(),
-          blocked: false
-        };
-        const { error: recoverErr } = await supabase.from(USERS_COL).upsert(recoveredProfile);
-        if (recoverErr) {
-          await supabase.auth.signOut();
-          return { ok: false, message: "Account profile not found and could not be recovered. Please contact support. (" + recoverErr.message + ")" };
-        }
-        await registerInviteCode(recoveredCode, data.user.id, recoveredProfile.email);
-        logActivity("profile_recovered", `${recoveredProfile.email} was missing a profile on login and one was auto-created`, { email: recoveredProfile.email, uid: data.user.id });
-        profile = await getUserDoc(data.user.id);
+        await supabase.auth.signOut();
+        return { ok: false, message: "Account profile not found." };
       }
       if (profile.blocked) {
         await supabase.auth.signOut();
@@ -243,14 +196,7 @@ const SogoAuth = (() => {
         created_at: new Date().toISOString(),
         blocked: false
       };
-      const upsertResult = await upsertProfileWithRetry(profile);
-      if (!upsertResult.ok) {
-        // The auth account was created but the profile couldn't be saved even
-        // after retrying. We can't roll back the auth account from here, but
-        // login() will auto-create a minimal profile the next time they sign in,
-        // so this is recoverable rather than a dead end.
-        return { ok: false, message: "Your account was created, but we couldn't finish setting up your profile. Please try signing in — it will finish automatically." };
-      }
+      await supabase.from(USERS_COL).upsert(profile);
       await registerInviteCode(myCode, uid, email);
       logActivity("signup", `${profile.name} signed up using invite code ${code}`, { email: profile.email, invitedBy: profile.invited_by_email });
       return { ok: true, user: { uid, ...profile } };
@@ -300,7 +246,8 @@ const SogoAuth = (() => {
     await supabase.from(PW_REQUESTS_COL).insert([{
       email: cleanEmail, name: cleanEmail, status: "pending", requested_at: new Date().toISOString()
     }]);
-      logActivity("password_reset_requested", `${cleanEmail} requested a password reset`, { email: cleanEmail });
+    logActivity("password_reset_requested", `${cleanEmail} requested a password reset`, { email: cleanEmail });
+    notifyAllAdmins("password_reset_requested", "Password reset requested", `${cleanEmail} requested a password reset.`, { email: cleanEmail });
     return { ok: true };
   }
 
@@ -336,27 +283,11 @@ const SogoAuth = (() => {
     return { ...user, ...changes };
   }
 
-  // CHANGED: this used to hard-delete the user's row from the `users` table.
-  // That only removes their profile — the underlying Supabase Auth login account
-  // is untouched (deleting it requires a service-role key, which must never be
-  // shipped to the browser). The result was an orphaned auth account: the person
-  // could never log in (no profile) AND could never sign up again ("email already
-  // registered"), with no trace left for support to find them.
-  //
-  // Instead this now blocks the account and scrubs the display name, which achieves
-  // the practical goal (revoke access, hide them from the active list) without
-  // creating that unrecoverable state. A true permanent delete of the login account
-  // itself has to be done by a project owner from the Supabase dashboard
-  // (Authentication -> Users -> delete), or via a server-side Edge Function using
-  // the service-role key if you want this fully automated later.
   async function deleteUser(email) {
     const user = await getUserByEmail(email);
     if (!user) return;
-    await supabase.from(USERS_COL).update({
-      blocked: true,
-      name: "Deleted user"
-    }).eq('id', user.uid);
-    logActivity("user_deleted", `${user.name} (${user.email}) was deleted (blocked) by admin`, { email: user.email });
+    await supabase.from(USERS_COL).delete().eq('id', user.uid);
+    logActivity("user_deleted", `${user.name} (${user.email}) was deleted by admin`, { email: user.email });
   }
 
   async function adminCreateUser(name, email, password) {
@@ -382,28 +313,10 @@ const SogoAuth = (() => {
         created_at: new Date().toISOString(),
         blocked: false
       };
-      const upsertResult = await upsertProfileWithRetry(profile);
-      if (!upsertResult.ok) {
-        // CHANGED: see the signOut() note below — do this before returning on
-        // this path too, so the admin isn't left silently logged in as the
-        // half-created account.
-        await supabase.auth.signOut();
-        return { ok: false, message: "The login account was created, but the profile could not be saved (" + upsertResult.message + "). Ask the user to try signing in — it will finish setting up their profile automatically.", sessionInvalidated: true };
-      }
+      await supabase.from(USERS_COL).upsert(profile);
       await registerInviteCode(myCode, uid, email);
       logActivity("user_created_by_admin", `Admin created new user ${profile.name} (${profile.email})`, { email: profile.email });
-
-      // CHANGED: supabase.auth.signUp() above already silently replaced the
-      // admin's own browser session with the brand-new client's session (this
-      // happens whenever email confirmation is off, which it is here — client
-      // signup() logs people in immediately with no verification step). Every
-      // Supabase call from this point in the page's life would otherwise run as
-      // the new client, not the admin, breaking RLS-protected reads/writes with
-      // no visible warning. Signing out here — after the invite-code/activity
-      // writes above, which already ran under that session either way — forces a
-      // clean re-login instead of continuing silently under the wrong identity.
-      await supabase.auth.signOut();
-      return { ok: true, user: profile, sessionInvalidated: true };
+      return { ok: true, user: profile };
     } catch (e) {
       return { ok: false, message: "Could not create user: " + e.message };
     }
@@ -443,33 +356,22 @@ const SogoAuth = (() => {
     return data || [];
   }
 
-  async function listenChatThread(clientEmail, callback) {
-    const user = await getUserByEmail(clientEmail);
-    if (!user) {
-      callback([]);
-      return () => {}; // no-op unsubscribe so callers can always call it safely
-    }
-
-    await getChatThread(clientEmail).then(callback);
-
-    // Unique channel name (per call) so opening the same user's chat twice
-    // (e.g. admin clicking around) never collides with a still-open channel.
-    const channel = supabase
-      .channel(`messages-${user.uid}-${Date.now()}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: MESSAGES_COL,
-        filter: `user_id=eq.${user.uid}`
-      }, () => {
-        getChatThread(clientEmail).then(callback);
-      })
-      .subscribe();
-
-    // CHANGED: actually return an unsubscribe function. Previously this
-    // function returned nothing, so every caller's `chatUnsubscribe` was
-    // always undefined and old realtime channels were never cleaned up.
-    return () => { supabase.removeChannel(channel); };
+  function listenChatThread(clientEmail, callback) {
+    getUserByEmail(clientEmail).then(user => {
+      if (!user) return callback([]);
+      getChatThread(clientEmail).then(callback);
+      supabase
+        .channel(`public:messages:${user.uid}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: MESSAGES_COL,
+          filter: `user_id=eq.${user.uid}`
+        }, () => {
+          getChatThread(clientEmail).then(callback);
+        })
+        .subscribe();
+    });
   }
 
   async function sendChatMessage(clientEmail, from, text) {
@@ -482,9 +384,6 @@ const SogoAuth = (() => {
       time: new Date().toISOString(),
       read: from === "admin"
     }]);
-    if (from === "client") {
-      notifyAllAdmins("chat_message", "New chat message", `${user.name || clientEmail} sent you a message: "${text.length > 80 ? text.slice(0, 80) + '…' : text}"`, { email: clientEmail });
-    }
   }
 
   async function markChatRead(clientEmail) {
@@ -518,7 +417,7 @@ const SogoAuth = (() => {
       const publicUrl = pub ? pub.publicUrl : '';
       if (!publicUrl) throw new Error('Could not get public URL for uploaded file.');
 
-           await supabase.from(MESSAGES_COL).insert([{
+      await supabase.from(MESSAGES_COL).insert([{
         user_id: user.uid,
         from,
         text: publicUrl,
@@ -526,12 +425,7 @@ const SogoAuth = (() => {
         read: from === 'admin'
       }]);
 
-      if (from === 'client') {
-        notifyAllAdmins("chat_message", "New chat message", `${user.name || clientEmail} sent you a photo.`, { email: clientEmail });
-      }
-
       return { ok: true, url: publicUrl };
-       
     } catch (e) {
       console.error('sendChatAttachment failed:', e.message);
       return { ok: false, message: e.message || 'Upload failed.' };
@@ -581,7 +475,8 @@ const SogoAuth = (() => {
       status: "pending", requested_at: new Date().toISOString()
     };
     const { data } = await supabase.from(WITHDRAWALS_COL).insert([record]).select().single();
-  logActivity("withdrawal_requested", `${name} requested a withdrawal of $${Number(amount).toFixed(2)}`, { email });
+    logActivity("withdrawal_requested", `${name} requested a withdrawal of $${Number(amount).toFixed(2)}`, { email });
+    notifyAllAdmins("withdrawal_requested", "New withdrawal request", `${name} requested a withdrawal of $${Number(amount).toFixed(2)}.`, { email });
     return data ? { id: data.id, ...record } : record;
   }
 
@@ -641,7 +536,8 @@ const SogoAuth = (() => {
       status: "pending", requested_at: new Date().toISOString()
     };
     const { data } = await supabase.from(TOPUPS_COL).insert([record]).select().single();
-       logActivity("topup_requested", `${name} requested a top-up of $${Number(amount).toFixed(2)}`, { email });
+    logActivity("topup_requested", `${name} requested a top-up of $${Number(amount).toFixed(2)}`, { email });
+    notifyAllAdmins("topup_requested", "New top-up request", `${name} requested a top-up of $${Number(amount).toFixed(2)}.`, { email });
     return data ? { id: data.id, ...record } : record;
   }
 

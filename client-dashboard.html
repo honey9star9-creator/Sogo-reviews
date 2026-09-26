@@ -773,32 +773,6 @@
       .floating-chat { bottom: calc(var(--bottom-nav-height) + 15px); right: 15px; width: 48px; height: 48px; font-size: 18px; }
       .mobile-bottom-nav { display: flex; }
     }
-    .notif-bell-wrap { position: relative; }
-    .notif-badge {
-      position: absolute; top: -6px; right: -8px;
-      background: #e74c3c; color: #fff; font-size: 10px; font-weight: 800;
-      min-width: 16px; height: 16px; border-radius: 8px;
-      display: flex; align-items: center; justify-content: center; padding: 0 4px;
-    }
-    .notif-dropdown {
-      position: absolute; top: 30px; right: 0; width: 320px; max-height: 420px;
-      background: #0c0b10; border: 1px solid var(--card-border); border-radius: 14px;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.5); z-index: 500; overflow: hidden;
-      display: flex; flex-direction: column;
-    }
-    .notif-dropdown-header {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 14px 18px; font-size: 14px; font-weight: 800; color: #fff;
-      border-bottom: 1px solid var(--card-border); flex-shrink: 0;
-    }
-    .notif-close { cursor: pointer; color: var(--text-muted); font-size: 14px; }
-    .notif-list { overflow-y: auto; max-height: 380px; }
-    .notif-item { padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); }
-    .notif-item-title { font-size: 13px; font-weight: 800; margin-bottom: 4px; }
-    .notif-item-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
-    .notif-item-time { font-size: 10px; color: var(--text-muted); margin-top: 6px; opacity: 0.7; }
-    .notif-item.unread { background: rgba(217,160,91,0.06); }
-
     @media (max-width: 480px) {
       .reviews-grid { grid-template-columns: repeat(2, 1fr); }
       .quick-actions { gap: 8px; }
@@ -841,22 +815,10 @@
   <main class="main-content">
     <div class="header-title">
       <span id="pageTitle">HOME</span>
-         <div class="header-icons">
-      <div class="notif-bell-wrap">
-        <i class="fa-regular fa-bell" onclick="toggleNotifDropdown()" style="cursor:pointer;"></i>
-        <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
-        <div class="notif-dropdown" id="notifDropdown" style="display:none;">
-          <div class="notif-dropdown-header">
-            <span>Notifications</span>
-            <span class="notif-close" onclick="toggleNotifDropdown(false)">✕</span>
-          </div>
-          <div class="notif-list" id="notifList">
-            <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Loading…</div>
-          </div>
-        </div>
+      <div class="header-icons">
+        <i class="fa-regular fa-bell"></i>
+        <i class="fa-solid fa-right-from-bracket" onclick="logoutClient()"></i>
       </div>
-      <i class="fa-solid fa-right-from-bracket" onclick="logoutClient()"></i>
-    </div>
     </div>
 
     <!-- 1. DASHBOARD VIEW -->
@@ -1249,67 +1211,6 @@
       liveList.innerHTML = itemsHTML + itemsHTML;
     }
 
-function notifColor(type) {
-  const positive = ['topup_approved', 'products_unlocked', 'review_approved', 'package_activated'];
-  const negative = ['review_rejected', 'deposit_rejected', 'withdrawal_rejected', 'package_deactivated', 'package_rejected', 'topup_rejected'];
-  if (positive.includes(type)) return '#2ecc71';
-  if (negative.includes(type)) return '#e74c3c';
-  return '#e5b373';
-}
-
-function formatNotifTime(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (isNaN(d)) return '';
-  return d.toLocaleDateString() + ', ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
-
-let notifDropdownOpen = false;
-
-async function refreshNotifications() {
-  if (!currentSession || !window.SogoAuth) return;
-  const [list, unread] = await Promise.all([
-    SogoAuth.getMyNotifications(currentSession.uid),
-    SogoAuth.getUnreadNotificationCount(currentSession.uid)
-  ]);
-  const badge = document.getElementById('notifBadge');
-  if (badge) {
-    if (unread > 0) { badge.style.display = 'flex'; badge.textContent = unread > 9 ? '9+' : unread; }
-    else badge.style.display = 'none';
-  }
-  const listEl = document.getElementById('notifList');
-  if (!listEl) return;
-  if (!list.length) {
-    listEl.innerHTML = '<div style="padding:30px 20px;text-align:center;color:var(--text-muted);font-size:12px;">No notifications yet.</div>';
-    return;
-  }
-  listEl.innerHTML = list.map(n => `
-    <div class="notif-item ${n.read ? '' : 'unread'}">
-      <div class="notif-item-title" style="color:${notifColor(n.type)};">${escapeHtmlC(n.title)}</div>
-      <div class="notif-item-desc">${escapeHtmlC(n.message)}</div>
-      <div class="notif-item-time">${formatNotifTime(n.created_at)}</div>
-    </div>
-  `).join('');
-}
-
-async function toggleNotifDropdown(force) {
-  const dropdown = document.getElementById('notifDropdown');
-  if (!dropdown) return;
-  notifDropdownOpen = (typeof force === 'boolean') ? force : !notifDropdownOpen;
-  dropdown.style.display = notifDropdownOpen ? 'flex' : 'none';
-  if (notifDropdownOpen) {
-    await refreshNotifications();
-    if (currentSession && window.SogoAuth) await SogoAuth.markAllNotificationsRead(currentSession.uid);
-    const badge = document.getElementById('notifBadge');
-    if (badge) badge.style.display = 'none';
-  }
-}
-
-document.addEventListener('click', (e) => {
-  const wrap = document.querySelector('.notif-bell-wrap');
-  if (wrap && !wrap.contains(e.target)) toggleNotifDropdown(false);
-});
-
 let currentPackageReviews = [];
 
 async function loadReviewsForSelectedUserPackage() {
@@ -1540,7 +1441,7 @@ async function renderSelectedPackage() {
   const nextLock = findNextLock(pkg, unlockedCount);
   const locks = pkg.locks || [];
   const lockPrice = nextLock ? nextLock.depositRequired : (locks.length ? locks[locks.length - 1].depositRequired : 0);
-
+  
   // Render Top Lock Progress Banner
   if (banner && userPackage) {
     const isLockedState = completedReviews >= unlockedCount && unlockedCount < totalProds;
@@ -1858,16 +1759,6 @@ async function submitLockTopupRequest(amount) {
       myReviews = await SogoPackages.getMyReviews(currentSession.uid);
       renderReviewsFilterCounts();
       renderReviewsTable();
-    }
-
-    // CHANGED: the packagereviews tab renders live <textarea>/<select>/<input type=file>
-    // form controls (product review box, deposit-proof upload). The 30s auto-refresh
-    // used to call refreshClientPackages() unconditionally, which rebuilds that HTML
-    // from scratch and silently wipes anything the user was mid-typing or had picked
-    // as a file. This checks whether that tab is currently the one on screen.
-    function isPackageReviewsTabOpen() {
-      const el = document.getElementById('tab-packagereviews');
-      return !!(el && el.classList.contains('active'));
     }
 
     async function refreshClientPackages() {
@@ -2333,24 +2224,17 @@ async function submitLockTopupRequest(amount) {
         renderMyWithdrawals(),
         renderMyTopups(),
         refreshClientPackages(),
-        renderReviewsTab(),
-        refreshNotifications()
+        renderReviewsTab()
       ]);
       await startChatListener(authApi);
 
-  if (dashboardRefreshTimer) window.clearInterval(dashboardRefreshTimer);
+      if (dashboardRefreshTimer) window.clearInterval(dashboardRefreshTimer);
       dashboardRefreshTimer = window.setInterval(() => {
         loadUserData();
         renderMyWithdrawals();
         renderMyTopups();
-        // CHANGED: don't rebuild the package-reviews view while the user is on it —
-        // it holds a live review form / deposit upload that this refresh would erase.
-        // Other tabs still refresh normally every 30s as before.
-        if (!isPackageReviewsTabOpen()) {
-          refreshClientPackages();
-        }
+        refreshClientPackages();
         renderReviewsTab();
-        refreshNotifications();
       }, 30000);
     }
 

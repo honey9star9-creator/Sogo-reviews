@@ -374,31 +374,6 @@
 }
 .admin-modal-close:hover { color: #0f172a; }
 
-.notif-bell-wrap { position: relative; }
-    .notif-badge {
-      position: absolute; top: -4px; right: -4px; background: #ef4444; color: #fff;
-      font-size: 10px; font-weight: 800; min-width: 16px; height: 16px; border-radius: 8px;
-      display: flex; align-items: center; justify-content: center; padding: 0 4px;
-    }
-    .notif-dropdown {
-      position: absolute; top: 36px; right: 0; width: 320px; max-height: 420px;
-      background: #fff; border: 1px solid var(--border-color); border-radius: 12px;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.18); z-index: 500; overflow: hidden;
-      display: flex; flex-direction: column;
-    }
-    .notif-dropdown-header {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 14px 18px; font-size: 0.9rem; font-weight: 800; color: #0f172a;
-      border-bottom: 1px solid var(--border-color); flex-shrink: 0;
-    }
-    .notif-close { cursor: pointer; color: var(--text-muted); font-size: 0.85rem; }
-    .notif-list { overflow-y: auto; max-height: 380px; }
-    .notif-item { padding: 14px 18px; border-bottom: 1px solid #f1f5f9; }
-    .notif-item-title { font-size: 0.8rem; font-weight: 800; margin-bottom: 4px; }
-    .notif-item-desc { font-size: 0.75rem; color: var(--text-muted); line-height: 1.5; }
-    .notif-item-time { font-size: 0.65rem; color: #94a3b8; margin-top: 6px; }
-    .notif-item.unread { background: #fffbeb; }
-
     </style>
 </head>
 <body>
@@ -444,6 +419,7 @@
         <li class="nav-item"><button onclick="switchTab('support', this)"><i class="fa-solid fa-life-ring"></i> Support</button></li>
         <li class="nav-item"><button onclick="switchTab('chat', this)" id="nav-chat-btn"><i class="fa-regular fa-comment"></i> Chat</button></li>
         <li class="nav-item"><button onclick="switchTab('activity', this)"><i class="fa-solid fa-bolt"></i> Activity</button></li>
+        <li class="nav-item"><button onclick="switchTab('access-log', this)"><i class="fa-solid fa-file-lines"></i> Access Log</button></li>
         <li class="nav-item"><button onclick="switchTab('reports', this)"><i class="fa-solid fa-chart-column"></i> Reports</button></li>
         <li class="nav-item"><button onclick="switchTab('uploads', this)"><i class="fa-solid fa-folder-open"></i> Uploads</button></li>
         <li class="nav-item"><button onclick="switchTab('profile-settings', this)"><i class="fa-solid fa-gear"></i> Profile Settings</button></li>
@@ -467,19 +443,7 @@
       <button class="menu-toggle-btn" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
       <div class="page-title" id="current-page-title">Admin Dashboard</div>
       <div class="header-actions">
-        <div class="notif-bell-wrap">
-          <button class="icon-btn" onclick="toggleAdminNotifDropdown()"><i class="fa-regular fa-bell"></i></button>
-          <span class="notif-badge" id="adminNotifBadge" style="display:none;">0</span>
-          <div class="notif-dropdown" id="adminNotifDropdown" style="display:none;">
-            <div class="notif-dropdown-header">
-              <span>Notifications</span>
-              <span class="notif-close" onclick="toggleAdminNotifDropdown(false)">✕</span>
-            </div>
-            <div class="notif-list" id="adminNotifList">
-              <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.75rem;">Loading…</div>
-            </div>
-          </div>
-        </div>
+        <button class="icon-btn"><i class="fa-regular fa-bell"></i></button>
         <button class="icon-btn" onclick="SogoAuth.logout()"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
       </div>
     </div>
@@ -884,7 +848,6 @@
   let currentAdminSession = null;
   let allUsersList = [];
   let activeChatEmail = null;
-  let activeChatUnsubscribe = null; // CHANGED: holds the unsubscribe fn from listenChatThread
   let allPackagesList = [];
   let allActivityList = [];
 
@@ -917,10 +880,8 @@
       refreshPackagesList(),
       refreshSubscriptions(),
       refreshReviewsAdmin(),
-      refreshPayments(),
-      refreshAdminNotifications()
+      refreshPayments()
     ]);
-
 
     // Supabase JS client here doesn't use Firestore-style realtime listeners for these
     // reads, so refresh on an interval to keep the dashboard reasonably up to date.
@@ -933,9 +894,8 @@
       refreshSubscriptions();
       refreshReviewsAdmin();
       refreshPayments();
-      refreshAdminNotifications();
     }, 30000);
-
+  }
 
   // ---------------- PACKAGES ----------------
   async function refreshPackagesList() {
@@ -1228,109 +1188,6 @@ function subStatusBadge(status) {
     paymentsSearchInputElem.oninput = () => renderPaymentsList();
   }
 
-  // ---------------- NOTIFICATIONS ----------------
-  let adminNotifOpen = false;
-
-  function adminNotifColor(type) {
-    const incoming = ['chat_message', 'deposit_requested'];
-    return incoming.includes(type) ? '#6366f1' : '#0f172a';
-  }
-
-  async function refreshAdminNotifications() {
-    const authApi = await waitForSogoAuth;
-    if (!authApi || !currentAdminSession) return;
-    const [list, unread] = await Promise.all([
-      authApi.getMyNotifications(currentAdminSession.uid),
-      authApi.getUnreadNotificationCount(currentAdminSession.uid)
-    ]);
-    const badge = document.getElementById('adminNotifBadge');
-    if (badge) {
-      if (unread > 0) { badge.style.display = 'flex'; badge.textContent = unread > 9 ? '9+' : unread; }
-      else badge.style.display = 'none';
-    }
-    const listEl = document.getElementById('adminNotifList');
-    if (!listEl) return;
-    if (!list.length) {
-      listEl.innerHTML = '<div style="padding:30px 18px;text-align:center;color:var(--text-muted);font-size:0.75rem;">No notifications yet.</div>';
-      return;
-    }
-    listEl.innerHTML = list.map(n => `
-      <div class="notif-item ${n.read ? '' : 'unread'}">
-        <div class="notif-item-title" style="color:${adminNotifColor(n.type)};">${escapeHtml(n.title)}</div>
-        <div class="notif-item-desc">${escapeHtml(n.message)}</div>
-        <div class="notif-item-time">${formatDate(n.created_at)} ${new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-      </div>
-    `).join('');
-  }
-
-  window.toggleAdminNotifDropdown = async function (force) {
-    const dropdown = document.getElementById('adminNotifDropdown');
-    if (!dropdown) return;
-    adminNotifOpen = (typeof force === 'boolean') ? force : !adminNotifOpen;
-    dropdown.style.display = adminNotifOpen ? 'flex' : 'none';
-    if (adminNotifOpen) {
-      await refreshAdminNotifications();
-      const authApi = await waitForSogoAuth;
-      if (authApi && currentAdminSession) {
-        await authApi.markAllNotificationsRead(currentAdminSession.uid);
-        const badge = document.getElementById('adminNotifBadge');
-        if (badge) badge.style.display = 'none';
-      }
-    }
-  };
-
-  document.addEventListener('click', (e) => {
-    const wrap = document.querySelector('.notif-bell-wrap');
-    if (wrap && !wrap.contains(e.target)) window.toggleAdminNotifDropdown(false);
-  });
-
-  // ---------------- MANUAL NOTIFY (Users table -> Notify link) ----------------
-  window.adminOpenNotifyModal = function (uid) {
-    const user = allUsersList.find(u => u.uid === uid);
-    if (!user) return;
-
-    const title = document.getElementById('adminModalTitle');
-    const body = document.getElementById('adminModalBody');
-    if (title) title.textContent = 'Send notification — ' + (user.name || user.email);
-
-    if (body) {
-      body.innerHTML = `
-        <div class="form-group" style="margin-bottom:14px;">
-          <label class="form-label">Title</label>
-          <input type="text" class="form-input" id="notifyTitleInput" placeholder="e.g. Account update">
-        </div>
-        <div class="form-group" style="margin-bottom:14px;">
-          <label class="form-label">Message</label>
-          <textarea class="form-textarea" id="notifyMessageInput" placeholder="Type your message to this user..."></textarea>
-        </div>
-        <button class="btn-purple" style="width:100%;" onclick="adminSendManualNotification('${uid}')">Send notification</button>
-        <p id="notifySendMsg" style="font-size:0.75rem; margin-top:10px; display:none;"></p>
-      `;
-    }
-
-    openAdminModal();
-  };
-
-  window.adminSendManualNotification = async function (uid) {
-    const authApi = await waitForSogoAuth;
-    const titleInput = document.getElementById('notifyTitleInput');
-    const msgInput = document.getElementById('notifyMessageInput');
-    const feedback = document.getElementById('notifySendMsg');
-    const title = titleInput ? titleInput.value.trim() : '';
-    const message = msgInput ? msgInput.value.trim() : '';
-
-    const result = await authApi.sendManualNotification(uid, title, message);
-    if (feedback) {
-      feedback.style.display = 'block';
-      feedback.style.color = result.ok ? '#10b981' : '#dc2626';
-      feedback.textContent = result.ok ? 'Notification sent successfully!' : (result.message || 'Could not send notification.');
-    }
-    if (result.ok) {
-      if (titleInput) titleInput.value = '';
-      if (msgInput) msgInput.value = '';
-    }
-  };
-
   // ---------------- RECEIVED REVIEWS ----------------
   let allReviewsList = [];
   let adminReviewsFilter = 'all';
@@ -1556,8 +1413,9 @@ function subStatusBadge(status) {
   <div style="display:flex; gap:10px; flex-wrap:wrap; font-size:0.78rem; font-weight:700;">
   <a href="#" style="color:#6366f1;" onclick="event.preventDefault(); adminJumpToChat('${escapeHtml(u.email)}', '${escapeHtml(u.name || u.email)}')">Message</a>
   <a href="#" style="color:#10b981;" onclick="event.preventDefault(); adminAdjustBalance('${u.uid}')">Balance</a>
-    <a href="#" style="color:#0ea5e9;" onclick="event.preventDefault(); adminOpenNotifyModal('${u.uid}')">Notify</a>
+  <a href="#" style="color:#6366f1;" onclick="event.preventDefault(); adminOpenMonitor('${u.uid}')">Monitor</a>
   <a href="#" style="color:#7c3aed;" onclick="event.preventDefault(); adminJumpToReviews('${escapeHtml(u.email)}')">Reviews</a>
+  <a href="#" style="color:#f59e0b;" onclick="event.preventDefault(); adminAccessUser('${u.uid}')">Access</a>
   <a href="#" style="color:#f59e0b;" onclick="event.preventDefault(); adminResetPassword('${escapeHtml(u.email)}')">Password</a>
   <a href="#" style="color:${isBlocked ? '#10b981' : '#ef4444'};" onclick="event.preventDefault(); adminToggleBlock('${u.uid}', ${isBlocked})">${isBlocked ? 'Unblock' : 'Block'}</a>
   <a href="#" style="color:#dc2626;" onclick="event.preventDefault(); adminDeleteUser('${escapeHtml(u.email)}')">Delete</a>
@@ -1651,11 +1509,7 @@ window.adminSubmitBalanceChange = async function (uid) {
   };
 
   window.adminDeleteUser = async function (email) {
-    // CHANGED: this no longer removes the user's row — it blocks their access and
-    // clears their display name. Their login account still exists (only a
-    // Supabase project owner can remove that, from the Authentication tab), so
-    // the dialog now says so instead of implying a full, permanent deletion.
-    if (!email || !confirm('This will block this user\'s access and clear their profile name.\n\nTheir login account cannot be fully removed from here (that requires a Supabase project owner). They will NOT be able to sign up again with this email.\n\nContinue?')) return;
+    if (!email || !confirm('Are you sure you want to delete this user? This cannot be undone.')) return;
     const authApi = await waitForSogoAuth;
     await authApi.deleteUser(email);
     await refreshUsers();
@@ -1689,18 +1543,6 @@ window.adminSubmitBalanceChange = async function (uid) {
 
     const authApi = await waitForSogoAuth;
     const result = await authApi.adminCreateUser(name, email, pass);
-
-    // CHANGED: adminCreateUser() now always signs the browser out once it's done
-    // (see auth.js), because creating the login account already silently replaced
-    // the admin's session with the new user's. Continuing to use this page after
-    // that point would send every further request under the wrong identity, so
-    // send the admin back to log in again instead.
-    if (result.sessionInvalidated) {
-      alert((result.ok ? 'User created successfully! ' : (result.message + ' ')) + 'You have been signed out because creating a login account replaces the current session — please sign back in.');
-      window.location.href = 'auth.html';
-      return;
-    }
-
     if (!result.ok) { alert(result.message); return; }
 
     alert('User created successfully!');
@@ -1922,15 +1764,6 @@ window.closeAdminModal = function () {
   }
 
   window.openAdminChat = async function (email, displayName) {
-    // CHANGED: unsubscribe from whichever client's chat channel was open
-    // before switching — otherwise every click leaks another realtime
-    // channel (listenChatThread previously returned undefined, so this
-    // was never possible before).
-    if (typeof activeChatUnsubscribe === 'function') {
-      activeChatUnsubscribe();
-      activeChatUnsubscribe = null;
-    }
-
     activeChatEmail = email;
     const headerName = document.getElementById('adminChatHeaderName');
     const headerAvatar = document.getElementById('adminChatHeaderAvatar');
@@ -1938,7 +1771,7 @@ window.closeAdminModal = function () {
     if (headerAvatar) headerAvatar.textContent = (displayName || '?').charAt(0).toUpperCase();
 
     const authApi = await waitForSogoAuth;
-    activeChatUnsubscribe = await authApi.listenChatThread(email, renderAdminChatMessages);
+    authApi.listenChatThread(email, renderAdminChatMessages);
     await authApi.markChatRead(email);
     await refreshChatUsersList();
   };
