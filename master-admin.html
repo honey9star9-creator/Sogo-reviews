@@ -999,9 +999,16 @@ function subStatusBadge(status) {
     if (sub.status === 'pending_payment' || sub.status === 'pending_verification') {
       return `<button class="btn-green" style="padding:4px 10px; font-size:0.7rem;" onclick="adminVerifySubscription('${sub.id}')">Verify & Activate</button> <a href="#" style="color:#6366f1; font-size:0.75rem;" onclick="event.preventDefault(); adminVerifySubscription('${sub.id}')">Activate</a>`;
     }
-   if (sub.status === 'active') {
-  return `<a href="#" style="color:#dc2626; font-size:0.75rem;" onclick="event.preventDefault(); adminDeactivateSubscription('${sub.id}')">Deactivate</a> · <a href="#" style="color:#6366f1; font-size:0.75rem;" onclick="event.preventDefault(); adminBypassCapForSub('${sub.id}')">Bypass cap</a> <button class="btn-purple" style="padding:4px 10px; font-size:0.7rem;" onclick="adminGrantTopupForSub('${sub.id}', this)">Grant top-up</button>`;
-}
+    if (sub.status === 'active') {
+      // CHANGED: "Grant top-up" ab sirf tabhi dikhega jab is user ki ek
+      // pending deposit request ho (client ne khud push ki ho). Agar koi
+      // pending deposit nahi hai, button hi render nahi hota.
+      const pendingDeposit = (allPaymentDeposits || []).find(d => d.user_package_id === sub.id);
+      const topupHtml = pendingDeposit
+        ? `<button class="btn-purple" style="padding:4px 10px; font-size:0.7rem;" onclick="adminGrantTopupForSub('${pendingDeposit.id}', this)">Grant top-up</button>`
+        : '';
+      return `<a href="#" style="color:#dc2626; font-size:0.75rem;" onclick="event.preventDefault(); adminDeactivateSubscription('${sub.id}')">Deactivate</a> · <a href="#" style="color:#6366f1; font-size:0.75rem;" onclick="event.preventDefault(); adminBypassCapForSub('${sub.id}')">Bypass cap</a> ${topupHtml}`;
+    }
     if (sub.status === 'deactivated') {
       return `<a href="#" style="color:#10b981; font-size:0.75rem;" onclick="event.preventDefault(); adminReactivateSubscription('${sub.id}')">Reactivate</a>`;
     }
@@ -1078,27 +1085,26 @@ function subStatusBadge(status) {
   // section of the package builder) -- it does not let the admin type an
   // arbitrary number. Click it again after the client reaches that tier and
   // it advances to the tier after that, and so on.
-window.adminGrantTopupForSub = async function (id, btnEl) {
+window.adminGrantTopupForSub = async function (depositId, btnEl) {
   if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Granting...'; }
 
   try {
-    const result = await SogoPackages.adminGrantTopup(id);
+    // CHANGED: ab ye seedha unlockedCount badalne ki bajaye, us client ki
+    // ASAL pending deposit ko approve karta hai (bilkul waisa hi jaisa
+    // Payments tab ka "Approve & Unlock" karta hai). Isse deposit ka status
+    // 'approved' ho jata hai, wo pending list se hat jata hai, aur agli
+    // baar table refresh hone pe ye button khud gayab ho jata hai.
+    const result = await SogoPackages.adminDecidePackageDeposit(depositId, 'approved');
 
     if (!result.ok) {
       alert(result.message);
       return;
     }
-    if (result.alreadyFullyUnlocked) {
-      alert('This subscription is already fully unlocked — there is no next lock to grant.');
-    }
-    await refreshSubscriptions();
+    await Promise.all([refreshPayments(), refreshSubscriptions()]);
   } catch (err) {
     console.error('adminGrantTopupForSub failed:', err);
     alert('Something went wrong: ' + (err && err.message ? err.message : 'unknown error'));
   } finally {
-    // Button ko HAMESHA wapas normal karo — chahe success ho, error ho, ya
-    // beech mein kuch aur toot jaye. Ye "finally" block guarantee karta hai
-    // ke button kabhi permanently "Granting..." pe atka nahi rahega.
     if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Grant top-up'; }
   }
 };
