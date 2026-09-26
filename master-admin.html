@@ -338,7 +338,43 @@
     min-width: 600px;
   }
 }
-  </style>
+.admin-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+.admin-modal-overlay.open { display: flex; }
+.admin-modal-box {
+  background: #ffffff;
+  border-radius: 14px;
+  width: 420px;
+  max-width: 92vw;
+  max-height: 86vh;
+  overflow-y: auto;
+  padding: 22px 24px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+}
+.admin-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.admin-modal-header h3 { font-size: 1rem; font-weight: 800; }
+.admin-modal-close {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.admin-modal-close:hover { color: #0f172a; }
+
+    </style>
 </head>
 <body>
   <script>
@@ -356,6 +392,16 @@
       if (val) navigator.clipboard.writeText(val);
     }
   </script>
+
+  <div class="admin-modal-overlay" id="adminModalOverlay" onclick="if(event.target===this) closeAdminModal()">
+    <div class="admin-modal-box">
+      <div class="admin-modal-header">
+        <h3 id="adminModalTitle"></h3>
+        <button class="admin-modal-close" onclick="closeAdminModal()">✕</button>
+      </div>
+      <div id="adminModalBody"></div>
+    </div>
+  </div>
 
   <aside>
     <div>
@@ -803,6 +849,7 @@
   let allUsersList = [];
   let activeChatEmail = null;
   let allPackagesList = [];
+  let allActivityList = [];
 
   function escapeHtml(str) {
     return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1363,28 +1410,84 @@ function subStatusBadge(status) {
           <td>-</td>
           <td>${escapeHtml(u.invited_by_email || '—')}</td>
           <td>
-            <div style="display:flex; gap:6px; flex-wrap:wrap;">
-              <button class="btn-sm" onclick="adminAdjustBalance('${u.uid}')">Balance</button>
-              <button class="btn-sm" style="color:${isBlocked ? '#10b981' : '#ef4444'};" onclick="adminToggleBlock('${u.uid}', ${isBlocked})">${isBlocked ? 'Unblock' : 'Block'}</button>
-              <button class="btn-sm" onclick="adminResetPassword('${escapeHtml(u.email)}')">Password</button>
-              <button class="btn-sm" style="color:#dc2626;" onclick="adminDeleteUser('${escapeHtml(u.email)}')">Delete</button>
-            </div>
+  <div style="display:flex; gap:10px; flex-wrap:wrap; font-size:0.78rem; font-weight:700;">
+  <a href="#" style="color:#6366f1;" onclick="event.preventDefault(); adminJumpToChat('${escapeHtml(u.email)}', '${escapeHtml(u.name || u.email)}')">Message</a>
+  <a href="#" style="color:#10b981;" onclick="event.preventDefault(); adminAdjustBalance('${u.uid}')">Balance</a>
+  <a href="#" style="color:#6366f1;" onclick="event.preventDefault(); adminOpenMonitor('${u.uid}')">Monitor</a>
+  <a href="#" style="color:#7c3aed;" onclick="event.preventDefault(); adminJumpToReviews('${escapeHtml(u.email)}')">Reviews</a>
+  <a href="#" style="color:#f59e0b;" onclick="event.preventDefault(); adminAccessUser('${u.uid}')">Access</a>
+  <a href="#" style="color:#f59e0b;" onclick="event.preventDefault(); adminResetPassword('${escapeHtml(u.email)}')">Password</a>
+  <a href="#" style="color:${isBlocked ? '#10b981' : '#ef4444'};" onclick="event.preventDefault(); adminToggleBlock('${u.uid}', ${isBlocked})">${isBlocked ? 'Unblock' : 'Block'}</a>
+  <a href="#" style="color:#dc2626;" onclick="event.preventDefault(); adminDeleteUser('${escapeHtml(u.email)}')">Delete</a>
+</div>
           </td>
         </tr>
       `;
     }).join('');
   }
 
+ 
   window.adminAdjustBalance = async function (uid) {
-    const authApi = await waitForSogoAuth;
-    const user = allUsersList.find(u => u.uid === uid);
-    const val = prompt('Enter amount to add or subtract (e.g. 50 or -20):');
-    if (val === null || val.trim() === '' || isNaN(val)) return;
-    const newBalance = Number(user ? user.balance || 0 : 0) + parseFloat(val);
-    await authApi.updateUserByUid(uid, { balance: newBalance });
-    alert('Balance updated!');
-    await refreshUsers();
-  };
+  const user = allUsersList.find(u => u.uid === uid);
+  if (!user) return;
+
+  const title = document.getElementById('adminModalTitle');
+  const body = document.getElementById('adminModalBody');
+  if (title) title.textContent = 'Balance — ' + (user.name || user.email);
+
+  const credits = allActivityList.filter(a => a.type === 'admin_manual_credit' && a.meta && a.meta.uid === uid);
+
+  if (body) {
+    body.innerHTML = `
+      <div style="background:#eef2ff; border-radius:10px; padding:16px; margin-bottom:18px;">
+        <div style="font-size:0.75rem; color:#6366f1; font-weight:700; margin-bottom:4px;">Current balance</div>
+        <div style="font-size:1.5rem; font-weight:800; color:#0f172a;">$${Number(user.balance || 0).toFixed(2)}</div>
+      </div>
+
+      <div style="font-size:0.8rem; font-weight:700; margin-bottom:10px;">Add amount to this user</div>
+      <div style="display:flex; gap:10px; margin-bottom:12px;">
+        <input type="number" class="form-input" id="balanceAmountInput" placeholder="Amount ($)" style="flex:1;">
+        <input type="text" class="form-input" id="balanceNoteInput" placeholder="Note (optional)" style="flex:1;">
+      </div>
+      <button class="btn-purple" style="width:100%; margin-bottom:20px;" onclick="adminSubmitBalanceChange('${uid}')">Add amount</button>
+
+      <div style="font-size:0.8rem; font-weight:700; margin-bottom:10px;">Manual credits</div>
+      <div id="balanceCreditsList">
+        ${credits.length ? credits.map(c => `
+          <div style="display:flex; justify-content:space-between; font-size:0.75rem; padding:8px 0; border-bottom:1px solid var(--border-color);">
+            <span style="color:var(--text-muted);">${escapeHtml(c.message || '')}</span>
+            <span style="color:var(--text-muted); white-space:nowrap; margin-left:10px;">${formatDate(c.time)}</span>
+          </div>
+        `).join('') : '<div style="color:var(--text-muted); font-size:0.78rem;">No manual credits yet.</div>'}
+      </div>
+    `;
+  }
+
+  openAdminModal();
+};
+
+window.adminSubmitBalanceChange = async function (uid) {
+  const authApi = await waitForSogoAuth;
+  const user = allUsersList.find(u => u.uid === uid);
+  const amountInput = document.getElementById('balanceAmountInput');
+  const noteInput = document.getElementById('balanceNoteInput');
+  const amount = parseFloat(amountInput ? amountInput.value : '');
+  if (!amount || isNaN(amount)) { alert('Please enter a valid amount.'); return; }
+
+  const note = noteInput ? noteInput.value.trim() : '';
+  const newBalance = Number(user ? user.balance || 0 : 0) + amount;
+  await authApi.updateUserByUid(uid, { balance: newBalance });
+
+  const sign = amount >= 0 ? '+' : '';
+  await authApi.logActivity(
+    'admin_manual_credit',
+    `Admin adjusted ${user ? (user.name || user.email) : uid}'s balance by ${sign}$${amount.toFixed(2)}${note ? ' — ' + note : ''}`,
+    { uid, amount, note }
+  );
+
+  await Promise.all([refreshUsers(), refreshActivity()]);
+  window.adminAdjustBalance(uid); // reopen with fresh data
+};
 
   window.adminToggleBlock = async function (uid, isBlocked) {
     if (!confirm(`Change user status to ${isBlocked ? 'active' : 'blocked'}?`)) return;
@@ -1559,6 +1662,7 @@ function subStatusBadge(status) {
   async function refreshActivity() {
     const authApi = await waitForSogoAuth;
     const list = await authApi.getActivity();
+    allActivityList = list;
     const tbody = document.getElementById('activityLogBody');
     if (!tbody) return;
 
@@ -1570,6 +1674,16 @@ function subStatusBadge(status) {
       </tr>
     `).join('') : `<tr><td colspan="3" style="text-align:center; padding:20px;">No activity yet.</td></tr>`;
   }
+
+function openAdminModal() {
+  const overlay = document.getElementById('adminModalOverlay');
+  if (overlay) overlay.classList.add('open');
+}
+
+window.closeAdminModal = function () {
+  const overlay = document.getElementById('adminModalOverlay');
+  if (overlay) overlay.classList.remove('open');
+};
 
   // ---------------- INVITATIONS ----------------
   async function refreshInvitations() {
@@ -1661,6 +1775,22 @@ function subStatusBadge(status) {
     await authApi.markChatRead(email);
     await refreshChatUsersList();
   };
+
+window.adminJumpToChat = function (email, displayName) {
+  const chatNavBtn = document.querySelector('.nav-item button[onclick*="\'chat\'"]');
+  switchTab('chat', chatNavBtn);
+  openAdminChat(email, displayName);
+};
+
+window.adminJumpToReviews = function (email) {
+  const reviewsNavBtn = document.querySelector('.nav-item button[onclick*="\'received-reviews\'"]');
+  switchTab('received-reviews', reviewsNavBtn);
+  const searchInput = document.getElementById('reviewsSearchInput');
+  if (searchInput) {
+    searchInput.value = email;
+    renderReviewsTableAdmin();
+  }
+};
 
   function renderAdminChatMessages(messages) {
     const box = document.getElementById('adminChatMessages');
