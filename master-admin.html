@@ -999,9 +999,9 @@ function subStatusBadge(status) {
     if (sub.status === 'pending_payment' || sub.status === 'pending_verification') {
       return `<button class="btn-green" style="padding:4px 10px; font-size:0.7rem;" onclick="adminVerifySubscription('${sub.id}')">Verify & Activate</button> <a href="#" style="color:#6366f1; font-size:0.75rem;" onclick="event.preventDefault(); adminVerifySubscription('${sub.id}')">Activate</a>`;
     }
-    if (sub.status === 'active') {
-      return `<a href="#" style="color:#dc2626; font-size:0.75rem;" onclick="event.preventDefault(); adminDeactivateSubscription('${sub.id}')">Deactivate</a> · <a href="#" style="color:#6366f1; font-size:0.75rem;" onclick="event.preventDefault(); adminBypassCapForSub('${sub.id}')">Bypass cap</a> <button class="btn-purple" style="padding:4px 10px; font-size:0.7rem;" onclick="adminGrantTopupForSub('${sub.id}')">Grant top-up</button>`;
-    }
+   if (sub.status === 'active') {
+  return `<a href="#" style="color:#dc2626; font-size:0.75rem;" onclick="event.preventDefault(); adminDeactivateSubscription('${sub.id}')">Deactivate</a> · <a href="#" style="color:#6366f1; font-size:0.75rem;" onclick="event.preventDefault(); adminBypassCapForSub('${sub.id}')">Bypass cap</a> <button class="btn-purple" style="padding:4px 10px; font-size:0.7rem;" onclick="adminGrantTopupForSub('${sub.id}', this)">Grant top-up</button>`;
+}
     if (sub.status === 'deactivated') {
       return `<a href="#" style="color:#10b981; font-size:0.75rem;" onclick="event.preventDefault(); adminReactivateSubscription('${sub.id}')">Reactivate</a>`;
     }
@@ -1078,14 +1078,21 @@ function subStatusBadge(status) {
   // section of the package builder) -- it does not let the admin type an
   // arbitrary number. Click it again after the client reaches that tier and
   // it advances to the tier after that, and so on.
-  window.adminGrantTopupForSub = async function (id) {
-    const result = await SogoPackages.adminGrantTopup(id);
-    if (!result.ok) { alert(result.message); return; }
-    if (result.alreadyFullyUnlocked) {
-      alert('This subscription is already fully unlocked — there is no next lock to grant.');
-    }
-    await refreshSubscriptions();
-  };
+window.adminGrantTopupForSub = async function (id, btnEl) {
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Granting...'; }
+
+  const result = await SogoPackages.adminGrantTopup(id);
+
+  if (!result.ok) {
+    alert(result.message);
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Grant top-up'; }
+    return;
+  }
+  if (result.alreadyFullyUnlocked) {
+    alert('This subscription is already fully unlocked — there is no next lock to grant.');
+  }
+  await refreshSubscriptions();
+};
 
   const subSearchInputElem = document.getElementById('subSearchInput');
   if (subSearchInputElem) {
