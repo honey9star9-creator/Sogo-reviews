@@ -868,8 +868,21 @@
     const d = new Date(v);
     return isNaN(d) ? '-' : d.toLocaleDateString();
   }
-
   // ---------------- BOOTSTRAP ----------------
+  // ---------------- REALTIME TABLE LISTENERS ----------------
+  // Generic helper: kisi bhi table ke INSERT/UPDATE/DELETE ko "sunta" hai
+  // aur turant di gayi callback chala deta hai (30-second wait nahi karta).
+  // Supabase dashboard mein us table ka "Realtime" already Enabled hona
+  // zaroori hai (jo aapne already kar diya hai) — ye function us signal ko
+  // pakad kar app ke andar wire karta hai.
+  function subscribeTableChanges(table, callback) {
+    const channel = window.supabase
+      .channel(`admin-${table}-${Date.now()}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table }, () => { callback(); })
+      .subscribe();
+    return () => { window.supabase.removeChannel(channel); };
+  }
+
   async function bootstrapAdminDashboard() {
     const authApi = await waitForSogoAuth;
     if (!authApi) { console.error('SogoAuth did not load — check auth.js / supabase-config.js.'); return; }
@@ -897,8 +910,22 @@
       refreshPayments()
     ]);
 
-    // Supabase JS client here doesn't use Firestore-style realtime listeners for these
-    // reads, so refresh on an interval to keep the dashboard reasonably up to date.
+    // CHANGED: 30-second polling ki jagah ab har important table par
+    // Supabase realtime subscribe kar diya, taake client ka koi bhi action
+    // (deposit push, review submit, withdrawal request, signup, waghera)
+    // turant admin dashboard par dikhe — 30 second wait na karna pade.
+    subscribeTableChanges('user_packages', () => { refreshSubscriptions(); refreshPayments(); });
+    subscribeTableChanges('package_deposits', () => { refreshPayments(); refreshSubscriptions(); });
+    subscribeTableChanges('reviews', refreshReviewsAdmin);
+    subscribeTableChanges('withdrawals', refreshWithdrawals);
+    subscribeTableChanges('topups', refreshTopups);
+    subscribeTableChanges('users', refreshUsers);
+    subscribeTableChanges('activity', refreshActivity);
+
+    // Polling ab sirf backup ke taur par rakha hai (kabhi realtime signal
+    // miss ho jaye — network blip waghera — to bhi 30 second mein sab sync
+    // ho jayega). Isko poori tarah hata bhi sakte hain agar realtime pe
+    // pura bharosa karna ho.
     window.setInterval(() => {
       refreshUsers();
       refreshTopups();
