@@ -858,6 +858,8 @@
   let allPackagesList = [];
   let allActivityList = [];
 
+  const MASTER_ADMIN_EMAIL = 'honey9star9@gmail.com';
+
   function escapeHtml(str) {
     return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
@@ -1414,13 +1416,19 @@ function subStatusBadge(status) {
 
     tbody.innerHTML = users.map(u => {
       const isBlocked = !!u.blocked;
+      const isMasterAdmin = (u.email || '').toLowerCase() === MASTER_ADMIN_EMAIL;
       const statusBadge = isBlocked
         ? `<span class="badge-pending" style="background:#fee2e2; color:#dc2626;">blocked</span>`
         : `<span class="badge-active">active</span>`;
+      const blockDeleteActions = isMasterAdmin
+        ? `<span style="color:#94a3b8;" title="Master admin account is protected">Block</span>
+           <span style="color:#94a3b8;" title="Master admin account is protected">Delete</span>`
+        : `<a href="#" style="color:${isBlocked ? '#10b981' : '#ef4444'};" onclick="event.preventDefault(); adminToggleBlock('${u.uid}', ${isBlocked})">${isBlocked ? 'Unblock' : 'Block'}</a>
+           <a href="#" style="color:#dc2626;" onclick="event.preventDefault(); adminDeleteUser('${escapeHtml(u.email)}')">Delete</a>`;
       return `
         <tr>
           <td>
-            <div style="font-weight:700; color:#0f172a;">${escapeHtml(u.name || 'N/A')}</div>
+            <div style="font-weight:700; color:#0f172a;">${escapeHtml(u.name || 'N/A')}${isMasterAdmin ? ' <span style="color:#6366f1; font-size:0.65rem; font-weight:800;">(MASTER)</span>' : ''}</div>
             <div style="font-size:0.75rem; color:#64748b;">${escapeHtml(u.email || '-')}</div>
           </td>
           <td>${statusBadge}</td>
@@ -1437,8 +1445,7 @@ function subStatusBadge(status) {
   <a href="#" style="color:#7c3aed;" onclick="event.preventDefault(); adminJumpToReviews('${escapeHtml(u.email)}')">Reviews</a>
   <a href="#" style="color:#f59e0b;" onclick="event.preventDefault(); adminAccessUser('${u.uid}')">Access</a>
   <a href="#" style="color:#f59e0b;" onclick="event.preventDefault(); adminResetPassword('${escapeHtml(u.email)}')">Password</a>
-  <a href="#" style="color:${isBlocked ? '#10b981' : '#ef4444'};" onclick="event.preventDefault(); adminToggleBlock('${u.uid}', ${isBlocked})">${isBlocked ? 'Unblock' : 'Block'}</a>
-  <a href="#" style="color:#dc2626;" onclick="event.preventDefault(); adminDeleteUser('${escapeHtml(u.email)}')">Delete</a>
+  ${blockDeleteActions}
 </div>
           </td>
         </tr>
@@ -1510,6 +1517,11 @@ window.adminSubmitBalanceChange = async function (uid) {
 };
 
   window.adminToggleBlock = async function (uid, isBlocked) {
+    const target = allUsersList.find(u => u.uid === uid);
+    if (target && (target.email || '').toLowerCase() === MASTER_ADMIN_EMAIL) {
+      alert('The master admin account cannot be blocked.');
+      return;
+    }
     if (!confirm(`Change user status to ${isBlocked ? 'active' : 'blocked'}?`)) return;
     const authApi = await waitForSogoAuth;
     await authApi.updateUserByUid(uid, { blocked: !isBlocked });
@@ -1529,9 +1541,14 @@ window.adminSubmitBalanceChange = async function (uid) {
   };
 
   window.adminDeleteUser = async function (email) {
-    if (!email || !confirm('Are you sure you want to delete this user? This cannot be undone.')) return;
+    if ((email || '').toLowerCase() === MASTER_ADMIN_EMAIL) {
+      alert('The master admin account cannot be deleted.');
+      return;
+    }
+    if (!email || !confirm('Are you sure you want to permanently delete this user and ALL their data (packages, reviews, deposits, chats)? This cannot be undone.')) return;
     const authApi = await waitForSogoAuth;
-    await authApi.deleteUser(email);
+    const result = await authApi.deleteUser(email);
+    if (result && result.ok === false) { alert(result.message); return; }
     await refreshUsers();
   };
 

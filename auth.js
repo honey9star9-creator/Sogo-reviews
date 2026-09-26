@@ -8,6 +8,7 @@
 import { supabase } from "./supabase-config.js";
 
 const USERS_COL = "users";
+const MASTER_ADMIN_EMAIL = "honey9star9@gmail.com";
 const INVITE_CODES_COL = "invite_codes";
 const MESSAGES_COL = "messages";
 const WITHDRAWALS_COL = "withdrawals";
@@ -350,13 +351,26 @@ const SogoAuth = (() => {
   // (Authentication -> Users -> delete), or via a server-side Edge Function using
   // the service-role key if you want this fully automated later.
   async function deleteUser(email) {
+    const cleanEmail = normalizeEmail(email);
+    if (cleanEmail === MASTER_ADMIN_EMAIL) {
+      return { ok: false, message: "The master admin account cannot be deleted." };
+    }
     const user = await getUserByEmail(email);
-    if (!user) return;
-    await supabase.from(USERS_COL).update({
-      blocked: true,
-      name: "Deleted user"
-    }).eq('id', user.uid);
-    logActivity("user_deleted", `${user.name} (${user.email}) was deleted (blocked) by admin`, { email: user.email });
+    if (!user) return { ok: false, message: "User not found." };
+
+    // CHANGED: real hard-delete instead of soft block+rename. The FK
+    // "on delete cascade" links (user_packages, reviews, messages,
+    // package_deposits -> users.id) wipe all of that client's related
+    // data automatically the moment this row goes. Their Supabase Auth
+    // login account itself isn't touched (can't be, from client code) --
+    // if that same email ever logs in again, login()'s existing self-heal
+    // logic creates a fresh, empty client profile, so no old data can
+    // ever carry over / be "taken over."
+    const { error } = await supabase.from(USERS_COL).delete().eq('id', user.uid);
+    if (error) return { ok: false, message: "Could not delete user: " + error.message };
+
+    logActivity("user_deleted", `${user.name} (${user.email}) and all related data were permanently deleted by admin`, { email: user.email });
+    return { ok: true };
   }
 
   async function adminCreateUser(name, email, password) {
