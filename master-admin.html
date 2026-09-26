@@ -8,7 +8,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
  <script type="module" src="./supabase-config.js"></script>
  <script type="module" src="auth.js"></script>
 <script type="module" src="packages.js"></script>
@@ -376,7 +375,15 @@
 
     </style>
 </head>
-<body>
+<body class="auth-checking">
+<div id="authGateOverlay" style="position:fixed;inset:0;background:#f8f9fa;z-index:99999;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;color:#6366f1;font-size:0.9rem;">
+  <div style="width:34px;height:34px;border:3px solid #e0e7ff;border-top-color:#6366f1;border-radius:50%;animation:authSpin 0.7s linear infinite;"></div>
+  <span>Loading your dashboard…</span>
+  <style>@keyframes authSpin{to{transform:rotate(360deg);}}</style>
+</div>
+  <style>
+    body.auth-checking > aside, body.auth-checking > main { visibility:hidden; }
+  </style>
   <script>
     var currentSession = null;
     function switchTab(tabId, element) {
@@ -868,6 +875,11 @@
     currentAdminSession = await authApi.requireRole('admin'); // redirects to auth.html if not a logged-in admin
     if (!currentAdminSession) return;
 
+    // Auth confirm ho gaya — ab dashboard dikhana safe hai
+    document.body.classList.remove('auth-checking');
+    const gateOverlay = document.getElementById('authGateOverlay');
+    if (gateOverlay) gateOverlay.remove();
+
     await refreshUsers();
     await Promise.all([
       loadAdminProfile(),
@@ -1352,7 +1364,7 @@ function subStatusBadge(status) {
     const input = document.getElementById('customInviteInput');
     const code = input ? input.value.trim() : '';
     const result = await authApi.setInviteCode(currentAdminSession.email, code);
-    if (!result) { alert('Could not update invite code.'); return; }
+    if (!result || result.error) { alert(result && result.message ? result.message : 'Could not update invite code.'); return; }
     alert('Invite code updated: ' + result.my_invite_code);
     if (input) input.value = '';
     await loadAdminProfile();
@@ -1360,8 +1372,8 @@ function subStatusBadge(status) {
 
   window.regenerateInviteCode = async function () {
     const authApi = await waitForSogoAuth;
-    const result = await authApi.setInviteCode(currentAdminSession.email, '');
-    if (!result) { alert('Could not regenerate invite code.'); return; }
+      const result = await authApi.setInviteCode(currentAdminSession.email, '');
+    if (!result || result.error) { alert(result && result.message ? result.message : 'Could not regenerate invite code.'); return; }
     alert('New invite code: ' + result.my_invite_code);
     await loadAdminProfile();
   };

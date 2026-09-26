@@ -414,7 +414,14 @@ const SogoAuth = (() => {
     if (!user) return null;
     const code = (customCode && customCode.trim()) ? customCode.trim().toUpperCase() : generateInviteCode();
     const oldCode = user.my_invite_code || user.myInviteCode;
-    await supabase.from(USERS_COL).update({ my_invite_code: code }).eq('id', user.uid);
+
+    // Pehle check karo ke ye code kisi aur user ke paas to nahi hai
+    const { data: clash } = await supabase.from(USERS_COL).select('id').eq('my_invite_code', code).neq('id', user.uid).maybeSingle();
+    if (clash) return { error: true, message: 'This code is already in use by another account. Please choose a different one.' };
+
+    const { error: updateErr } = await supabase.from(USERS_COL).update({ my_invite_code: code }).eq('id', user.uid);
+    if (updateErr) return { error: true, message: 'Could not update invite code: ' + updateErr.message };
+
     await registerInviteCode(code, user.uid, user.email);
     if (oldCode && oldCode !== code) {
       try { await supabase.from(INVITE_CODES_COL).delete().eq('code', oldCode.toUpperCase()); } catch (_) {}
