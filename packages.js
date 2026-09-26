@@ -525,28 +525,37 @@ async function adminGrantTopup(userPackageId, opts) {
   try {
     const { data: up, error: fetchErr } = await supabase
       .from('user_packages')
-      .select('*, packages(*)')
+      .select('*')
       .eq('id', userPackageId)
       .single();
 
     if (fetchErr || !up) throw new Error('User package not found');
 
-    const pkg = up.packages;
+    // CHANGED: this used to fetch the package via an embedded join
+    // (select('*, packages(*)')), which only works if there's a declared
+    // foreign key from user_packages.packageId to packages.id. There isn't
+    // one here (every other function in this file fetches the package with
+    // its own plain query instead), so up.packages was silently always
+    // undefined/null. That made pkg fall through to undefined below, which
+    // made nextLock always null, which made newUnlockedCount always fall
+    // back to totalProducts -- i.e. every "Grant top-up" click unlocked the
+    // ENTIRE package instead of just the next lock tier. Fetching the
+    // package the same way the rest of the file does fixes that.
+    const { data: pkg, error: pkgErr } = await supabase
+      .from('packages')
+      .select('*')
+      .eq('id', up.packageId)
+      .maybeSingle();
+
+    if (pkgErr || !pkg) throw new Error('Package not found for this subscription.');
+
     const currentUnlocked = Number(up.unlockedCount || 0);
-    const totalProducts = Number(up.totalProducts || (pkg?.products?.length || 0));
+    const totalProducts = Number(up.totalProducts || (pkg.products ? pkg.products.length : 0));
 
     const nextLock = findNextLock(pkg, currentUnlocked);
-    
-    let newUnlockedCount = totalProducts;
-    if (nextLock && nextLock.afterReview > currentUnlocked) {
-      newUnlockedCount = nextLock.afterReview;
-    } else {
-      const sorted = (pkg?.locks || []).sort((a, b) => a.afterReview - b.afterReview);
-      const nextInLine = sorted.find(l => l.afterReview > currentUnlocked);
-      if (nextInLine) {
-        newUnlockedCount = nextInLine.afterReview;
-      }
-    }
+
+    // Only unlock everything when there's genuinely no lock tier left ahead.
+    const newUnlockedCount = nextLock ? nextLock.afterReview : totalProducts;
 
     const { error: updateErr } = await supabase
       .from('user_packages')
