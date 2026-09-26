@@ -1543,9 +1543,12 @@ async function renderSelectedPackage() {
   const totalProds = safeAmount(userPackage ? userPackage.totalProducts : (pkg.products || []).length);
   const completedReviews = userPackage ? safeAmount(userPackage.reviewsCompleted) : 0;
   const unlockedCount = userPackage ? safeAmount(userPackage.unlockedCount != null ? userPackage.unlockedCount : totalProds) : 0;
-  const nextLock = findNextLock(pkg, unlockedCount);
   const locks = pkg.locks || [];
-  const lockPrice = nextLock ? nextLock.depositRequired : (locks.length ? locks[locks.length - 1].depositRequired : 0);
+  // Client jis milestone pe locked hai, usi tier ka deposit amount dikhao
+  // (admin ne us review-number ke saamne jo amount likha, wahi yahan dikhna chahiye —
+  // agla tier nahi).
+  const currentLock = locks.find(l => l.afterReview === unlockedCount);
+  const lockPrice = currentLock ? currentLock.depositRequired : (locks.length ? locks[locks.length - 1].depositRequired : 0);
 
   // Render Top Lock Progress Banner
   if (banner && userPackage) {
