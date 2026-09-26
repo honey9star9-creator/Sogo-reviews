@@ -1059,68 +1059,17 @@ function subStatusBadge(status) {
     if (!result.ok) { alert(result.message); return; }
     await refreshSubscriptions();
   };
-  // CHANGED: this used to call SogoPackages.adminGrantTopup(id) directly,
-  // which always jumped straight to the automatically-computed next lock
-  // tier. Now it opens a modal so the admin picks (or types) the exact
-  // product number to unlock up to, then adminSubmitGrantTopup() below
-  // applies that specific number via SogoPackages.adminGrantTopupManual().
-  window.adminGrantTopupForSub = function (id) {
-    const sub = allSubscriptionsList.find(s => String(s.id) === String(id));
-    if (!sub) { alert('Subscription not found.'); return; }
-    const pkg = allPackagesList.find(p => p.id === sub.packageId);
-
-    const total = Number(sub.totalProducts || (pkg && pkg.products ? pkg.products.length : 0));
-    const current = Number(sub.unlockedCount || 0);
-    const locks = ((pkg && pkg.locks) || []).slice().sort((a, b) => a.afterReview - b.afterReview);
-
-    const title = document.getElementById('adminModalTitle');
-    const body = document.getElementById('adminModalBody');
-    if (title) title.textContent = 'Grant top-up — ' + (sub.userEmail || sub.userName || '');
-
-    const lockButtonsHtml = locks.length
-      ? locks.map(l => `<button type="button" class="btn-sm" style="margin:0 6px 8px 0;" ${l.afterReview <= current ? 'disabled' : ''} onclick="document.getElementById('grantTopupInput').value=${l.afterReview}">Up to #${l.afterReview} <span style="color:var(--text-muted);">($${Number(l.depositRequired || 0).toFixed(0)} tier)</span></button>`).join('')
-      : '<div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:8px;">This package has no lock tiers configured.</div>';
-
-    if (body) {
-      body.innerHTML = `
-        <div style="background:#eef2ff; border-radius:10px; padding:16px; margin-bottom:16px;">
-          <div style="font-size:0.75rem; color:#6366f1; font-weight:700; margin-bottom:4px;">Currently unlocked</div>
-          <div style="font-size:1.4rem; font-weight:800; color:#0f172a;">${current} / ${total} products</div>
-        </div>
-
-        <div style="font-size:0.8rem; font-weight:700; margin-bottom:8px;">Quick-pick a lock tier</div>
-        <div style="margin-bottom:6px;">${lockButtonsHtml}</div>
-
-        <div style="font-size:0.8rem; font-weight:700; margin:14px 0 8px;">Or enter the exact product number to unlock up to</div>
-        <input type="number" class="form-input" id="grantTopupInput" placeholder="e.g. ${Math.min(current + 1, total)}" min="${current + 1}" max="${total}" style="margin-bottom:14px;">
-
-        <button class="btn-purple" style="width:100%;" onclick="adminSubmitGrantTopup('${id}')">Grant top-up</button>
-        <div id="grantTopupMsg" style="font-size:0.75rem; margin-top:10px; display:none;"></div>
-      `;
+  // Grant top-up automatically unlocks up to the NEXT lock tier the admin
+  // defined while building the package (see the "Review Lock & Deposit"
+  // section of the package builder) -- it does not let the admin type an
+  // arbitrary number. Click it again after the client reaches that tier and
+  // it advances to the tier after that, and so on.
+  window.adminGrantTopupForSub = async function (id) {
+    const result = await SogoPackages.adminGrantTopup(id);
+    if (!result.ok) { alert(result.message); return; }
+    if (result.alreadyFullyUnlocked) {
+      alert('This subscription is already fully unlocked — there is no next lock to grant.');
     }
-
-    openAdminModal();
-  };
-
-  window.adminSubmitGrantTopup = async function (id) {
-    const input = document.getElementById('grantTopupInput');
-    const msg = document.getElementById('grantTopupMsg');
-    const value = parseInt(input ? input.value : '', 10);
-
-    if (msg) msg.style.display = 'none';
-
-    if (!value) {
-      if (msg) { msg.textContent = 'Please enter or pick an unlock number.'; msg.style.color = '#dc2626'; msg.style.display = 'block'; }
-      return;
-    }
-
-    const result = await SogoPackages.adminGrantTopupManual(id, value);
-    if (!result.ok) {
-      if (msg) { msg.textContent = result.message; msg.style.color = '#dc2626'; msg.style.display = 'block'; }
-      return;
-    }
-
-    closeAdminModal();
     await refreshSubscriptions();
   };
 
