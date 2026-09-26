@@ -1951,7 +1951,7 @@ async function submitLockTopupRequest(amount) {
       const inviteCodeField = document.getElementById('inviteCodeField');
       const inviteLinkField = document.getElementById('inviteLinkField');
       if (inviteCodeField) inviteCodeField.value = inviteCode;
-      if (inviteLinkField) inviteLinkField.value = 'https://sogoreview.online/register?ref=' + inviteCode;
+      if (inviteLinkField) inviteLinkField.value = 'https://sogo-reviews-kappa.vercel.app/auth.html?ref=' + inviteCode;
 
       const dashCopyBtn = document.getElementById('dashCopyBtn');
       if (dashCopyBtn) dashCopyBtn.onclick = () => navigator.clipboard.writeText(inviteCode);
