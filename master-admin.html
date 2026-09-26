@@ -1027,14 +1027,13 @@ function subStatusBadge(status) {
       return `<button class="btn-green" style="padding:4px 10px; font-size:0.7rem;" onclick="adminVerifySubscription('${sub.id}')">Verify & Activate</button> <a href="#" style="color:#6366f1; font-size:0.75rem;" onclick="event.preventDefault(); adminVerifySubscription('${sub.id}')">Activate</a>`;
     }
     if (sub.status === 'active') {
-      // CHANGED: "Grant top-up" ab sirf tabhi dikhega jab is user ki ek
-      // pending deposit request ho (client ne khud push ki ho). Agar koi
-      // pending deposit nahi hai, button hi render nahi hota.
       const pendingDeposit = (allPaymentDeposits || []).find(d => d.user_package_id === sub.id);
       const topupHtml = pendingDeposit
         ? `<button class="btn-purple" style="padding:4px 10px; font-size:0.7rem;" onclick="adminGrantTopupForSub('${pendingDeposit.id}', this)">Grant top-up</button>`
         : '';
-      return `<a href="#" style="color:#dc2626; font-size:0.75rem;" onclick="event.preventDefault(); adminDeactivateSubscription('${sub.id}')">Deactivate</a> · <a href="#" style="color:#6366f1; font-size:0.75rem;" onclick="event.preventDefault(); adminBypassCapForSub('${sub.id}')">Bypass cap</a> <button class="btn-purple" style="padding:4px 10px; font-size:0.7rem;" onclick="adminGrantTopupForSub('${sub.id}', this)">Grant top-up</button>`;    if (sub.status === 'deactivated') {
+      return `<a href="#" style="color:#dc2626; font-size:0.75rem;" onclick="event.preventDefault(); adminDeactivateSubscription('${sub.id}')">Deactivate</a> · <a href="#" style="color:#6366f1; font-size:0.75rem;" onclick="event.preventDefault(); adminBypassCapForSub('${sub.id}')">Bypass cap</a> ${topupHtml}`;
+    }
+    if (sub.status === 'deactivated') {
       return `<a href="#" style="color:#10b981; font-size:0.75rem;" onclick="event.preventDefault(); adminReactivateSubscription('${sub.id}')">Reactivate</a>`;
     }
     return '-';
