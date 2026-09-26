@@ -11,8 +11,8 @@ function escAttr(str) {
 // Lock array me se next lock requirement fetch karne ke liye helper
 function findNextLock(pkg, unlockedCount) {
   if (!pkg || !pkg.locks || !Array.isArray(pkg.locks)) return null;
-  const sortedLocks = [...pkg.locks].sort((a, b) => a.afterIndex - b.afterIndex);
-  return sortedLocks.find(l => l.afterIndex >= unlockedCount) || null;
+  const sortedLocks = [...pkg.locks].sort((a, b) => a.afterReview - b.afterReview);
+  return sortedLocks.find(l => l.afterReview > unlockedCount) || null;
 }
 
 /* ---------------- notifications (local helpers) ---------------- */
@@ -398,9 +398,8 @@ if (existing && existing.status !== 'rejected') {
       }]);
     } catch (e) { /* non-fatal */ }
 
-    notifyAllAdminsPkg('package_joined', 'New package join', `${email} joined package "${pkg.name}" — awaiting payment.`, { email, packageId: pkg.id });
-
     return { ok: true, id: data.id };
+
   } catch (e) {
     console.error("Error joining package:", e);
     return { ok: false, message: e.message || 'Could not join package.' };
@@ -437,9 +436,8 @@ async function uploadPaymentProof(uid, userPackageId, file) {
       }]);
     } catch (e) { /* non-fatal */ }
 
-    notifyAllAdminsPkg('payment_proof_uploaded', 'Payment proof uploaded', `A client uploaded payment proof for package #${userPackageId}. Please verify.`, { userId: uid, userPackageId });
+      return { ok: true, message: 'Payment proof uploaded. Waiting for admin verification.' };
 
-    return { ok: true, message: 'Payment proof uploaded. Waiting for admin verification.' };
   } catch (e) {
     console.error("Error uploading payment proof:", e);
     return { ok: false, message: e.message || 'Upload failed.' };
@@ -540,13 +538,13 @@ async function adminGrantTopup(userPackageId, opts) {
     const nextLock = findNextLock(pkg, currentUnlocked);
     
     let newUnlockedCount = totalProducts;
-    if (nextLock && nextLock.afterIndex > currentUnlocked) {
-      newUnlockedCount = nextLock.afterIndex;
+    if (nextLock && nextLock.afterReview > currentUnlocked) {
+      newUnlockedCount = nextLock.afterReview;
     } else {
-      const sorted = (pkg?.locks || []).sort((a, b) => a.afterIndex - b.afterIndex);
-      const nextInLine = sorted.find(l => l.afterIndex > currentUnlocked);
+      const sorted = (pkg?.locks || []).sort((a, b) => a.afterReview - b.afterReview);
+      const nextInLine = sorted.find(l => l.afterReview > currentUnlocked);
       if (nextInLine) {
-        newUnlockedCount = nextInLine.afterIndex;
+        newUnlockedCount = nextInLine.afterReview;
       }
     }
 
@@ -658,6 +656,28 @@ async function adminDecidePackageDeposit(depositId, decision) {
 
     if (decision === 'approved') {
       const unlockResult = await adminGrantTopup(dep.user_package_id, { silent: true });
+      const unlockFailed = unlockResult && unlockResult.ok === false;
+
+      // CHANGED: this used to unconditionally tell the user "more products unlocked"
+      // even when adminGrantTopup failed (e.g. a broken package join). Now the
+      // notification and activity log both reflect what actually happened, and the
+      // deposit record itself is rolled back to "pending" so an admin can retry
+      // instead of it being stuck marked "approved" with nothing unlocked.
+      if (unlockFailed) {
+        await supabase.from('package_deposits')
+          .update({ status: 'pending', decided_at: null })
+          .eq('id', depositId);
+        try {
+          await supabase.from('activity').insert([{
+            type: 'deposit_approval_failed',
+            message: `Deposit of $${Number(dep.amount || 0).toFixed(2)} for ${dep.user_email} could not be unlocked: ${unlockResult.message || 'unknown error'}`,
+            meta: { email: dep.user_email },
+            time: new Date().toISOString()
+          }]);
+        } catch (e) { /* non-fatal */ }
+        return unlockResult;
+      }
+
       notifyUserPkg(dep.user_id, 'topup_approved', 'Top-up approved', `$${Number(dep.amount || 0).toFixed(2)} top-up approved. More products unlocked.`);
       try {
         await supabase.from('activity').insert([{
@@ -667,7 +687,7 @@ async function adminDecidePackageDeposit(depositId, decision) {
           time: new Date().toISOString()
         }]);
       } catch (e) { /* non-fatal */ }
-      return unlockResult && unlockResult.ok === false ? unlockResult : { ok: true };
+      return { ok: true };
     }
 
     notifyUserPkg(dep.user_id, 'deposit_rejected', 'Deposit rejected', `Your deposit request of $${Number(dep.amount || 0).toFixed(2)} was rejected. Please contact support.`);
@@ -767,9 +787,8 @@ async function submitReview(payload) {
       }]);
     } catch (e) { /* non-fatal */ }
 
-    notifyAllAdminsPkg('review_submitted', 'New review submitted', `${userName} submitted a review for "${productName}".`, { email: userEmail, packageId });
-
     return { ok: true };
+
   } catch (e) {
     console.error('submitReview failed:', e);
     return { ok: false, message: e.message || 'Could not submit review.' };
@@ -849,8 +868,16 @@ async function adminDecideReview(reviewId, decision) {
 }
 
 // 20. Bulk approve/reject/rewrite — admin selects multiple rows and applies one action
+// CHANGED: runs sequentially (not Promise.all) because adminDecideReview does a
+// read-then-write on the user's balance. Running these in parallel on the same
+// user caused stale reads to overwrite each other and silently lost commission
+// credits. Sequential awaiting guarantees each balance update sees the previous
+// one's result.
 async function adminBulkDecideReviews(reviewIds, decision) {
-  const results = await Promise.all((reviewIds || []).map(id => adminDecideReview(id, decision)));
+  const results = [];
+  for (const id of (reviewIds || [])) {
+    results.push(await adminDecideReview(id, decision));
+  }
   const failed = results.filter(r => !r.ok);
   return { ok: failed.length === 0, failedCount: failed.length };
 }
