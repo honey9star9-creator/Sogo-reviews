@@ -579,6 +579,66 @@ async function adminGrantTopup(userPackageId, opts) {
     return { ok: false, message: err.message };
   }
 }
+
+// 14b. Admin manually grants a top-up to a SPECIFIC unlock number they choose
+// themselves (used by the "Grant top-up" modal in master-admin.html), instead
+// of always jumping to the automatically-computed next lock tier the way
+// adminGrantTopup() above does. adminGrantTopup() is left untouched because
+// adminDecidePackageDeposit() still relies on its automatic behavior for the
+// client-side deposit-approval flow.
+async function adminGrantTopupManual(userPackageId, newUnlockedCount) {
+  try {
+    const { data: up, error: fetchErr } = await supabase
+      .from('user_packages')
+      .select('*')
+      .eq('id', userPackageId)
+      .single();
+    if (fetchErr || !up) throw new Error('User package not found');
+
+    const { data: pkg } = await supabase
+      .from('packages')
+      .select('products')
+      .eq('id', up.packageId)
+      .maybeSingle();
+
+    const totalProducts = Number(up.totalProducts || (pkg && pkg.products ? pkg.products.length : 0));
+    const currentUnlocked = Number(up.unlockedCount || 0);
+    const target = parseInt(newUnlockedCount, 10);
+
+    if (!Number.isFinite(target) || target <= 0) {
+      return { ok: false, message: 'Please enter a valid unlock number.' };
+    }
+    if (target <= currentUnlocked) {
+      return { ok: false, message: `Unlock number must be greater than the current unlocked count (${currentUnlocked}).` };
+    }
+    if (target > totalProducts) {
+      return { ok: false, message: `This package only has ${totalProducts} products.` };
+    }
+
+    const { error: updateErr } = await supabase
+      .from('user_packages')
+      .update({ unlockedCount: target, status: 'active' })
+      .eq('id', userPackageId);
+    if (updateErr) throw updateErr;
+
+    try {
+      await supabase.from('activity').insert([{
+        type: 'subscription_manual_topup',
+        message: `Admin manually unlocked up to product #${target} for ${up.userEmail} on "${up.packageName}" (was ${currentUnlocked})`,
+        meta: { email: up.userEmail, from: currentUnlocked, to: target },
+        time: new Date().toISOString()
+      }]);
+    } catch (e) { /* non-fatal */ }
+
+    notifyUserPkg(up.userId, 'products_unlocked', 'More products unlocked', `Admin has unlocked up to product #${target} in "${up.packageName}" for you.`);
+
+    return { ok: true, newUnlockedCount: target };
+  } catch (e) {
+    console.error('adminGrantTopupManual failed:', e);
+    return { ok: false, message: e.message || 'Could not grant top-up.' };
+  }
+}
+
 // ============================================================
 // PACKAGE DEPOSITS ("next tier unlock" flow — NEW)
 // Client deposits money for the next lock tier + uploads proof.
@@ -903,6 +963,7 @@ export const SogoPackages = {
   adminVerifyUserPackage,
   adminBypassCap,
   adminGrantTopup,
+  adminGrantTopupManual,
   requestPackageDeposit,
   getMyPackageDeposits,
   getAllPackageDeposits,
