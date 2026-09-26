@@ -1034,9 +1034,7 @@ function subStatusBadge(status) {
       const topupHtml = pendingDeposit
         ? `<button class="btn-purple" style="padding:4px 10px; font-size:0.7rem;" onclick="adminGrantTopupForSub('${pendingDeposit.id}', this)">Grant top-up</button>`
         : '';
-      return `<a href="#" style="color:#dc2626; font-size:0.75rem;" onclick="event.preventDefault(); adminDeactivateSubscription('${sub.id}')">Deactivate</a> · <a href="#" style="color:#6366f1; font-size:0.75rem;" onclick="event.preventDefault(); adminBypassCapForSub('${sub.id}')">Bypass cap</a> ${topupHtml}`;
-    }
-    if (sub.status === 'deactivated') {
+      return `<a href="#" style="color:#dc2626; font-size:0.75rem;" onclick="event.preventDefault(); adminDeactivateSubscription('${sub.id}')">Deactivate</a> · <a href="#" style="color:#6366f1; font-size:0.75rem;" onclick="event.preventDefault(); adminBypassCapForSub('${sub.id}')">Bypass cap</a> <button class="btn-purple" style="padding:4px 10px; font-size:0.7rem;" onclick="adminGrantTopupForSub('${sub.id}', this)">Grant top-up</button>`;    if (sub.status === 'deactivated') {
       return `<a href="#" style="color:#10b981; font-size:0.75rem;" onclick="event.preventDefault(); adminReactivateSubscription('${sub.id}')">Reactivate</a>`;
     }
     return '-';
@@ -1116,6 +1114,9 @@ window.adminGrantTopupForSub = async function (depositId, btnEl) {
   if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Granting...'; }
 
   try {
+    // Chota sa buffer taake "Granting..." state nazar aa sake — button
+    // apni jagah static rehta hai, sirf label change hota hai.
+    await new Promise(resolve => setTimeout(resolve, 900));
     // CHANGED: ab ye seedha unlockedCount badalne ki bajaye, us client ki
     // ASAL pending deposit ko approve karta hai (bilkul waisa hi jaisa
     // Payments tab ka "Approve & Unlock" karta hai). Isse deposit ka status
@@ -1128,6 +1129,7 @@ window.adminGrantTopupForSub = async function (depositId, btnEl) {
       return;
     }
     await Promise.all([refreshPayments(), refreshSubscriptions()]);
+    alert('Granted successfully!');
   } catch (err) {
     console.error('adminGrantTopupForSub failed:', err);
     alert('Something went wrong: ' + (err && err.message ? err.message : 'unknown error'));
