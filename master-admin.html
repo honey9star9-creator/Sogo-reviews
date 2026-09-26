@@ -1159,9 +1159,6 @@ function subStatusBadge(status) {
   // section of the package builder) -- it does not let the admin type an
   // arbitrary number. Click it again after the client reaches that tier and
   // it advances to the tier after that, and so on.
-window.adminGrantTopupForSub = async function (depositId, btnEl) {
-  if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Granting...'; }
-
 window.adminGrantTopupForSub = async function (userPackageId, btnEl) {
   if (btnEl) {
     btnEl.disabled = true;
