@@ -297,47 +297,51 @@
 }
 
 /* Responsive Styles for Mobile */
+main { min-width: 0; }
+.sidebar-backdrop { display: none; }
+
 @media (max-width: 768px) {
   .menu-toggle-btn {
-    display: inline-block;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 38px; height: 38px; flex-shrink: 0;
+    background: #fff; border: 1px solid var(--border-color); border-radius: 10px;
   }
+  .header-top { gap: 10px; margin-bottom: 16px; }
+  .page-title { flex: 1; min-width: 0; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  aside {
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh;
+  /* sirf asli sidebar (chat ki list nahi) */
+  body > aside {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    height: 100dvh; width: min(280px, 82vw);
     transform: translateX(-100%);
-    transition: transform 0.3s ease-in-out;
+    transition: transform 0.25s ease-in-out;
     box-shadow: 4px 0 15px rgba(0,0,0,0.1);
     z-index: 1000;
   }
+  body > aside.open { transform: translateX(0); }
+  .nav-list { max-height: calc(100dvh - 190px); }
+  .sidebar-backdrop.show { display: block; position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 999; }
 
-  aside.open {
-    transform: translateX(0);
-  }
+  main { margin-left: 0 !important; padding: 14px !important; width: 100% !important; }
 
-  main {
-    margin-left: 0 !important;
-    padding: 16px !important;
-    width: 100% !important;
-  }
+  .stats-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+  .charts-grid-3, .form-grid-3, .product-row-builder { grid-template-columns: 1fr !important; }
+  .stat-value { font-size: 1.35rem; }
 
-  .stats-grid-4, 
-  .charts-grid-3, 
-  .form-grid-3, 
-  .product-row-builder {
-    grid-template-columns: 1fr !important;
-  }
+  .card { padding: 16px; overflow-x: auto; }
+  .data-table { min-width: 600px; }
 
-  .card {
-    padding: 16px;
-    overflow-x: auto;
-  }
+  .invite-row { flex-wrap: wrap; }
+  .invite-input-dark { min-width: 0; flex: 1 1 100%; }
+  .invite-row button { flex: 1 1 auto; }
 
-  .data-table {
-    min-width: 600px;
-  }
+  .payment-req-card { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .payment-actions { width: 100%; }
+  .payment-actions button { flex: 1; }
+
+  #locks-container > div { flex-wrap: wrap; }
+
+  #tab-chat .wa-layout { height: calc(100dvh - 120px); min-height: 380px; }
 }
 .admin-modal-overlay {
   display: none;
@@ -437,8 +441,9 @@
       const activeTab = document.getElementById('tab-' + tabId);
       if (activeTab) activeTab.classList.add('active');
       if (element) element.classList.add('active');
-      const title = document.getElementById('current-page-title');
+        const title = document.getElementById('current-page-title');
       if (title) title.textContent = tabId.replace('-', ' ').toUpperCase();
+      if (window.innerWidth <= 768 && window.toggleSidebar) toggleSidebar(false);
     }
     function copyText(val) {
       if (val) navigator.clipboard.writeText(val);
@@ -454,6 +459,8 @@
       <div id="adminModalBody"></div>
     </div>
   </div>
+
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar(false)"></div>
 
   <aside>
     <div>
@@ -805,7 +812,7 @@
  <!-- 11. CHAT VIEW -->
     <div id="tab-chat" class="tab-content">
       <div class="wa wa-layout" id="waLayout">
-        <aside class="wa-side">
+        <div class="wa-side">
           <div class="wa-side-head">Chats</div>
           <div class="wa-search"><input type="text" id="waSearch" placeholder="Search or start a new chat" autocomplete="off"></div>
           <div class="wa-chips" id="waChips">
@@ -813,7 +820,7 @@
             <button type="button" class="wa-chip" data-f="unread">Unread</button>
           </div>
           <div class="wa-list" id="adminChatUsersList"></div>
-        </aside>
+           </div>
 
         <section class="wa-main">
           <div class="wa-empty" id="waEmpty">
@@ -2074,8 +2081,13 @@ window.closeAdminModal = function () {
 
 bootstrapAdminDashboard();
 
-window.toggleSidebar = function() {
-  document.querySelector('aside').classList.toggle('open');
+window.toggleSidebar = function (force) {
+  const side = document.querySelector('body > aside');
+  const back = document.getElementById('sidebarBackdrop');
+  if (!side) return;
+  const open = (typeof force === 'boolean') ? force : !side.classList.contains('open');
+  side.classList.toggle('open', open);
+  if (back) back.classList.toggle('show', open);
 };
 </script>
 </body>
