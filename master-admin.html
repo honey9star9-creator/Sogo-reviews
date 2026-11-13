@@ -342,8 +342,122 @@ main { min-width: 0; }
   #locks-container > div { flex-wrap: wrap; }
 
   #tab-chat .wa-layout { height: calc(100dvh - 120px); min-height: 380px; }
+
+  /* ===== MOBILE: tables -> cards ===== */
+  .data-table { min-width: 0 !important; display: block; width: 100%; }
+  .data-table thead { display: none; }
+  .data-table tbody { display: block; }
+  .data-table tr {
+    display: block; margin: 0 0 12px; padding: 6px 14px;
+    background: #fff; border: 1px solid var(--border-color); border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .data-table td {
+    display: block; position: relative; min-height: 36px;
+    padding: 9px 0 9px 40%; border-bottom: 1px solid #f1f5f9;
+    text-align: left; overflow-wrap: anywhere;
+  }
+  .data-table tr td:last-child { border-bottom: none; }
+  .data-table td::before {
+    content: ''; position: absolute; left: 0; top: 10px; width: 36%;
+    font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.4px; color: var(--text-muted);
+  }
+  .data-table td[colspan] { padding-left: 0; text-align: center; }
+  .data-table td[colspan]::before { display: none !important; }
+
+  /* action wale cells: label upar, buttons poori chaudai mein */
+  #allUsersTableBody td:nth-child(8),
+  #packagesListContainer .data-table td:nth-child(6),
+  #subscriptionsTableBody td:nth-child(6),
+  #reviewsTableBodyAdmin td:nth-child(9),
+  #adminWithdrawalsBody td:nth-child(6),
+  #pwRequestsBody td:nth-child(4) { padding: 30px 0 9px; white-space: normal !important; }
+  #allUsersTableBody td:nth-child(8)::before,
+  #packagesListContainer .data-table td:nth-child(6)::before,
+  #subscriptionsTableBody td:nth-child(6)::before,
+  #reviewsTableBodyAdmin td:nth-child(9)::before,
+  #adminWithdrawalsBody td:nth-child(6)::before,
+  #pwRequestsBody td:nth-child(4)::before { top: 9px; width: 100%; }
+
+  /* Users */
+  #allUsersTableBody td:nth-child(1)::before { content: 'User'; }
+  #allUsersTableBody td:nth-child(2)::before { content: 'Status'; }
+  #allUsersTableBody td:nth-child(3)::before { content: 'Wallet'; }
+  #allUsersTableBody td:nth-child(4),
+  #allUsersTableBody td:nth-child(5),
+  #allUsersTableBody td:nth-child(6) { display: none; }
+  #allUsersTableBody td:nth-child(7)::before { content: 'Referred by'; }
+  #allUsersTableBody td:nth-child(8)::before { content: 'Actions'; }
+
+  /* Packages */
+  #packagesListContainer .data-table td:nth-child(1)::before { content: 'Package'; }
+  #packagesListContainer .data-table td:nth-child(2)::before { content: 'Price'; }
+  #packagesListContainer .data-table td:nth-child(3)::before { content: 'Products'; }
+  #packagesListContainer .data-table td:nth-child(4)::before { content: 'Commission'; }
+  #packagesListContainer .data-table td:nth-child(5)::before { content: 'Status'; }
+  #packagesListContainer .data-table td:nth-child(6)::before { content: 'Actions'; }
+
+  /* Subscriptions */
+  #subscriptionsTableBody td:nth-child(1)::before { content: 'User'; }
+  #subscriptionsTableBody td:nth-child(2)::before { content: 'Package'; }
+  #subscriptionsTableBody td:nth-child(3)::before { content: 'Price'; }
+  #subscriptionsTableBody td:nth-child(4)::before { content: 'Progress'; }
+  #subscriptionsTableBody td:nth-child(5)::before { content: 'Status'; }
+  #subscriptionsTableBody td:nth-child(6)::before { content: 'Action'; }
+
+  /* Received reviews */
+  #tab-received-reviews .card { padding: 4px !important; background: transparent; border: none; box-shadow: none; }
+  #tab-received-reviews > div[style*="margin-bottom:16px"] { flex-wrap: wrap; }
+  #reviewsTableBodyAdmin tr { margin: 8px 4px 12px; }
+  #reviewsTableBodyAdmin td:nth-child(1)::before { content: 'Select'; }
+  #reviewsTableBodyAdmin td:nth-child(2)::before { content: 'User'; }
+  #reviewsTableBodyAdmin td:nth-child(3)::before { content: 'Package'; }
+  #reviewsTableBodyAdmin td:nth-child(4)::before { content: 'Product'; }
+  #reviewsTableBodyAdmin td:nth-child(5)::before { content: 'Rating'; }
+  #reviewsTableBodyAdmin td:nth-child(6)::before { content: 'Review'; }
+  #reviewsTableBodyAdmin td:nth-child(6) { max-width: none !important; white-space: normal !important; overflow: visible !important; }
+  #reviewsTableBodyAdmin td:nth-child(7)::before { content: 'Status'; }
+  #reviewsTableBodyAdmin td:nth-child(8)::before { content: 'Submitted'; }
+  #reviewsTableBodyAdmin td:nth-child(9)::before { content: 'Actions'; }
+
+  /* Withdrawals */
+  #adminWithdrawalsBody td:nth-child(1)::before { content: 'User'; }
+  #adminWithdrawalsBody td:nth-child(2)::before { content: 'Amount'; }
+  #adminWithdrawalsBody td:nth-child(3)::before { content: 'Account'; }
+  #adminWithdrawalsBody td:nth-child(4)::before { content: 'Requested'; }
+  #adminWithdrawalsBody td:nth-child(5)::before { content: 'Status'; }
+  #adminWithdrawalsBody td:nth-child(6)::before { content: 'Action'; }
+
+  /* Password requests */
+  #pwRequestsBody td:nth-child(1)::before { content: 'User'; }
+  #pwRequestsBody td:nth-child(2)::before { content: 'Requested'; }
+  #pwRequestsBody td:nth-child(3)::before { content: 'Status'; }
+  #pwRequestsBody td:nth-child(4)::before { content: 'Actions'; }
+
+  /* Invitations */
+  #invInvitersBody td:nth-child(1)::before { content: 'Inviter'; }
+  #invInvitersBody td:nth-child(2)::before { content: 'Role'; }
+  #invInvitersBody td:nth-child(3)::before { content: 'Code'; }
+  #invInvitersBody td:nth-child(4)::before { content: 'Signups'; }
+
+  /* Activity + Access log */
+  #activityLogBody td:nth-child(1)::before { content: 'Action'; }
+  #activityLogBody td:nth-child(2)::before { content: 'Details'; }
+  #activityLogBody td:nth-child(3)::before { content: 'When'; }
+  #accessLogBody td:nth-child(1)::before { content: 'Account'; }
+  #accessLogBody td:nth-child(2)::before { content: 'Email'; }
+  #accessLogBody td:nth-child(3)::before { content: 'When'; }
+
+  /* heading + search wali rows, lock rows, buttons */
+  .card > div[style*="justify-content:space-between"],
+  .card > div[style*="justify-content: space-between"] { flex-wrap: wrap; gap: 10px; }
+  #userSearchInput, #packageSearchInput, #subSearchInput, #reviewsSearchInput { width: 100% !important; max-width: 100% !important; }
+  #locks-container .form-input { width: auto !important; flex: 1 1 110px; min-width: 90px; }
+  .form-grid-3 button { width: 100%; }
 }
 .admin-modal-overlay {
+  
   display: none;
   position: fixed;
   inset: 0;
