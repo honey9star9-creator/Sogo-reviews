@@ -8,9 +8,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
- <script type="module" src="./supabase-config.js"></script>
- <script type="module" src="auth.js"></script>
+<script type="module" src="./supabase-config.js"></script>
+<script type="module" src="auth.js"></script>
 <script type="module" src="packages.js"></script>
+<link rel="stylesheet" href="chat.css">
+<script type="module" src="chat-core.js"></script>
 <style>
     :root {
       --bg-dark: #f8f9fa;
@@ -412,6 +414,9 @@
   to { opacity: 0; transform: translateX(20px); }
 }
 .admin-toast.hide { animation: toastOut 0.25s ease forwards; }
+.chat-unread-badge { background:#ef4444; color:#fff; font-size:.65rem; font-weight:800; min-width:18px; height:18px; border-radius:9px; display:flex; align-items:center; justify-content:center; padding:0 5px; flex-shrink:0; }
+.chat-user-item.has-unread .chat-user-name { color:#0f172a; font-weight:800; }
+.chat-day-sep { align-self:center; font-size:.68rem; color:#64748b; background:#e2e8f0; padding:3px 12px; border-radius:50px; margin:10px 0; font-weight:600; }
     </style>
 </head>
 <body class="auth-checking">
@@ -797,26 +802,46 @@
       <div class="card" style="text-align: center; padding: 60px;">No support requests.</div>
     </div>
 
-    <!-- 11. CHAT VIEW -->
+ <!-- 11. CHAT VIEW -->
     <div id="tab-chat" class="tab-content">
-      <div class="chat-layout">
-        <div class="chat-sidebar">
-          <div class="chat-users-list" id="adminChatUsersList"></div>
-        </div>
-        <div class="chat-main-area">
-          <div class="chat-header">
-            <div class="chat-user-avatar" id="adminChatHeaderAvatar">?</div>
-            <span id="adminChatHeaderName">Select a user</span>
+      <div class="wa wa-layout" id="waLayout">
+        <aside class="wa-side">
+          <div class="wa-side-head">Chats</div>
+          <div class="wa-search"><input type="text" id="waSearch" placeholder="Search or start a new chat" autocomplete="off"></div>
+          <div class="wa-chips" id="waChips">
+            <button type="button" class="wa-chip active" data-f="all">All</button>
+            <button type="button" class="wa-chip" data-f="unread">Unread</button>
           </div>
-          <div class="chat-messages" id="adminChatMessages"></div>
-          <p id="adminChatAttachMsg" class="chat-status-line-admin" style="display:none;"></p>
-          <div class="chat-input-row">
-            <button class="chat-attach-btn-admin" id="adminChatAttachBtn" onclick="document.getElementById('adminChatAttachInput').click()" title="Send a photo"><i class="fa-solid fa-paperclip"></i></button>
-            <input type="file" id="adminChatAttachInput" accept="image/*" style="display:none;" onchange="sendAdminChatAttachment(this)">
-            <input type="text" class="form-input" id="adminChatInput" placeholder="Message..." onkeydown="if(event.key==='Enter'){sendAdminChatMessage();}">
-            <button class="btn-purple" onclick="sendAdminChatMessage()">Send</button>
+          <div class="wa-list" id="adminChatUsersList"></div>
+        </aside>
+
+        <section class="wa-main">
+          <div class="wa-empty" id="waEmpty">
+            <div class="wa-empty-ico">💬</div>
+            <h3>SOGO Support Chat</h3>
+            <p>Left side se kisi user ki chat kholein, ya search karke nayi chat shuru karein.</p>
           </div>
-        </div>
+
+          <div class="wa-thread wa-hide" id="waThread">
+            <div class="wa-head">
+              <button type="button" class="wa-back" id="waBack">←</button>
+              <div class="wa-avatar" id="adminChatHeaderAvatar">?</div>
+              <div class="wa-head-meta">
+                <div class="wa-head-name" id="adminChatHeaderName">Select a user</div>
+                <div class="wa-head-sub" id="adminChatHeaderSub"></div>
+              </div>
+            </div>
+            <div class="wa-chatwrap">
+              <div class="wa-messages" id="adminChatMessages"></div>
+            </div>
+            <div class="wa-composer">
+              <button type="button" class="wa-ibtn" id="adminChatAttachBtn" title="Send a photo"><i class="fa-solid fa-paperclip"></i></button>
+              <input type="file" id="adminChatAttachInput" accept="image/*" style="display:none;">
+              <textarea id="adminChatInput" rows="1" placeholder="Type a message"></textarea>
+              <button type="button" class="wa-ibtn send" id="adminChatSendBtn" title="Send"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
 
@@ -877,8 +902,6 @@
       </div>
     </div>
   </main>
-  <!-- Chart.js CDN (Charts rendering ke liye) -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script type="module">
   // Waits for auth.js (loaded as a module in <head>) to attach window.SogoAuth.
@@ -899,6 +922,9 @@
   let allActivityList = [];
 
   const MASTER_ADMIN_EMAIL = 'honey9star9@gmail.com';
+
+  function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+  const debouncedChatList = debounce(() => refreshChatUsersList(), 400);
 
 function escapeHtml(str) {
     return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -957,7 +983,6 @@ function escapeHtml(str) {
       refreshPasswordRequests(),
       refreshActivity(),
       refreshInvitations(),
-      refreshChatUsersList(),
       refreshPackagesList(),
       refreshSubscriptions(),
       refreshReviewsAdmin(),
@@ -968,28 +993,20 @@ function escapeHtml(str) {
     // Supabase realtime subscribe kar diya, taake client ka koi bhi action
     // (deposit push, review submit, withdrawal request, signup, waghera)
     // turant admin dashboard par dikhe — 30 second wait na karna pade.
-    subscribeTableChanges('user_packages', () => { refreshSubscriptions(); refreshPayments(); });
-    subscribeTableChanges('package_deposits', () => { refreshPayments(); refreshSubscriptions(); });
-    subscribeTableChanges('reviews', refreshReviewsAdmin);
-    subscribeTableChanges('withdrawals', refreshWithdrawals);
-    subscribeTableChanges('topups', refreshTopups);
-    subscribeTableChanges('users', refreshUsers);
-    subscribeTableChanges('activity', refreshActivity);
+      subscribeTableChanges('user_packages', debounce(() => { refreshSubscriptions(); refreshPayments(); }, 2000));
+    subscribeTableChanges('package_deposits', debounce(() => { refreshPayments(); refreshSubscriptions(); }, 2000));
+    subscribeTableChanges('reviews', debounce(refreshReviewsAdmin, 2000));
+    subscribeTableChanges('withdrawals', debounce(refreshWithdrawals, 2000));
+    subscribeTableChanges('topups', debounce(refreshTopups, 2000));
+    subscribeTableChanges('messages', debouncedChatList);
 
-    // Polling ab sirf backup ke taur par rakha hai (kabhi realtime signal
-    // miss ho jaye — network blip waghera — to bhi 30 second mein sab sync
-    // ho jayega). Isko poori tarah hata bhi sakte hain agar realtime pe
-    // pura bharosa karna ho.
+    // users aur activity ka realtime hata diya, unke liye halka polling (60s, sirf jab tab nazar aa raha ho)
     window.setInterval(() => {
+      if (document.hidden) return;
       refreshUsers();
-      refreshTopups();
-      refreshWithdrawals();
-      refreshPasswordRequests();
       refreshActivity();
-      refreshSubscriptions();
-      refreshReviewsAdmin();
-      refreshPayments();
-    }, 30000);
+      refreshPasswordRequests();
+    }, 60000);
   }
 
   // ---------------- PACKAGES ----------------
@@ -1482,7 +1499,8 @@ window.adminGrantTopupForSub = async function (userPackageId, btnEl) {
   // ---------------- USERS ----------------
   async function refreshUsers() {
     const authApi = await waitForSogoAuth;
-    allUsersList = await authApi.getUsers();
+    allUsersList = (await authApi.getUsers())
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
     const totalUsers = allUsersList.length;
     const activeUsers = allUsersList.filter(u => !u.blocked).length;
@@ -1494,25 +1512,14 @@ window.adminGrantTopupForSub = async function (userPackageId, btnEl) {
     if (activeUsersElem) activeUsersElem.textContent = activeUsers;
     if (headingElem) headingElem.textContent = `All Users (${totalUsers})`;
 
-    try {
-      const activeChatsElem = document.getElementById('statActiveChats');
-      const unreadElem = document.getElementById('statUnreadMessages');
-      if (activeChatsElem) activeChatsElem.textContent = await authApi.getActiveChatsCount();
-      if (unreadElem) unreadElem.textContent = await authApi.getUnreadMessageCount();
-    } catch (e) { /* non-fatal */ }
-
     renderUsersTable(allUsersList);
+    debouncedChatList();   // chats aur unread stats ab ek hi query se aate hain
   }
 
   function renderUsersTable(users) {
     const tbody = document.getElementById('allUsersTableBody');
     if (!tbody) return;
-
-    if (!users.length) {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px;">No users found.</td></tr>`;
-      return;
-    }
-
+    
     tbody.innerHTML = users.map(u => {
       const isBlocked = !!u.blocked;
       const isMasterAdmin = (u.email || '').toLowerCase() === MASTER_ADMIN_EMAIL;
@@ -1840,153 +1847,230 @@ window.closeAdminModal = function () {
     }).join('') : `<tr><td colspan="4" style="text-align:center; padding:20px;">No inviters yet.</td></tr>`;
   }
 
-  // ---------------- CHAT ----------------
-  function formatChatTimeAdmin(iso) {
-    if (!iso) return '';
-    const d = new Date(iso);
-    if (isNaN(d)) return '';
-    const now = new Date();
-    const sameDay = d.toDateString() === now.toDateString();
-    return sameDay ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+// ---------------- CHAT (WhatsApp-style) ----------------
+  // Ye poora block master-admin.html ke purane "CHAT" section ko replace karta hai.
+  const waitForChatCore = new Promise((resolve) => {
+    const started = Date.now();
+    const ready = () => {
+      if (window.ChatCore) return resolve(window.ChatCore);
+      if (Date.now() - started > 10000) return resolve(null);
+      window.setTimeout(ready, 25);
+    };
+    ready();
+  });
+
+  let CC = null;                 // ChatCore (load hone ke baad set hota hai)
+  let chatSummaries = [];        // [{user_id,last_text,last_from,last_time,unread_count}]
+  let chatFilter = 'all';        // 'all' | 'unread'
+  let adminThreadCtl = null;     // active thread controller
+  let activeChatUid = null;
+
+  function chatTabIsOpen() {
+    const el = document.getElementById('tab-chat');
+    return !!(el && el.classList.contains('active'));
   }
 
-  function isImageUrl(text) {
-    const t = (text || '').trim();
-    if (!/^https?:\/\//i.test(t)) return false;
-    if (/\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(t)) return true;
-    return /\/chat-attachments\//i.test(t);
+  function chatItemHtml(u, s) {
+    const name = u.name || u.email || 'User';
+    const unread = s ? (Number(s.unread_count) || 0) : 0;
+    let preview;
+    if (s) {
+      const body = CC.isImageUrl(s.last_text) ? '📷 Photo' : (s.last_text || '');
+      preview = (s.last_from === 'admin' ? 'You: ' : '') + body;
+    } else {
+      preview = u.email || '';
+    }
+    const cls = 'wa-item' + (u.uid === activeChatUid ? ' active' : '') + (unread ? ' unread' : '');
+    return `
+      <div class="${cls}" data-uid="${escapeHtml(u.uid)}">
+        <div class="wa-avatar" style="background:${CC.avatarColor(u.uid)};">${escapeHtml(name.charAt(0).toUpperCase())}</div>
+        <div class="wa-item-body">
+          <div class="wa-item-top">
+            <span class="wa-item-name">${escapeHtml(name)}</span>
+            <span class="wa-item-time">${s ? CC.listTime(s.last_time) : ''}</span>
+          </div>
+          <div class="wa-item-bottom">
+            <span class="wa-item-prev">${escapeHtml(preview)}</span>
+            ${unread ? `<span class="wa-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderChatList() {
+    const list = document.getElementById('adminChatUsersList');
+    if (!list || !CC) return;
+
+    const query = ((document.getElementById('waSearch') || {}).value || '').trim().toLowerCase();
+    const byUid = new Map(allUsersList.map(u => [u.uid, u]));
+    const matches = (u) => (u.name || '').toLowerCase().includes(query) || (u.email || '').toLowerCase().includes(query);
+
+    // sirf wo log jinse baat hui hai — sabse recent message sabse upar (WhatsApp ki tarah)
+    let rows = chatSummaries
+      .map(s => ({ s, u: byUid.get(s.user_id) }))
+      .filter(r => r.u)
+      .sort((a, b) => new Date(b.s.last_time) - new Date(a.s.last_time));
+
+    if (chatFilter === 'unread') rows = rows.filter(r => Number(r.s.unread_count) > 0);
+    if (query) rows = rows.filter(r => matches(r.u));
+
+    let html = rows.map(r => chatItemHtml(r.u, r.s)).join('');
+
+    // search karne par un clients ko bhi dikhao jinse abhi tak koi chat nahi hui (new chat shuru karne ke liye)
+    if (query && chatFilter === 'all') {
+      const chatted = new Set(chatSummaries.map(s => s.user_id));
+      const others = allUsersList.filter(u => u.role === 'client' && !chatted.has(u.uid) && matches(u)).slice(0, 20);
+      if (others.length) {
+        html += '<div class="wa-sec">Start a new chat</div>' + others.map(u => chatItemHtml(u, null)).join('');
+      }
+    }
+
+    if (!html) {
+      html = `<div class="wa-none">${query ? 'No matching users.' : (chatFilter === 'unread' ? 'No unread chats 🎉' : 'No conversations yet.<br>Search a user above to start one.')}</div>`;
+    }
+    list.innerHTML = html;
+
+    // dashboard stats
+    const activeChatsElem = document.getElementById('statActiveChats');
+    const unreadElem = document.getElementById('statUnreadMessages');
+    if (activeChatsElem) activeChatsElem.textContent = chatSummaries.length;
+    if (unreadElem) unreadElem.textContent = chatSummaries.reduce((n, s) => n + (Number(s.unread_count) || 0), 0);
+
+    // sidebar "Chat" button par unread dot
+    const navBtn = document.getElementById('nav-chat-btn');
+    if (navBtn) {
+      const total = chatSummaries.reduce((n, s) => n + (Number(s.unread_count) || 0), 0);
+      let pill = navBtn.querySelector('.wa-nav-pill');
+      if (total > 0) {
+        if (!pill) {
+          pill = document.createElement('span');
+          pill.className = 'wa-nav-pill';
+          pill.style.cssText = 'margin-left:auto;background:#ef4444;color:#fff;font-size:.65rem;font-weight:800;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 5px;';
+          navBtn.appendChild(pill);
+        }
+        pill.textContent = total > 99 ? '99+' : total;
+      } else if (pill) {
+        pill.remove();
+      }
+    }
   }
 
   async function refreshChatUsersList() {
-    const list = document.getElementById('adminChatUsersList');
-    if (!list) return;
-    const clients = allUsersList.filter(u => u.role === 'client');
-    if (!clients.length) {
-      list.innerHTML = '<div style="padding:16px; color:var(--text-muted); font-size:0.8rem;">No clients yet.</div>';
-      return;
-    }
-
-    const authApi = await waitForSogoAuth;
-    const previews = await Promise.all(clients.map(async (u) => {
-      try {
-        const thread = await authApi.getChatThread(u.email);
-        const last = thread && thread.length ? thread[thread.length - 1] : null;
-        const unread = (thread || []).some(m => m.from === 'client' && !m.read);
-        return { email: u.email, name: u.name || u.email, last, unread };
-      } catch (e) {
-        return { email: u.email, name: u.name || u.email, last: null, unread: false };
-      }
-    }));
-
-    list.innerHTML = previews.map(p => {
-      const initial = (p.name || '?').charAt(0).toUpperCase();
-      const isActive = p.email === activeChatEmail;
-      const previewText = p.last ? (isImageUrl(p.last.text) ? '📷 Photo' : p.last.text) : 'No messages yet';
-      const time = p.last ? formatChatTimeAdmin(p.last.time) : '';
-      return `
-        <div class="chat-user-item ${isActive ? 'active' : ''}" onclick="openAdminChat('${escapeHtml(p.email)}', '${escapeHtml(p.name)}')">
-          <div class="chat-user-avatar">${escapeHtml(initial)}</div>
-          <div class="chat-user-meta">
-            <div class="chat-user-name-row">
-              <span class="chat-user-name">${escapeHtml(p.name)}</span>
-              <span class="chat-user-time">${time}</span>
-            </div>
-            <div class="chat-user-preview">${escapeHtml(previewText)}</div>
-          </div>
-          ${p.unread ? '<div class="chat-unread-dot"></div>' : ''}
-        </div>
-      `;
-    }).join('');
+    CC = CC || await waitForChatCore;
+    if (!CC) return;
+    chatSummaries = await CC.fetchSummaries();
+    renderChatList();
   }
 
-  window.openAdminChat = async function (email, displayName) {
-    activeChatEmail = email;
+  window.openAdminChatByUid = async function (uid) {
+    CC = CC || await waitForChatCore;
+    if (!CC) return;
+    const u = allUsersList.find(x => x.uid === uid);
+    if (!u) return;
+
+    if (adminThreadCtl) { adminThreadCtl.destroy(); adminThreadCtl = null; }
+    activeChatUid = uid;
+    activeChatEmail = u.email;
+
+    const name = u.name || u.email;
     const headerName = document.getElementById('adminChatHeaderName');
+    const headerSub = document.getElementById('adminChatHeaderSub');
     const headerAvatar = document.getElementById('adminChatHeaderAvatar');
-    if (headerName) headerName.textContent = displayName;
-    if (headerAvatar) headerAvatar.textContent = (displayName || '?').charAt(0).toUpperCase();
+    if (headerName) headerName.textContent = name;
+    if (headerSub) headerSub.textContent = u.email || '';
+    if (headerAvatar) {
+      headerAvatar.textContent = name.charAt(0).toUpperCase();
+      headerAvatar.style.background = CC.avatarColor(uid);
+    }
+    document.getElementById('waEmpty').classList.add('wa-hide');
+    document.getElementById('waThread').classList.remove('wa-hide');
+    document.getElementById('waLayout').classList.add('in-thread');
 
-    const authApi = await waitForSogoAuth;
-    authApi.listenChatThread(email, renderAdminChatMessages);
-    await authApi.markChatRead(email);
-    await refreshChatUsersList();
-  };
+    // list mein unread foran 0 dikhao
+    const s = chatSummaries.find(x => x.user_id === uid);
+    if (s) s.unread_count = 0;
+    renderChatList();
 
-window.adminJumpToChat = function (email, displayName) {
-  const chatNavBtn = document.querySelector('.nav-item button[onclick*="\'chat\'"]');
-  switchTab('chat', chatNavBtn);
-  openAdminChat(email, displayName);
-};
-
-window.adminJumpToReviews = function (email) {
-  const reviewsNavBtn = document.querySelector('.nav-item button[onclick*="\'received-reviews\'"]');
-  switchTab('received-reviews', reviewsNavBtn);
-  const searchInput = document.getElementById('reviewsSearchInput');
-  if (searchInput) {
-    searchInput.value = email;
-    renderReviewsTableAdmin();
-  }
-};
-
-  function renderAdminChatMessages(messages) {
     const box = document.getElementById('adminChatMessages');
-    if (!box) return;
-    box.innerHTML = (messages || []).map(m => {
-      const fromAdmin = m.from === 'admin';
-      const rowClass = fromAdmin ? 'mine' : 'theirs';
-      const time = formatChatTimeAdmin(m.time);
-      if (isImageUrl(m.text)) {
-        return `
-          <div class="msg-row-admin ${rowClass}">
-            <a href="${escapeHtml(m.text)}" target="_blank" rel="noopener" class="msg-image-wrap-admin">
-              <img src="${escapeHtml(m.text)}" loading="lazy" alt="Photo">
-            </a>
-            ${time ? `<div class="msg-time-admin">${time}</div>` : ''}
-          </div>
-        `;
-      }
-      return `
-        <div class="msg-row-admin ${rowClass}">
-          <div class="msg-bubble-admin">${escapeHtml(m.text)}</div>
-          ${time ? `<div class="msg-time-admin">${time}</div>` : ''}
-        </div>
-      `;
-    }).join('');
-    box.scrollTop = box.scrollHeight;
-    refreshChatUsersList();
-  }
+    box.innerHTML = '';
+    adminThreadCtl = CC.mountThread({
+      container: box,
+      uid,
+      me: 'admin',
+      isActive: chatTabIsOpen,
+      onRead: () => debouncedChatList(),
+      onActivity: () => debouncedChatList()
+    });
 
-  window.sendAdminChatMessage = async function () {
     const input = document.getElementById('adminChatInput');
-    if (!input || !activeChatEmail) return;
-    const text = input.value.trim();
-    if (!text) return;
-    input.value = '';
-    const authApi = await waitForSogoAuth;
-    await authApi.sendChatMessage(activeChatEmail, 'admin', text);
+    if (input) input.focus();
   };
 
-  window.sendAdminChatAttachment = async function (inputEl) {
-    const msg = document.getElementById('adminChatAttachMsg');
-    const attachBtn = document.getElementById('adminChatAttachBtn');
-    const file = inputEl && inputEl.files && inputEl.files[0];
-    if (!file || !activeChatEmail) return;
+  // purane code se compatibility (Message button / adminJumpToChat)
+  window.openAdminChat = function (email) {
+    const u = allUsersList.find(x => (x.email || '').toLowerCase() === (email || '').toLowerCase());
+    if (u) return window.openAdminChatByUid(u.uid);
+  };
 
-    if (attachBtn) attachBtn.disabled = true;
-    if (msg) { msg.style.display = 'block'; msg.style.color = '#64748b'; msg.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Sending photo…'; }
+  window.adminJumpToChat = function (email, displayName) {
+    const chatNavBtn = document.querySelector('.nav-item button[onclick*="\'chat\'"]');
+    switchTab('chat', chatNavBtn);
+    window.openAdminChat(email, displayName);
+  };
 
-    const authApi = await waitForSogoAuth;
-    try {
-      const result = await authApi.sendChatAttachment(activeChatEmail, 'admin', file);
-      if (!result.ok) throw new Error(result.message || 'Upload failed.');
-      if (msg) msg.style.display = 'none';
-    } catch (e) {
-      if (msg) { msg.textContent = e.message || 'Could not send photo.'; msg.style.color = '#dc2626'; msg.style.display = 'block'; }
-    } finally {
-      if (attachBtn) attachBtn.disabled = false;
-      inputEl.value = '';
+  window.adminJumpToReviews = function (email) {
+    const reviewsNavBtn = document.querySelector('.nav-item button[onclick*="\'received-reviews\'"]');
+    switchTab('received-reviews', reviewsNavBtn);
+    const searchInput = document.getElementById('reviewsSearchInput');
+    if (searchInput) {
+      searchInput.value = email;
+      renderReviewsTableAdmin();
     }
   };
+
+  // ---- one-time wiring ----
+  (async function initAdminChatUi() {
+    CC = await waitForChatCore;
+    if (!CC) { console.error('chat-core.js did not load.'); return; }
+
+    const list = document.getElementById('adminChatUsersList');
+    if (list) list.addEventListener('click', (e) => {
+      const item = e.target.closest('.wa-item');
+      if (item) window.openAdminChatByUid(item.dataset.uid);
+    });
+
+    const search = document.getElementById('waSearch');
+    if (search) search.addEventListener('input', renderChatList);
+
+    document.querySelectorAll('#waChips .wa-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        chatFilter = btn.dataset.f;
+        document.querySelectorAll('#waChips .wa-chip').forEach(b => b.classList.toggle('active', b === btn));
+        renderChatList();
+      });
+    });
+
+    const back = document.getElementById('waBack');
+    if (back) back.addEventListener('click', () => document.getElementById('waLayout').classList.remove('in-thread'));
+
+    CC.bindComposer({
+      input: document.getElementById('adminChatInput'),
+      sendBtn: document.getElementById('adminChatSendBtn'),
+      attachBtn: document.getElementById('adminChatAttachBtn'),
+      fileInput: document.getElementById('adminChatAttachInput'),
+      getCtl: () => adminThreadCtl
+    });
+
+    // Chat tab dobara kholne par bottom par jao + seen mark karo
+    const origSwitchTab = window.switchTab;
+    window.switchTab = function (tabId, el) {
+      origSwitchTab(tabId, el);
+      if (tabId === 'chat' && adminThreadCtl) adminThreadCtl.activated();
+    };
+
+    renderChatList();
+  })();
+
 
 bootstrapAdminDashboard();
 

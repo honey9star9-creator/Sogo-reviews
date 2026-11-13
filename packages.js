@@ -411,8 +411,9 @@ async function uploadPaymentProof(uid, userPackageId, file) {
   try {
     if (!file) return { ok: false, message: 'No file selected.' };
 
-    const path = `${uid}/${userPackageId}-${Date.now()}-${file.name}`;
-    const { error: uploadErr } = await supabase.storage
+    const safeName = (file.name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path = `${uid}/${userPackageId}-${Date.now()}-${safeName}`;
+        const { error: uploadErr } = await supabase.storage
       .from('payment-proofs')
       .upload(path, file, { upsert: true });
     if (uploadErr) throw uploadErr;
@@ -449,17 +450,23 @@ async function uploadPaymentProof(uid, userPackageId, file) {
 // ============================================================
 
 // 10. Admin ke liye TAMAM users ke packages laayein (har user ka nahi, sab ka)
+let _allUserPackagesInflight = null;
 async function getAllUserPackages() {
-  const { data, error } = await supabase
-    .from('user_packages')
-    .select('*')
-    .order('joinedAt', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching all user packages:', error);
-    return [];
-  }
-  return data || [];
+  // Subscriptions aur Payments dono ek saath mangte hain -> ek hi query share hoti hai
+  if (_allUserPackagesInflight) return _allUserPackagesInflight;
+  _allUserPackagesInflight = (async () => {
+    const { data, error } = await supabase
+      .from('user_packages')
+      .select('*')
+      .order('joinedAt', { ascending: false });
+    if (error) {
+      console.error('Error fetching all user packages:', error);
+      return [];
+    }
+    return data || [];
+  })();
+  try { return await _allUserPackagesInflight; }
+  finally { _allUserPackagesInflight = null; }
 }
 
 // 11. Kisi subscription ka status seedha set karein (deactivate / reactivate / activate)

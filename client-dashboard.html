@@ -10,15 +10,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- Supabase CDN + Config + Custom Scripts -->
-  <link rel="modulepreload" href="./supabase-config.js">
-<link rel="modulepreload" href="auth.js">
-<link rel="modulepreload" href="packages.js">
 <link rel="modulepreload" href="./supabase-config.js">
 <link rel="modulepreload" href="auth.js">
 <link rel="modulepreload" href="packages.js">
 <script type="module" src="./supabase-config.js"></script>
 <script type="module" src="auth.js"></script>
 <script type="module" src="packages.js"></script>
+<link rel="stylesheet" href="chat.css">
+<script type="module" src="chat-core.js"></script>
 
   <style>
     /* 3D Duo-Tone Theme Variables */
@@ -826,7 +825,7 @@
         <li class="nav-item" onclick="switchTab('mypackages', this)"><i class="fa-solid fa-cubes"></i> My Packages</li>
         <li class="nav-item" onclick="switchTab('reviews', this)"><i class="fa-solid fa-star"></i> Reviews</li>
         <li class="nav-item" onclick="switchTab('withdraw', this)"><i class="fa-solid fa-wallet"></i> Withdraw</li>
-        <li class="nav-item" onclick="switchTab('chat', this)"><i class="fa-solid fa-message"></i> Chat</li>
+        <li class="nav-item" onclick="switchTab('chat', this)"><i class="fa-solid fa-message"></i> Chat <span class="notif-badge chat-unread-pill" style="display:none;position:static;margin-left:auto;">0</span></li>
         <li class="nav-item" onclick="switchTab('profile', this)"><i class="fa-solid fa-gear"></i> Profile Settings</li>
       </ul>
     </div>
@@ -1078,24 +1077,27 @@
 
     <!-- 6. CHAT VIEW -->
     <div id="tab-chat" class="view-section">
-      <div class="card chat-card">
-        <div class="chat-header-row">
-          <div class="avatar" style="width: 36px; height: 36px; font-size: 14px;">O</div>
-          <div>
-            <div style="font-size: 13px; font-weight: 800; color: #fff;">LIVE SUPPORT</div>
-            <div style="font-size: 10px; color: #2ecc71; font-weight: 700;">● ONLINE · 24/7</div>
+      <div class="wa wa-dark wa-layout single">
+        <section class="wa-main">
+          <div class="wa-thread">
+            <div class="wa-head">
+              <div class="wa-avatar" style="background:linear-gradient(135deg,#d9a05b,#99682c);color:#0c0b10;">S</div>
+              <div class="wa-head-meta">
+                <div class="wa-head-name">LIVE SUPPORT</div>
+                <div class="wa-head-sub online">● Online · 24/7</div>
+              </div>
+            </div>
+            <div class="wa-chatwrap">
+              <div class="wa-messages" id="chatMessages"></div>
+            </div>
+            <div class="wa-composer">
+              <button type="button" class="wa-ibtn" id="chatAttachBtn" title="Send a photo"><i class="fa-solid fa-paperclip"></i></button>
+              <input type="file" id="chatAttachInput" accept="image/*" style="display:none;">
+              <textarea id="chatInput" rows="1" placeholder="Type your message..."></textarea>
+              <button type="button" class="wa-ibtn send" id="chatSendBtn" title="Send"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
           </div>
-        </div>
-        <div id="chatMessages" class="chat-body"></div>
-        <p id="chatAttachMsg" class="chat-status-line" style="display:none;"></p>
-        <div class="chat-footer">
-          <button class="chat-attach-btn" id="chatAttachBtn" onclick="document.getElementById('chatAttachInput').click()" title="Send a photo">
-            <i class="fa-solid fa-paperclip"></i>
-          </button>
-          <input type="file" id="chatAttachInput" accept="image/*" style="display:none;" onchange="sendClientChatAttachment(this)">
-          <input type="text" id="chatInput" class="input-field" placeholder="Type your message..." onkeydown="if(event.key==='Enter'){sendClientChat();}">
-          <button class="chat-send-btn" onclick="sendClientChat()"><i class="fa-solid fa-paper-plane"></i></button>
-        </div>
+        </section>
       </div>
     </div>
 
@@ -1168,9 +1170,10 @@
       <i class="fa-solid fa-star"></i>
       <span>Reviews</span>
     </div>
-    <div class="bottom-nav-item" data-tab="chat" onclick="switchTab('chat', this)">
+    <div class="bottom-nav-item" data-tab="chat" onclick="switchTab('chat', this)" style="position:relative;">
       <i class="fa-solid fa-message"></i>
       <span>Chat</span>
+      <span class="notif-badge chat-unread-pill" style="display:none;top:6px;right:calc(50% - 24px);">0</span>
     </div>
     <div class="bottom-nav-item" data-tab="profile" onclick="switchTab('profile', this)">
       <i class="fa-solid fa-gear"></i>
@@ -2137,7 +2140,7 @@ async function submitLockTopupRequest(amount) {
 
     async function renderMyWithdrawals() {
       if (!currentSession) return;
-      const list = (await SogoAuth.getWithdrawals()).filter(w => w.email.toLowerCase() === currentSession.email.toLowerCase()).reverse();
+      const list = (await SogoAuth.getMyWithdrawals(currentSession.email)).reverse();
       const container = document.getElementById('myWithdrawalsList');
       const txBody = document.getElementById('transactionHistoryBody');
       const txCount = document.getElementById('transactionHistoryCount');
@@ -2182,100 +2185,75 @@ async function submitLockTopupRequest(amount) {
       }
     }
 
-    function isImageUrl(text) {
-      const t = (text || '').trim();
-      if (!/^https?:\/\//i.test(t)) return false;
-      if (/\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(t)) return true;
-      return /\/chat-attachments\//i.test(t);
+        /* ---------------- CHAT (WhatsApp-style) ----------------
+       Ye poora block client-dashboard.html ke purane chat functions ko replace karta hai
+       (isImageUrl, formatChatTime, renderChatMessages, renderChat, stopChatListener,
+        startChatListener, sendClientChat, sendClientChatAttachment). */
+    const waitForChatCore = new Promise((resolve) => {
+      const started = Date.now();
+      const ready = () => {
+        if (window.ChatCore) return resolve(window.ChatCore);
+        if (Date.now() - started > 10000) return resolve(null);
+        window.setTimeout(ready, 25);
+      };
+      ready();
+    });
+
+    let clientChatCtl = null;
+    let clientComposerBound = false;
+
+    function chatTabIsOpen() {
+      const el = document.getElementById('tab-chat');
+      return !!(el && el.classList.contains('active'));
     }
 
-    function formatChatTime(iso) {
-      if (!iso) return '';
-      const d = new Date(iso);
-      if (isNaN(d)) return '';
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-
-    function renderChatMessages(thread) {
-      const box = document.getElementById('chatMessages');
-      if (!box) return;
-      const welcome = `<div class="msg-row theirs"><div class="msg-bubble">Welcome to SOGO Reviews. How can we help?</div></div>`;
-      const msgsHtml = (thread || []).map(m => {
-        const mine = m.from === 'client';
-        const rowClass = mine ? 'mine' : 'theirs';
-        const time = formatChatTime(m.time);
-        if (isImageUrl(m.text)) {
-          return `
-            <div class="msg-row ${rowClass}">
-              <a href="${escapeHtmlC(m.text)}" target="_blank" rel="noopener" class="msg-image-wrap">
-                <img src="${escapeHtmlC(m.text)}" loading="lazy" alt="Photo">
-              </a>
-              ${time ? `<div class="msg-time">${time}</div>` : ''}
-            </div>
-          `;
-        }
-        return `
-          <div class="msg-row ${rowClass}">
-            <div class="msg-bubble">${escapeHtmlC(m.text)}</div>
-            ${time ? `<div class="msg-time">${time}</div>` : ''}
-          </div>
-        `;
-      }).join('');
-      box.innerHTML = welcome + msgsHtml;
-      box.scrollTop = box.scrollHeight;
-    }
-
-    async function renderChat() {
-      if (!currentSession) return;
-      const thread = await SogoAuth.getChatThread(currentSession.email);
-      renderChatMessages(thread);
+    function setChatUnread(n) {
+      document.querySelectorAll('.chat-unread-pill').forEach(el => {
+        el.textContent = n > 9 ? '9+' : String(n);
+        el.style.display = n > 0 ? 'flex' : 'none';
+      });
     }
 
     function stopChatListener() {
-      if (typeof chatUnsubscribe === 'function') chatUnsubscribe();
-      chatUnsubscribe = null;
+      if (clientChatCtl) { clientChatCtl.destroy(); clientChatCtl = null; }
     }
 
-    async function startChatListener(authApi) {
+    // NOTE: bootstrap mein ise `await` mat karein — chat background mein load hoti hai,
+    // dashboard ko block nahi karti.
+    async function startChatListener() {
       stopChatListener();
-      if (!currentSession || typeof authApi.listenChatThread !== 'function') {
-        await renderChat();
-        return;
-      }
-      chatUnsubscribe = await authApi.listenChatThread(currentSession.email, renderChatMessages);
-    }
+      if (!currentSession) return;
+      const CC = await waitForChatCore;
+      if (!CC) { console.error('chat-core.js did not load.'); return; }
 
-    async function sendClientChat() {
-      const input = document.getElementById('chatInput');
-      const text = input.value.trim();
-      if (!text || !currentSession) return;
-      input.value = '';
-      // CHANGED: yahan se explicit renderChat() hata diya — active realtime
-      // listener khud hi naya message turant chat mein add kar dega, dobara
-      // fetch karne se ulta flicker/delay hota tha.
-      await SogoAuth.sendChatMessage(currentSession.email, 'client', text);
-    }
+      const box = document.getElementById('chatMessages');
+      if (!box) return;
+      clientChatCtl = CC.mountThread({
+        container: box,
+        uid: currentSession.uid,
+        me: 'client',
+        emptyText: 'Welcome to SOGO Reviews. How can we help?',
+        notify: { name: currentSession.name, email: currentSession.email },
+        isActive: chatTabIsOpen,
+        onUnreadChange: setChatUnread
+      });
 
-    async function sendClientChatAttachment(inputEl) {
-      const msg = document.getElementById('chatAttachMsg');
-      const attachBtn = document.getElementById('chatAttachBtn');
-      const file = inputEl && inputEl.files && inputEl.files[0];
-      if (!file || !currentSession) return;
+      if (!clientComposerBound) {
+        clientComposerBound = true;
+        CC.bindComposer({
+          input: document.getElementById('chatInput'),
+          sendBtn: document.getElementById('chatSendBtn'),
+          attachBtn: document.getElementById('chatAttachBtn'),
+          fileInput: document.getElementById('chatAttachInput'),
+          getCtl: () => clientChatCtl
+        });
 
-      if (attachBtn) attachBtn.disabled = true;
-      if (msg) { msg.style.display = 'block'; msg.style.color = 'var(--text-muted)'; msg.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Sending photo…'; }
-
-      try {
-        const result = await SogoAuth.sendChatAttachment(currentSession.email, 'client', file);
-        if (!result.ok) throw new Error(result.message || 'Upload failed.');
-        if (msg) msg.style.display = 'none';
-        // CHANGED: same reasoning as sendClientChat() — realtime listener
-        // khud photo add kar dega, dobara fetch ki zaroorat nahi.
-      } catch (e) {
-        if (msg) { msg.textContent = e.message || 'Could not send photo.'; msg.style.color = '#e74c3c'; msg.style.display = 'block'; }
-      } finally {
-        if (attachBtn) attachBtn.disabled = false;
-        inputEl.value = '';
+        // Chat tab khulne par bottom par jao aur admin ke messages "seen" mark karo
+        const origSwitchTab = window.switchTab;
+        window.switchTab = function (tabId, el) {
+          origSwitchTab(tabId, el);
+          if (tabId === 'chat' && clientChatCtl) clientChatCtl.activated();
+        };
       }
     }
 
@@ -2293,9 +2271,7 @@ async function submitLockTopupRequest(amount) {
 
     async function renderMyTopups() {
       if (!currentSession) return;
-      const list = (await SogoAuth.getTopups())
-        .filter(t => t.email.toLowerCase() === currentSession.email.toLowerCase())
-        .reverse();
+      const list = (await SogoAuth.getMyTopups(currentSession.email)).reverse();
       const card = document.getElementById('myTopupsCard');
       const container = document.getElementById('myTopupsList');
       if (!card || !container) return;
@@ -2372,7 +2348,7 @@ async function submitLockTopupRequest(amount) {
         renderReviewsTab(),
         refreshNotifications()
       ]);
-      await startChatListener(authApi);
+      startChatListener();   // await nahi — chat background mein load hoti hai, dashboard block nahi hota
 
       // CHANGED: notifications ab realtime hain — 30s wait nahi karna
       // padega, foran update aa jayega jaise hi koi notification row change ho.

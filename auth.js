@@ -290,8 +290,8 @@ const SogoAuth = (() => {
     if (!session || !session.user) return null;
     const profile = await getUserDoc(session.user.id);
     if (!profile) return null;
-    return { uid: session.user.id, email: profile.email, name: profile.name, role: profile.role };
-  }
+    return { uid: session.user.id, email: profile.email, name: profile.name, role: profile.role, blocked: !!profile.blocked };
+    }
 
   async function requireRole(role) {
     const session = await getSession();
@@ -299,8 +299,7 @@ const SogoAuth = (() => {
       window.location.href = "auth.html";
       return null;
     }
-    const fresh = await getUserDoc(session.uid);
-    if (!fresh || fresh.blocked) {
+        if (session.blocked) {
       await logout();
       return null;
     }
@@ -324,8 +323,9 @@ const SogoAuth = (() => {
   }
 
   async function getPasswordRequests() {
-    const { data } = await supabase.from(PW_REQUESTS_COL).select('*');
-    return data || [];
+    const { data } = await supabase.from(PW_REQUESTS_COL).select('*')
+      .order('requested_at', { ascending: false }).limit(200);
+    return (data || []).reverse();
   }
 
   async function fulfillPasswordRequest(id) {
@@ -344,8 +344,16 @@ const SogoAuth = (() => {
   }
 
   async function getUsers() {
-    const { data } = await supabase.from(USERS_COL).select('*');
-    return (data || []).map(d => ({ uid: d.id, ...d }));
+    const all = [];
+    const size = 1000;
+    for (let from = 0; ; from += size) {
+      const { data, error } = await supabase.from(USERS_COL).select('*')
+        .order('created_at', { ascending: false }).range(from, from + size - 1);
+      if (error || !data) break;
+      all.push(...data);
+      if (data.length < size) break;
+    }
+    return all.map(d => ({ uid: d.id, ...d }));
   }
 
   async function updateUser(email, changes) {
@@ -482,48 +490,60 @@ const SogoAuth = (() => {
     return data || [];
   }
 
+  function sortThread(list) {
+    return list.slice().sort((a, b) => {
+      const ta = new Date(a.time).getTime(), tb = new Date(b.time).getTime();
+      if (ta !== tb) return ta - tb;
+      return a.id > b.id ? 1 : a.id < b.id ? -1 : 0;
+    });
+  }
+  function mergeMsg(thread, msg) {
+    const i = thread.findIndex(m => m.id === msg.id);
+    if (i >= 0) { const c = thread.slice(); c[i] = msg; return c; }
+    return sortThread([...thread, msg]);
+  }
+
   async function listenChatThread(clientEmail, callback) {
     const user = await getUserByEmail(clientEmail);
-    if (!user) {
-      callback([]);
-      return () => {}; // no-op unsubscribe so callers can always call it safely
-    }
+    if (!user) { callback([]); return () => {}; }
 
-    // CHANGED: ab poora thread har message pe dobara fetch nahi karte —
-    // realtime payload mein khud naya/updated row already mojood hota hai,
-    // usay seedha local list mein patch kar dete hain. Yehi extra DB
-    // round-trip WhatsApp jaisi speed na milne ki wajah thi.
-    let thread = await getChatThread(clientEmail);
-    callback(thread);
+    let thread = [];
+    let ready = false;
+    let closed = false;
+    let buffer = [];
 
-    // Unique channel name (per call) so opening the same user's chat twice
-    // (e.g. admin clicking around) never collides with a still-open channel.
+    const onRow = (row) => {
+      if (closed) return;
+      if (!ready) { buffer.push(row); return; }
+      thread = mergeMsg(thread, row);
+      callback(thread);
+    };
+
     const channel = supabase
       .channel(`messages-${user.uid}-${Date.now()}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: MESSAGES_COL,
-        filter: `user_id=eq.${user.uid}`
-      }, (payload) => {
-        thread = [...thread, payload.new];
-        callback(thread);
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: MESSAGES_COL,
-        filter: `user_id=eq.${user.uid}`
-      }, (payload) => {
-        thread = thread.map(m => m.id === payload.new.id ? payload.new : m);
-        callback(thread);
-      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: MESSAGES_COL, filter: `user_id=eq.${user.uid}` }, p => onRow(p.new))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: MESSAGES_COL, filter: `user_id=eq.${user.uid}` }, p => onRow(p.new))
       .subscribe();
 
-    // CHANGED: actually return an unsubscribe function. Previously this
-    // function returned nothing, so every caller's `chatUnsubscribe` was
-    // always undefined and old realtime channels were never cleaned up.
-    return () => { supabase.removeChannel(channel); };
+    const { data } = await supabase
+      .from(MESSAGES_COL).select('*')
+      .eq('user_id', user.uid)
+      .order('time', { ascending: true })
+      .order('id', { ascending: true });
+
+    thread = sortThread(data || []);
+    buffer.forEach(r => { thread = mergeMsg(thread, r); });
+    buffer = [];
+    ready = true;
+    if (!closed) callback(thread);
+
+    return () => { closed = true; supabase.removeChannel(channel); };
+  }
+
+  async function getChatSummaries() {
+    const { data, error } = await supabase.rpc('admin_chat_summaries');
+    if (error) { console.error('getChatSummaries failed:', error.message); return []; }
+    return data || [];
   }
 
   async function sendChatMessage(clientEmail, from, text) {
@@ -533,7 +553,6 @@ const SogoAuth = (() => {
       user_id: user.uid,
       from,
       text,
-      time: new Date().toISOString(),
       read: from === "admin"
     }]);
     if (from === "client") {
@@ -572,11 +591,10 @@ const SogoAuth = (() => {
       const publicUrl = pub ? pub.publicUrl : '';
       if (!publicUrl) throw new Error('Could not get public URL for uploaded file.');
 
-           await supabase.from(MESSAGES_COL).insert([{
+      await supabase.from(MESSAGES_COL).insert([{
         user_id: user.uid,
         from,
         text: publicUrl,
-        time: new Date().toISOString(),
         read: from === 'admin'
       }]);
 
@@ -592,39 +610,13 @@ const SogoAuth = (() => {
     }
   }
 
-  async function getUnreadMessageCount() {
-    const users = (await getUsers()).filter(u => u.role === "client");
-    let totalUnread = 0;
-    for (const u of users) {
-      const { count } = await supabase
-        .from(MESSAGES_COL)
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', u.uid)
-        .eq('from', 'client')
-        .eq('read', false);
-      if (count) totalUnread += count;
-    }
-    return totalUnread;
-  }
-
-  async function getActiveChatsCount() {
-    const users = (await getUsers()).filter(u => u.role === "client");
-    let activeCount = 0;
-    for (const u of users) {
-      const { count } = await supabase
-        .from(MESSAGES_COL)
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', u.uid);
-      if (count && count > 0) activeCount++;
-    }
-    return activeCount;
-  }
 
   /* ---------------- withdrawals ---------------- */
 
   async function getWithdrawals() {
-    const { data } = await supabase.from(WITHDRAWALS_COL).select('*');
-    return data || [];
+    const { data } = await supabase.from(WITHDRAWALS_COL).select('*')
+      .order('requested_at', { ascending: false }).limit(300);
+    return (data || []).reverse();   // pehle jaisa order, admin ka .reverse() sahi chalta rahe
   }
 
   async function requestWithdrawal(email, name, amount, accountDetails) {
@@ -683,8 +675,23 @@ const SogoAuth = (() => {
   /* ---------------- top-ups ---------------- */
 
   async function getTopups() {
-    const { data } = await supabase.from(TOPUPS_COL).select('*');
-    return data || [];
+    const { data } = await supabase.from(TOPUPS_COL).select('*')
+      .order('requested_at', { ascending: false }).limit(300);
+    return (data || []).reverse();
+  }
+
+  async function getMyWithdrawals(email) {
+    const { data } = await supabase.from(WITHDRAWALS_COL).select('*')
+      .eq('email', normalizeEmail(email))
+      .order('requested_at', { ascending: false }).limit(50);
+    return (data || []).reverse();
+  }
+
+  async function getMyTopups(email) {
+    const { data } = await supabase.from(TOPUPS_COL).select('*')
+      .eq('email', normalizeEmail(email))
+      .order('requested_at', { ascending: false }).limit(50);
+    return (data || []).reverse();
   }
 
   async function requestTopup(email, name, amount, note) {
@@ -738,17 +745,17 @@ const SogoAuth = (() => {
 
   /* ---------------- activity log ---------------- */
   async function getActivity() {
-    const { data } = await supabase.from(ACTIVITY_COL).select('*').order('time', { ascending: false });
-    return data || [];
+    const { data } = await supabase.from(ACTIVITY_COL).select('*').order('time', { ascending: false }).limit(200);
+        return data || [];
   }
 
   return {
     login, signup, logout, getSession, requireRole, redirectForRole, impersonate,
     getUserDoc, getUserByEmail, updateUserByUid, seedDefaultAdminOnce,
     getUsers, updateUser, deleteUser, adminCreateUser, setInviteCode,
-    getChatThread, listenChatThread, sendChatMessage, sendChatAttachment, markChatRead, getUnreadMessageCount, getActiveChatsCount,
-    getWithdrawals, requestWithdrawal, updateWithdrawal,
-    getTopups, requestTopup, updateTopup,
+    getChatThread, listenChatThread, getChatSummaries, sendChatMessage, sendChatAttachment, markChatRead,
+    getWithdrawals, getMyWithdrawals, requestWithdrawal, updateWithdrawal,
+    getTopups, getMyTopups, requestTopup, updateTopup,
     getPasswordRequests, requestPasswordReset, fulfillPasswordRequest, dismissPasswordRequest,
     getActivity, logActivity,
      getMyNotifications, getUnreadNotificationCount, markAllNotificationsRead, sendManualNotification, notifyUser, notifyAllAdmins, listenMyNotifications
